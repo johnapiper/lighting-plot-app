@@ -867,6 +867,53 @@ export default function Canvas({
     return () => window.removeEventListener('keydown', handler);
   }, [selectedId, selectedIds, drawing]);
 
+  // ── Zoom to fit all content ──────────────────────────────────────────────
+  function fitView() {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    // Collect all bounding points from every object type
+    const pts = [];
+    const PAD = 80; // world-unit padding around content
+
+    fixtures.forEach(f => { pts.push({ x: f.x - 30, y: f.y - 30 }, { x: f.x + 30, y: f.y + 30 }); });
+    pipes.forEach(p => { pts.push({ x: p.x1, y: p.y1 }, { x: p.x2, y: p.y2 }); });
+    lines.forEach(l => { pts.push({ x: l.x1, y: l.y1 }, { x: l.x2, y: l.y2 }); });
+    rectangles.forEach(r => { pts.push({ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y + r.h }); });
+    texts.forEach(t => { pts.push({ x: t.x, y: t.y }); });
+    annotations.forEach(a => { pts.push({ x: a.x, y: a.y }, { x: a.x + (a.w || 120), y: a.y + (a.h || 50) }); });
+    images.forEach(i => { pts.push({ x: i.x, y: i.y }, { x: i.x + i.w, y: i.y + i.h }); });
+    infrastructure.forEach(i => { pts.push({ x: i.x - 20, y: i.y - 20 }, { x: i.x + 20, y: i.y + 20 }); });
+    if (pdfBackground) pts.push(
+      { x: pdfBackground.x, y: pdfBackground.y },
+      { x: pdfBackground.x + pdfBackground.w, y: pdfBackground.y + pdfBackground.h }
+    );
+
+    if (pts.length === 0) {
+      // Empty drawing — reset to origin
+      onZoomChange(1); onPanChange({ x: 100, y: 100 }); return;
+    }
+
+    const minX = Math.min(...pts.map(p => p.x)) - PAD;
+    const minY = Math.min(...pts.map(p => p.y)) - PAD;
+    const maxX = Math.max(...pts.map(p => p.x)) + PAD;
+    const maxY = Math.max(...pts.map(p => p.y)) + PAD;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+
+    const rulerOffset = showRulers ? RULER_SIZE : 0;
+    const vpW = svgEl.clientWidth  - rulerOffset;
+    const vpH = svgEl.clientHeight - rulerOffset;
+
+    const newZoom = Math.max(0.02, Math.min(10, Math.min(vpW / contentW, vpH / contentH)));
+    // Pan so content centre lands at viewport centre
+    const panX = rulerOffset + vpW / 2 - (minX + contentW / 2) * newZoom;
+    const panY = rulerOffset + vpH / 2 - (minY + contentH / 2) * newZoom;
+
+    onZoomChange(newZoom);
+    onPanChange({ x: panX, y: panY });
+  }
+
   function deleteSelected() {
     const toDelete = new Set(selectedIds?.length ? selectedIds : selectedId ? [selectedId] : []);
     if (!toDelete.size) return;
