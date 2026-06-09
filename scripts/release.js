@@ -85,9 +85,14 @@ fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 console.log('🔨 Building webpack bundle…');
 run('npm run build');
 
-// ── Build installer ───────────────────────────────────────────────────────────
-console.log('📦 Building installer…');
-run('npx electron-builder --win --publish never');
+// ── Build installer for current platform ──────────────────────────────────────
+// macOS cannot be cross-compiled; each platform builds its own installer locally.
+// GitHub Actions CI builds the other platform and uploads it to the same release.
+const platformFlag = process.platform === 'darwin' ? '--mac --universal'
+                   : process.platform === 'linux'  ? '--linux'
+                   :                                 '--win';
+console.log(`📦 Building installer (${process.platform})…`);
+run(`npx electron-builder ${platformFlag} --publish never`);
 
 // ── Git commit + tag ──────────────────────────────────────────────────────────
 console.log('\n📝 Committing…');
