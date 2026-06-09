@@ -915,6 +915,9 @@ export default function Canvas({
     onPanChange({ x: panX, y: panY });
   }
 
+  // Expose fitView to parent via ref
+  useEffect(() => { if (fitRef) fitRef.current = fitView; });
+
   function deleteSelected() {
     const toDelete = new Set(selectedIds?.length ? selectedIds : selectedId ? [selectedId] : []);
     if (!toDelete.size) return;
