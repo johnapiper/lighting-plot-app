@@ -1,0 +1,50 @@
+[
+  {
+    "id": "fresnel",
+    "name": "Fresnel",
+    "category": "Conventional",
+    "symbol": "<circle cx='0' cy='0' r='14' fill='none' stroke='currentColor' stroke-width='1.5'/><line x1='-14' y1='6' x2='14' y2='6' stroke='currentColor' stroke-width='1.5'/><line x1='0' y1='-14' x2='0' y2='-20' stroke='currentColor' stroke-width='1.5'/>",
+    "symbolViewBox": "-20 -22 40 44",
+    "defaultFields": { "colour": "Open", "gobo": "" }
+  },
+  {
+    "id": "profile",
+    "name": "Profile",
+    "category": "Conventional",
+    "symbol": "<ellipse cx='0' cy='0' rx='10' ry='15' fill='none' stroke='currentColor' stroke-width='1.5'/><line x1='-10' y1='10' x2='10' y2='10' stroke='currentColor' stroke-width='1.5'/><line x1='-7' y1='13' x2='-7' y2='17' stroke='currentColor' stroke-width='1.5'/><line x1='7' y1='13' x2='7' y2='17' stroke='currentColor' stroke-width='1.5'/><line x1='0' y1='-15' x2='0' y2='-21' stroke='currentColor' stroke-width='1.5'/>",
+    "symbolViewBox": "-20 -23 40 50",
+    "defaultFields": { "colour": "Open", "gobo": "" }
+  },
+  {
+    "id": "par",
+    "name": "PAR Can",
+    "category": "Conventional",
+    "symbol": "<circle cx='0' cy='0' r='14' fill='none' stroke='currentColor' stroke-width='1.5'/><line x1='-10' y1='-10' x2='10' y2='10' stroke='currentColor' stroke-width='1.5'/><line x1='10' y1='-10' x2='-10' y2='10' stroke='currentColor' stroke-width='1.5'/><line x1='0' y1='-14' x2='0' y2='-20' stroke='currentColor' stroke-width='1.5'/>",
+    "symbolViewBox": "-20 -22 40 44",
+    "defaultFields": { "colour": "Open", "gobo": "" }
+  },
+  {
+    "id": "flood",
+    "name": "Flood",
+    "category": "Conventional",
+    "symbol": "<rect x='-18' y='-10' width='36' height='20' fill='none' stroke='currentColor' stroke-width='1.5'/><line x1='-10' y1='-10' x2='-10' y2='10' stroke='currentColor' stroke-width='1'/><line x1='10' y1='-10' x2='10' y2='10' stroke='currentColor' stroke-width='1'/><line x1='0' y1='-10' x2='0' y2='-16' stroke='currentColor' stroke-width='1.5'/>",
+    "symbolViewBox": "-22 -18 44 38",
+    "defaultFields": { "colour": "Open", "gobo": "" }
+  },
+  {
+    "id": "ledwash",
+    "name": "LED Wash",
+    "category": "LED",
+    "symbol": "<circle cx='0' cy='0' r='14' fill='none' stroke='currentColor' stroke-width='1.5'/><circle cx='-5' cy='-5' r='2' fill='currentColor'/><circle cx='5' cy='-5' r='2' fill='currentColor'/><circle cx='-5' cy='5' r='2' fill='currentColor'/><circle cx='5' cy='5' r='2' fill='currentColor'/><circle cx='0' cy='0' r='2' fill='currentColor'/><line x1='0' y1='-14' x2='0' y2='-20' stroke='currentColor' stroke-width='1.5'/>",
+    "symbolViewBox": "-20 -22 40 44",
+    "defaultFields": { "colour": "Open", "gobo": "" }
+  },
+  {
+    "id": "movinghead",
+    "name": "Moving Head",
+    "category": "Moving",
+    "symbol": "<circle cx='0' cy='0' r='12' fill='none' stroke='currentColor' stroke-width='1.5'/><line x1='-18' y1='0' x2='-12' y2='0' stroke='currentColor' stroke-width='2'/><line x1='12' y1='0' x2='18' y2='0' stroke='currentColor' stroke-width='2'/><circle cx='-18' cy='0' r='3' fill='none' stroke='currentColor' stroke-width='1.5'/><circle cx='18' cy='0' r='3' fill='none' stroke='currentColor' stroke-width='1.5'/><line x1='0' y1='-12' x2='0' y2='-20' stroke='currentColor' stroke-width='1.5'/>",
+    "symbolViewBox": "-24 -22 48 44",
+    "defaultFields": { "colour": "Open", "gobo": "" }
+  }
+]

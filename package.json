@@ -1,0 +1,41 @@
+{
+  "name": "lighting-plot-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "watch": "webpack --config webpack.config.js --watch",
+    "start": "npm run build && electron .",
+    "dev": "electron .",
+    "release": "node scripts/release.js patch",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-react": "^7.29.7",
+    "@electron/rebuild": "^4.0.4",
+    "babel-loader": "^10.1.1",
+    "css-loader": "^7.1.4",
+    "electron": "^31.7.7",
+    "electron-builder": "^26.15.0",
+    "html-webpack-plugin": "^5.6.7",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.107.2",
+    "webpack-cli": "^7.0.3"
+  },
+  "dependencies": {
+    "electron-store": "^11.0.2",
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}

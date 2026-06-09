@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output (bundle is generated, not source)
+public/bundle.js
+
+# Electron build output
+dist/
+out/
+release/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temp files
+*.tmp
+*.temp

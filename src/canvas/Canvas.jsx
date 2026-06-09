@@ -1,0 +1,1311 @@
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import FixtureSymbol from '../fixtures/FixtureSymbol';
+import {
+  snapPointToGrid, distance, projectPointOntoLine,
+  distanceToSegment, pipeAngle, generateId,
+} from './geometry';
+import InfraLayer from './InfraLayer';
+import CablingLayer from './CablingLayer';
+import { findNearestStructure } from '../cabling/routing';
+
+const RULER_SIZE = 20;
+const HIT_RADIUS = 8;
+const PIPE_SNAP_RADIUS = 40;
+const HANDLE_R = 6;
+const BOX_THRESHOLD = 5;
+
+const LAYER_DEFAULTS = {
+  fixture: 'layer-lighting', pipe: 'layer-lighting',
+  line: 'layer-arch', rect: 'layer-arch', text: 'layer-arch',
+  image: 'layer-bg', annotation: 'layer-arch',
+};
+function getLayerId(obj, kind) { return obj.layerId || LAYER_DEFAULTS[kind] || 'layer-arch'; }
+
+export default function Canvas({
+  project, drawing, commit, softUpdate,
+  activeTool, pendingFixture, onPendingFixturePlaced,
+  selectedId, selectedIds, onSelect, onMultiSelect,
+  showGrid, showRulers, fixtureTypes,
+  zoom, pan, onZoomChange, onPanChange, pipeSnap,
+  onToolDone, dragTargetLayerRef,
+  activeLayerId,
+  animating,
+}) {
+  const svgRef = useRef(null);
+
+  const [drawingState, setDrawingState] = useState(null);
+  const drawingRef = useRef(null);
+  useEffect(() => { drawingRef.current = drawingState; }, [drawingState]);
+
+  const [dragging, setDragging] = useState(null);
+  const draggingRef = useRef(null);
+  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
+
+  const [selBox, setSelBox] = useState(null);
+  const selBoxStart = useRef(null);
+  const mouseDownScreen = useRef(null);
+
+  const [contextMenu, setContextMenu] = useState(null);
+  const [focusModeId, setFocusModeId] = useState(null);
+  const [focusCursor, setFocusCursor] = useState(null);
+  const [editingText, setEditingText] = useState(null);
+
+  const [hoveredPipe, setHoveredPipe] = useState(null);
+  const [cursorPos, setCursorPos] = useState(null);
+  const isPanning = useRef(false);
+  const lastMouse = useRef(null);
+
+  // Scale calibration state
+  const [calibState, setCalibState] = useState(null); // null | {p1} | {p1, p2, showDialog}
+  const [calibDist, setCalibDist] = useState('');
+  const [calibUnit, setCalibUnit] = useState('m');
+
+  // Extract objects from active drawing
+  const pipes = drawing?.pipes || [];
+  const fixtures = drawing?.fixtures || [];
+  const lines = drawing?.lines || [];
+  const rectangles = drawing?.rectangles || [];
+  const texts = drawing?.texts || [];
+  const images = drawing?.images || [];
+  const annotations = drawing?.annotations || [];
+  const infrastructure = drawing?.infrastructure || [];
+  const cables = drawing?.cables || [];
+  const pdfBackground = drawing?.pdfBackground || null;
+  const { meta, layers } = project;
+  const gridSize = meta?.gridSize || 20;
+  const rigHeight = meta?.rigHeight || 5500;
+
+  // ── Cable drawing state ────────────────────────────────────────────────
+  const [cableFrom, setCableFrom] = useState(null); // {id, type, x, y} when mid-draw
+  const [cableGhost, setCableGhost] = useState(null); // {x, y} cursor pos
+
+  // ─── Drawing-level commit helpers ─────────────────────────────────────
+  function commitToDrawing(updater) {
+    commit(proj => {
+      const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
+      if (d) updater(d);
+      return proj;
+    });
+  }
+  function softUpdateDrawing(updater) {
+    softUpdate(proj => {
+      const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
+      if (d) updater(d);
+      return proj;
+    });
+  }
+
+  // ─── Layer helpers ────────────────────────────────────────────────────
+  function isLayerVisible(layerId) {
+    const layer = (layers || []).find(l => l.id === layerId);
+    return !layer || layer.visible !== false;
+  }
+  function isLayerLocked(layerId) {
+    return (layers || []).find(l => l.id === layerId)?.locked === true;
+  }
+
+  // ─── Coordinate helpers ───────────────────────────────────────────────
+  function screenToWorld(sx, sy) {
+    const rect = svgRef.current.getBoundingClientRect();
+    const ox = showRulers ? RULER_SIZE : 0, oy = showRulers ? RULER_SIZE : 0;
+    return {
+      x: (sx - rect.left - ox - pan.x) / zoom,
+      y: (sy - rect.top - oy - pan.y) / zoom,
+    };
+  }
+  function getSnapped(sx, sy) {
+    const w = screenToWorld(sx, sy);
+    return snapPointToGrid(w.x, w.y, gridSize);
+  }
+  function findNearestPipe(wx, wy) {
+    let best = null, bestDist = Infinity;
+    for (const p of pipes) {
+      const d = distanceToSegment(wx, wy, p.x1, p.y1, p.x2, p.y2);
+      if (d < bestDist) { bestDist = d; best = p; }
+    }
+    return bestDist < PIPE_SNAP_RADIUS / zoom ? best : null;
+  }
+
+  // ─── Group helpers ────────────────────────────────────────────────────
+  function getGroupMemberIds(groupId) {
+    const ids = [];
+    [...fixtures, ...pipes, ...lines, ...rectangles, ...texts, ...images, ...annotations].forEach(o => {
+      if (o.groupId === groupId) ids.push(o.id);
+    });
+    return ids;
+  }
+  function getGroupMembersForDrag(groupId, excludeId) {
+    const members = [];
+    fixtures.forEach(f => { if (f.groupId === groupId && f.id !== excludeId) members.push({ id: f.id, kind: 'fixture', origX: f.x, origY: f.y }); });
+    pipes.forEach(p => { if (p.groupId === groupId && p.id !== excludeId) members.push({ id: p.id, kind: 'pipe', origX: p.x1, origY: p.y1, origX2: p.x2, origY2: p.y2 }); });
+    lines.forEach(l => { if (l.groupId === groupId && l.id !== excludeId) members.push({ id: l.id, kind: 'line', origX: l.x1, origY: l.y1, origX2: l.x2, origY2: l.y2 }); });
+    rectangles.forEach(r => { if (r.groupId === groupId && r.id !== excludeId) members.push({ id: r.id, kind: 'rect', origX: r.x, origY: r.y, origW: r.w, origH: r.h }); });
+    texts.forEach(t => { if (t.groupId === groupId && t.id !== excludeId) members.push({ id: t.id, kind: 'text', origX: t.x, origY: t.y }); });
+    images.forEach(i => { if (i.groupId === groupId && i.id !== excludeId) members.push({ id: i.id, kind: 'image', origX: i.x, origY: i.y }); });
+    annotations.forEach(a => { if (a.groupId === groupId && a.id !== excludeId) members.push({ id: a.id, kind: 'annotation', origX: a.x, origY: a.y }); });
+    return members;
+  }
+
+  // ─── Hit testing ──────────────────────────────────────────────────────
+  function hitTestAll(wx, wy, includeLocked = false) {
+    const allObjs = [
+      ...images.map(o => ({ ...o, _kind: 'image' })),
+      ...fixtures.map(o => ({ ...o, _kind: 'fixture' })),
+      ...pipes.map(o => ({ ...o, _kind: 'pipe' })),
+      ...lines.map(o => ({ ...o, _kind: 'line' })),
+      ...rectangles.map(o => ({ ...o, _kind: 'rect' })),
+      ...texts.map(o => ({ ...o, _kind: 'text' })),
+      ...annotations.map(o => ({ ...o, _kind: 'annotation' })),
+      ...infrastructure.map(o => ({ ...o, _kind: 'infra' })),
+    ];
+
+    for (const obj of allObjs) {
+      const k = obj._kind;
+      if (!includeLocked && obj.locked) continue;
+      if (!isLayerVisible(getLayerId(obj, k))) continue;
+      if (!includeLocked && isLayerLocked(getLayerId(obj, k))) continue;
+
+      if (k === 'image') {
+        if (wx >= obj.x && wx <= obj.x + obj.w && wy >= obj.y && wy <= obj.y + obj.h)
+          return { kind: k, ...obj };
+      } else if (k === 'fixture') {
+        if (distance(wx, wy, obj.x, obj.y) < HIT_RADIUS / zoom * 1.8)
+          return { kind: k, ...obj };
+      } else if (k === 'pipe' || k === 'line') {
+        if (distanceToSegment(wx, wy, obj.x1, obj.y1, obj.x2, obj.y2) < HIT_RADIUS / zoom)
+          return { kind: k, ...obj };
+      } else if (k === 'rect') {
+        if (wx >= obj.x && wx <= obj.x + obj.w && wy >= obj.y && wy <= obj.y + obj.h)
+          return { kind: k, ...obj };
+      } else if (k === 'text' || k === 'annotation') {
+        const fs = obj.fontSize || 14;
+        const approxW = (obj.label || '').length * fs * 0.6 + 10;
+        if (wx >= obj.x && wx <= obj.x + approxW && wy >= obj.y - fs && wy <= obj.y + (k === 'annotation' ? (obj.h || 40) : 0))
+          return { kind: k, ...obj };
+      } else if (k === 'infra') {
+        if (distance(wx, wy, obj.x, obj.y) < 28 / zoom)
+          return { kind: k, ...obj };
+      }
+    }
+    return null;
+  }
+
+  function getItemsInBox(bx1, by1, bx2, by2) {
+    const minX = Math.min(bx1, bx2), maxX = Math.max(bx1, bx2);
+    const minY = Math.min(by1, by2), maxY = Math.max(by1, by2);
+    const ids = [];
+    const check = (arr, kind, cx, cy) => arr.forEach(o => {
+      if (o.locked || !isLayerVisible(getLayerId(o, kind)) || isLayerLocked(getLayerId(o, kind))) return;
+      const x = cx(o), y = cy(o);
+      if (x >= minX && x <= maxX && y >= minY && y <= maxY) ids.push(o.id);
+    });
+    check(fixtures, 'fixture', o => o.x, o => o.y);
+    check(pipes, 'pipe', o => (o.x1+o.x2)/2, o => (o.y1+o.y2)/2);
+    check(lines, 'line', o => (o.x1+o.x2)/2, o => (o.y1+o.y2)/2);
+    check(rectangles, 'rect', o => o.x+o.w/2, o => o.y+o.h/2);
+    check(texts, 'text', o => o.x, o => o.y);
+    check(annotations, 'annotation', o => o.x, o => o.y);
+    return ids;
+  }
+
+  // ─── Object bounds for selection handles ─────────────────────────────
+  function getObjectBounds(id) {
+    const f = fixtures.find(o => o.id === id);
+    if (f) { const r = 18; return { x: f.x-r, y: f.y-r, w: r*2, h: r*2, cx: f.x, cy: f.y, obj: f, kind: 'fixture' }; }
+    const p = pipes.find(o => o.id === id);
+    if (p) { const x = Math.min(p.x1,p.x2), y = Math.min(p.y1,p.y2); const w = Math.max(Math.abs(p.x2-p.x1),2), h = Math.max(Math.abs(p.y2-p.y1),2); return { x, y, w, h, cx: (p.x1+p.x2)/2, cy: (p.y1+p.y2)/2, obj: p, kind: 'pipe' }; }
+    const l = lines.find(o => o.id === id);
+    if (l) { const x = Math.min(l.x1,l.x2), y = Math.min(l.y1,l.y2); const w = Math.max(Math.abs(l.x2-l.x1),2), h = Math.max(Math.abs(l.y2-l.y1),2); return { x, y, w, h, cx: (l.x1+l.x2)/2, cy: (l.y1+l.y2)/2, obj: l, kind: 'line' }; }
+    const r = rectangles.find(o => o.id === id);
+    if (r) return { x: r.x, y: r.y, w: r.w, h: r.h, cx: r.x+r.w/2, cy: r.y+r.h/2, obj: r, kind: 'rect' };
+    const t = texts.find(o => o.id === id);
+    if (t) { const fs = t.fontSize||14; const tw = (t.label||'').length*fs*0.6; return { x: t.x, y: t.y-fs, w: Math.max(tw,20), h: fs, cx: t.x+tw/2, cy: t.y-fs/2, obj: t, kind: 'text' }; }
+    const img = images.find(o => o.id === id);
+    if (img) return { x: img.x, y: img.y, w: img.w, h: img.h, cx: img.x+img.w/2, cy: img.y+img.h/2, obj: img, kind: 'image' };
+    const a = annotations.find(o => o.id === id);
+    if (a) { const aw = a.w || 120; const ah = a.h || 50; return { x: a.x, y: a.y, w: aw, h: ah, cx: a.x+aw/2, cy: a.y+ah/2, obj: a, kind: 'annotation' }; }
+    const inf = infrastructure.find(o => o.id === id);
+    if (inf) { const r = 22; return { x: inf.x-r, y: inf.y-r, w: r*2, h: r*2, cx: inf.x, cy: inf.y, obj: inf, kind: 'infra' }; }
+    return null;
+  }
+
+  // ─── Move helper ──────────────────────────────────────────────────────
+  function moveObjectInDrawing(d, id, kind, origX, origY, origX2, origY2, dx, dy) {
+    if (kind === 'fixture') { const f = d.fixtures.find(f => f.id === id); if (f) { f.x = origX+dx; f.y = origY+dy; } }
+    else if (kind === 'pipe') { const o = d.pipes.find(o => o.id === id); if (o) { o.x1 = origX+dx; o.y1 = origY+dy; o.x2 = origX2+dx; o.y2 = origY2+dy; } }
+    else if (kind === 'line') { const o = d.lines.find(o => o.id === id); if (o) { o.x1 = origX+dx; o.y1 = origY+dy; o.x2 = origX2+dx; o.y2 = origY2+dy; } }
+    else if (kind === 'rect') { const o = d.rectangles.find(o => o.id === id); if (o) { o.x = origX+dx; o.y = origY+dy; } }
+    else if (kind === 'text') { const o = d.texts.find(o => o.id === id); if (o) { o.x = origX+dx; o.y = origY+dy; } }
+    else if (kind === 'image') { const o = (d.images||[]).find(o => o.id === id); if (o) { o.x = origX+dx; o.y = origY+dy; } }
+    else if (kind === 'annotation') { const o = (d.annotations||[]).find(o => o.id === id); if (o) { o.x = origX+dx; o.y = origY+dy; } }
+    else if (kind === 'infra')      { const o = (d.infrastructure||[]).find(o => o.id === id); if (o) { o.x = origX+dx; o.y = origY+dy; } }
+  }
+
+  // ─── Handle drag start ────────────────────────────────────────────────
+  function startHandleDrag(e, point, kind, obj, cx, cy) {
+    e.stopPropagation();
+    const w = screenToWorld(e.clientX, e.clientY);
+    setDragging({
+      id: obj.id, kind, handlePoint: point,
+      startX: w.x, startY: w.y,
+      origX: obj.x ?? obj.x1, origY: obj.y ?? obj.y1,
+      origX2: obj.x2 ?? (obj.x != null ? obj.x + (obj.w||0) : null),
+      origY2: obj.y2 ?? (obj.y != null ? obj.y + (obj.h||0) : null),
+      origW: obj.w, origH: obj.h,
+      origRotation: obj.rotation || 0,
+      origScale: obj.scale || 1,
+      centerX: cx ?? obj.x, centerY: cy ?? obj.y,
+    });
+  }
+
+  function applyHandleDrag(dg, snapped, world) {
+    const hp = dg.handlePoint;
+    const { origX, origY, origX2, origY2 } = dg;
+
+    // Rotation
+    if (hp === 'rotate') {
+      const angle = Math.atan2(world.y - dg.centerY, world.x - dg.centerX) * 180 / Math.PI + 90;
+      softUpdateDrawing(d => {
+        const setR = arr => { const o = arr.find(o => o.id === dg.id); if (o) o.rotation = angle; };
+        if (dg.kind === 'fixture') setR(d.fixtures);
+        else if (dg.kind === 'rect') setR(d.rectangles);
+        else if (dg.kind === 'text') setR(d.texts);
+        else if (dg.kind === 'image') setR(d.images);
+        else if (dg.kind === 'annotation') setR(d.annotations || []);
+      });
+      return;
+    }
+
+    // Fixture/text scale
+    if (hp === 'scale') {
+      const dist = distance(world.x, world.y, dg.centerX, dg.centerY);
+      const origDist = distance(dg.startX, dg.startY, dg.centerX, dg.centerY);
+      const factor = origDist > 1 ? dist / origDist : 1;
+      const newScale = Math.max(0.05, dg.origScale * factor); // no upper limit
+      softUpdateDrawing(d => {
+        const f = d.fixtures.find(f => f.id === dg.id);
+        if (f) f.scale = newScale;
+        const t = d.texts.find(t => t.id === dg.id);
+        if (t) t.fontSize = Math.max(2, Math.round((dg.origScale || 14) * factor));
+      });
+      return;
+    }
+
+    // Pipe / line endpoint handles
+    if (dg.kind === 'pipe' || dg.kind === 'line') {
+      const arr = dg.kind === 'pipe' ? 'pipes' : 'lines';
+      softUpdateDrawing(d => {
+        const obj = d[arr].find(o => o.id === dg.id);
+        if (obj) {
+          if (hp === 'p1') { obj.x1 = snapped.x; obj.y1 = snapped.y; }
+          else { obj.x2 = snapped.x; obj.y2 = snapped.y; }
+        }
+      });
+      return;
+    }
+
+    // Rect corner/edge handles
+    if (dg.kind === 'rect') {
+      softUpdateDrawing(d => {
+        const r = d.rectangles.find(r => r.id === dg.id);
+        if (!r) return;
+        const sx = snapped.x, sy = snapped.y;
+        if (hp === 'tl') { r.w = Math.abs(origX2-sx); r.h = Math.abs(origY2-sy); r.x = Math.min(sx,origX2); r.y = Math.min(sy,origY2); }
+        else if (hp === 'tr') { r.w = Math.abs(sx-origX); r.h = Math.abs(origY2-sy); r.x = Math.min(sx,origX); r.y = Math.min(sy,origY2); }
+        else if (hp === 'br') { r.w = Math.abs(sx-origX); r.h = Math.abs(sy-origY); r.x = Math.min(sx,origX); r.y = Math.min(sy,origY); }
+        else if (hp === 'bl') { r.w = Math.abs(origX2-sx); r.h = Math.abs(sy-origY); r.x = Math.min(sx,origX2); r.y = Math.min(sy,origY); }
+        else if (hp === 'top') { r.h = Math.abs(origY2-sy); r.y = Math.min(sy,origY2); }
+        else if (hp === 'bottom') { r.h = Math.abs(sy-origY); r.y = Math.min(sy,origY); }
+        else if (hp === 'left') { r.w = Math.abs(origX2-sx); r.x = Math.min(sx,origX2); }
+        else if (hp === 'right') { r.w = Math.abs(sx-origX); r.x = Math.min(sx,origX); }
+      });
+      return;
+    }
+
+    // Image corner handles
+    if (dg.kind === 'image') {
+      softUpdateDrawing(d => {
+        const img = (d.images||[]).find(i => i.id === dg.id);
+        if (!img) return;
+        const sx = snapped.x, sy = snapped.y;
+        if (hp === 'tl') { img.w = Math.abs(origX2-sx); img.h = Math.abs(origY2-sy); img.x = Math.min(sx,origX2); img.y = Math.min(sy,origY2); }
+        else if (hp === 'tr') { img.w = Math.abs(sx-origX); img.h = Math.abs(origY2-sy); img.x = Math.min(sx,origX); img.y = Math.min(sy,origY2); }
+        else if (hp === 'br') { img.w = Math.abs(sx-origX); img.h = Math.abs(sy-origY); img.x = Math.min(sx,origX); img.y = Math.min(sy,origY); }
+        else if (hp === 'bl') { img.w = Math.abs(origX2-sx); img.h = Math.abs(sy-origY); img.x = Math.min(sx,origX2); img.y = Math.min(sy,origY); }
+      });
+    }
+
+    // Annotation resize (br corner)
+    if (dg.kind === 'annotation') {
+      softUpdateDrawing(d => {
+        const a = (d.annotations||[]).find(a => a.id === dg.id);
+        if (a && hp === 'br') { a.w = Math.max(40, snapped.x - origX); a.h = Math.max(20, snapped.y - origY); }
+      });
+    }
+  }
+
+  // ─── Mouse handlers ───────────────────────────────────────────────────
+  const onMouseDown = useCallback((e) => {
+    setContextMenu(null);
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      isPanning.current = true;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+    if (e.button !== 0) return;
+
+    const world = screenToWorld(e.clientX, e.clientY);
+    const snapped = getSnapped(e.clientX, e.clientY);
+    mouseDownScreen.current = { x: e.clientX, y: e.clientY };
+
+    // Focus mode
+    if (focusModeId) {
+      const fx = fixtures.find(f => f.id === focusModeId);
+      if (fx) {
+        const angle = Math.atan2(world.y - fx.y, world.x - fx.x) * 180 / Math.PI + 90;
+        commitToDrawing(d => { const f = d.fixtures.find(f => f.id === focusModeId); if (f) f.rotation = angle; });
+      }
+      setFocusModeId(null); setFocusCursor(null);
+      return;
+    }
+
+    // Pending fixture
+    if (pendingFixture) {
+      const nearPipe = pipeSnap ? findNearestPipe(world.x, world.y) : null;
+      let fx = snapped.x, fy = snapped.y, position = '', pipeId = null, rotation = 0;
+      if (nearPipe) {
+        const pp = projectPointOntoLine(world.x, world.y, nearPipe.x1, nearPipe.y1, nearPipe.x2, nearPipe.y2);
+        const s = snapPointToGrid(pp.x, pp.y, gridSize);
+        fx = s.x; fy = s.y; position = nearPipe.name; pipeId = nearPipe.id;
+        rotation = pipeAngle(nearPipe) * 180 / Math.PI;
+      }
+      const usedUnits = fixtures.filter(f => pipeId ? f.pipeId === pipeId : true).map(f => Number(f.unit)).filter(Boolean);
+      const nextUnit = usedUnits.length ? Math.max(...usedUnits) + 1 : 1;
+      const newFixture = {
+        id: generateId(), kind: 'fixture',
+        fixtureTypeId: pendingFixture.id, type: pendingFixture.name,
+        x: fx, y: fy, pipeId, position, unit: String(nextUnit),
+        channel: '', dmxAddress: '', dmxMode: pendingFixture.defaultMode || '',
+        dmxChannelCount: pendingFixture.defaultChannelCount || 1,
+        colour: pendingFixture.defaultFields?.colour || 'Open',
+        colourHex: pendingFixture.defaultColourHex || null,
+        gobo: '', purpose: '', rotation, scale: 1,
+        layerId: activeLayerId || 'layer-lighting',
+      };
+      commitToDrawing(d => d.fixtures.push(newFixture));
+      onPendingFixturePlaced();
+      onSelect({ kind: 'fixture', ...newFixture });
+      return;
+    }
+
+    if (activeTool === 'select') {
+      const hit = hitTestAll(world.x, world.y);
+      if (hit) {
+        const gm = hit.groupId ? getGroupMembersForDrag(hit.groupId, hit.id) : null;
+        if (hit.groupId) onMultiSelect(getGroupMemberIds(hit.groupId));
+        else onSelect(hit);
+        setDragging({
+          id: hit.id, kind: hit.kind, handlePoint: null,
+          startX: world.x, startY: world.y,
+          origX: hit.x ?? hit.x1, origY: hit.y ?? hit.y1,
+          origX2: hit.x2 ?? (hit.x != null ? hit.x + (hit.w||0) : null),
+          origY2: hit.y2 ?? (hit.y != null ? hit.y + (hit.h||0) : null),
+          origW: hit.w, origH: hit.h,
+          groupMembers: gm,
+        });
+      } else {
+        // Also check direct infra hit (already covered by hitTestAll now)
+        selBoxStart.current = { x: world.x, y: world.y };
+        setSelBox(null);
+      }
+      return;
+    }
+
+    // Calibrate tool: two-point scale measurement
+    if (activeTool === 'calibrate') {
+      if (!calibState) {
+        setCalibState({ p1: world });
+      } else if (calibState.p1 && !calibState.p2) {
+        setCalibState({ p1: calibState.p1, p2: world, showDialog: true });
+      }
+      return;
+    }
+
+    if (activeTool === 'line' || activeTool === 'rect') {
+      setDrawingState({ kind: activeTool, x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      return;
+    }
+
+    if (activeTool === 'pipe') {
+      const cur = drawingRef.current;
+      if (!cur) {
+        setDrawingState({ kind: 'pipe', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      } else {
+        if (distance(cur.x1, cur.y1, snapped.x, snapped.y) > 2) {
+          const np = { id: generateId(), kind: 'pipe', x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
+          commitToDrawing(d => d.pipes.push(np));
+          onSelect({ kind: 'pipe', ...np });
+        }
+        setDrawingState(null);
+      }
+      return;
+    }
+
+    if (activeTool === 'text') {
+      const nt = { id: generateId(), kind: 'text', x: snapped.x, y: snapped.y, label: 'Label', fontSize: 14, layerId: activeLayerId || 'layer-arch' };
+      commitToDrawing(d => d.texts.push(nt));
+      onSelect({ kind: 'text', ...nt });
+      if (onToolDone) onToolDone();
+      setEditingText({ ...nt });
+      return;
+    }
+
+    if (activeTool === 'annotate') {
+      const na = { id: generateId(), kind: 'annotation', x: snapped.x, y: snapped.y, label: 'Note', w: 120, h: 50, layerId: 'layer-arch' };
+      commitToDrawing(d => { if (!d.annotations) d.annotations = []; d.annotations.push(na); });
+      onSelect({ kind: 'annotation', ...na });
+      if (onToolDone) onToolDone();
+      setEditingText({ ...na, isAnnotation: true });
+    }
+
+    // ── Truss tool (same as pipe but type='truss') ──────────────────────
+    if (activeTool === 'truss') {
+      const cur = drawingRef.current;
+      if (!cur) {
+        setDrawingState({ kind: 'pipe', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      } else {
+        if (distance(cur.x1, cur.y1, snapped.x, snapped.y) > 2) {
+          const nt = { id: generateId(), kind: 'pipe', type: 'truss', x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, name: 'Truss', height: '5.5', layerId: activeLayerId || 'layer-lighting' };
+          commitToDrawing(d => d.pipes.push(nt));
+          onSelect({ kind: 'pipe', ...nt });
+        }
+        setDrawingState(null);
+      }
+      return;
+    }
+
+    // ── Infrastructure placement tools ─────────────────────────────────
+    if (activeTool?.startsWith('infra-')) {
+      const infraType = activeTool.replace('infra-', '');
+      const struct = findNearestStructure(snapped.x, snapped.y, pipes, 30 / zoom);
+      const defaults = infraType === 'distro'
+        ? { circuits: [{ id: generateId(), label: 'Cct 1', rating: '16A' }] }
+        : infraType === 'node'   ? { universeStart: 1, universeCount: 4 }
+        : infraType === 'switch' ? { ports: 8 }
+        : {};
+      const ni = {
+        id: generateId(), type: infraType, kind: 'infra',
+        x: snapped.x, y: snapped.y,
+        label: infraType === 'distro' ? 'PDU 1' : infraType === 'node' ? 'Node 1' : infraType === 'switch' ? 'Switch 1' : 'NP 1',
+        onStructureId: struct?.id || null,
+        layerId: activeLayerId || 'layer-lighting',
+        ...defaults,
+      };
+      commitToDrawing(d => { if (!d.infrastructure) d.infrastructure = []; d.infrastructure.push(ni); });
+      onSelect({ kind: 'infra', ...ni });
+      if (onToolDone) onToolDone();
+      return;
+    }
+
+    // ── Cable drawing tools ────────────────────────────────────────────
+    if (activeTool?.startsWith('cable-')) {
+      const cableType = activeTool.replace('cable-', '');
+      // Check hit on fixture or infra
+      const hit = hitTestAll(world.x, world.y);
+      const hitInfra = infrastructure.find(i => distance(world.x, world.y, i.x, i.y) < 30 / zoom);
+      const fromItem = hitInfra || (hit?.kind === 'fixture' ? hit : null);
+
+      if (!cableFrom) {
+        // First click — pick source
+        if (fromItem) {
+          setCableFrom({ id: fromItem.id, type: hitInfra ? 'infra' : 'fixture', x: fromItem.x, y: fromItem.y });
+        }
+      } else {
+        // Second click — pick destination, create cable
+        const toItem = hitInfra || (hit?.kind === 'fixture' ? hit : null);
+        if (toItem && toItem.id !== cableFrom.id) {
+          const defaultSubtype = cableType === 'power' ? 'powercon' : cableType === 'dmx' ? 'dmx5' : 'ethercon';
+          const nc = {
+            id: generateId(), kind: 'cable',
+            cableType, subtype: defaultSubtype,
+            fromId: cableFrom.id, fromType: cableFrom.type,
+            toId: toItem.id, toType: hitInfra ? 'infra' : 'fixture',
+            label: '',
+          };
+          commitToDrawing(d => { if (!d.cables) d.cables = []; d.cables.push(nc); });
+          onSelect({ kind: 'cable', ...nc });
+        }
+        setCableFrom(null);
+        setCableGhost(null);
+      }
+      return;
+    }
+  }, [activeTool, pendingFixture, fixtures, pipes, lines, rectangles, texts, images, annotations, infrastructure, cables, zoom, pan, showRulers, gridSize, pipeSnap, focusModeId, layers, cableFrom]);
+
+  const onMouseMove = useCallback((e) => {
+    if (isPanning.current) {
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      onPanChange(p => ({ x: p.x + dx, y: p.y + dy }));
+      return;
+    }
+
+    const world = screenToWorld(e.clientX, e.clientY);
+    const snapped = getSnapped(e.clientX, e.clientY);
+    setCursorPos(snapped);
+
+    // Update cable ghost line while drawing
+    if (cableFrom) { setCableGhost({ x: world.x, y: world.y }); }
+
+    if (focusModeId) { setFocusCursor(world); return; }
+
+    if (selBoxStart.current && !dragging) {
+      const mdx = e.clientX - mouseDownScreen.current.x;
+      const mdy = e.clientY - mouseDownScreen.current.y;
+      if (Math.sqrt(mdx*mdx + mdy*mdy) > BOX_THRESHOLD)
+        setSelBox({ x1: selBoxStart.current.x, y1: selBoxStart.current.y, x2: world.x, y2: world.y });
+    }
+
+    if (drawingState) setDrawingState(d => ({ ...d, x2: snapped.x, y2: snapped.y }));
+
+    if (dragging?.handlePoint) {
+      applyHandleDrag(dragging, snapped, world);
+      return;
+    }
+
+    if (dragging) {
+      const dx = world.x - dragging.startX;
+      const dy = world.y - dragging.startY;
+
+      if (dragTargetLayerRef) {
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        dragTargetLayerRef.current = el?.closest('[data-layer-id]')?.dataset?.layerId || null;
+      }
+
+      if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
+        if (pipeSnap) {
+          const nearPipe = findNearestPipe(world.x, world.y);
+          if (nearPipe) {
+            const pp = projectPointOntoLine(world.x, world.y, nearPipe.x1, nearPipe.y1, nearPipe.x2, nearPipe.y2);
+            const s = snapPointToGrid(pp.x, pp.y, gridSize);
+            softUpdateDrawing(d => { const f = d.fixtures.find(f => f.id === dragging.id); if (f) { f.x = s.x; f.y = s.y; f.pipeId = nearPipe.id; f.position = nearPipe.name; f.rotation = pipeAngle(nearPipe) * 180 / Math.PI; } });
+            setHoveredPipe(nearPipe.id);
+            return;
+          }
+        }
+        setHoveredPipe(null);
+      }
+
+      softUpdateDrawing(d => {
+        moveObjectInDrawing(d, dragging.id, dragging.kind, dragging.origX, dragging.origY, dragging.origX2, dragging.origY2, dx, dy);
+        (dragging.groupMembers || []).forEach(m => moveObjectInDrawing(d, m.id, m.kind, m.origX, m.origY, m.origX2, m.origY2, dx, dy));
+      });
+    }
+
+    if (pendingFixture && pipeSnap) setHoveredPipe(findNearestPipe(world.x, world.y)?.id || null);
+    else if (!dragging) setHoveredPipe(null);
+  }, [drawingState, dragging, pendingFixture, pipes, images, zoom, pan, showRulers, gridSize, pipeSnap, focusModeId, layers]);
+
+  const onMouseUp = useCallback((e) => {
+    isPanning.current = false;
+
+    if (selBoxStart.current) {
+      if (selBox) onMultiSelect(getItemsInBox(selBox.x1, selBox.y1, selBox.x2, selBox.y2));
+      else onSelect(null);
+      selBoxStart.current = null;
+      setSelBox(null);
+      return;
+    }
+
+    if (dragging && dragTargetLayerRef?.current && !dragging.handlePoint) {
+      const targetLayerId = dragTargetLayerRef.current;
+      commitToDrawing(d => {
+        const setL = arr => {
+          const obj = arr.find(o => o.id === dragging.id); if (obj) obj.layerId = targetLayerId;
+          (dragging.groupMembers || []).forEach(m => { const mo = arr.find(o => o.id === m.id); if (mo) mo.layerId = targetLayerId; });
+        };
+        setL(d.fixtures); setL(d.pipes); setL(d.lines); setL(d.rectangles); setL(d.texts); setL(d.images||[]); setL(d.annotations||[]);
+      });
+      dragTargetLayerRef.current = null;
+    }
+
+    if (dragging) {
+      commit(p => p);
+      setDragging(null);
+      setHoveredPipe(null);
+      return;
+    }
+
+    if (!drawingState) return;
+    const snapped = getSnapped(e.clientX, e.clientY);
+    const ds = drawingState;
+    if (ds.kind === 'pipe') return;
+
+    if (ds.kind === 'line') {
+      if (distance(ds.x1, ds.y1, snapped.x, snapped.y) > 2)
+        commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: snapped.x, y2: snapped.y, layerId: activeLayerId || 'layer-arch' }));
+    } else if (ds.kind === 'rect') {
+      const rw = Math.abs(snapped.x-ds.x1), rh = Math.abs(snapped.y-ds.y1);
+      if (rw > 2 && rh > 2)
+        commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x: Math.min(ds.x1,snapped.x), y: Math.min(ds.y1,snapped.y), w: rw, h: rh, layerId: activeLayerId || 'layer-arch' }));
+    }
+    setDrawingState(null);
+  }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, layers]);
+
+  // Double-click: edit text / annotation
+  const onDblClick = useCallback((e) => {
+    const world = screenToWorld(e.clientX, e.clientY);
+    for (const t of [...texts, ...annotations]) {
+      const fs = t.fontSize || 14;
+      const approxW = (t.label || '').length * fs * 0.6 + 20;
+      if (world.x >= t.x && world.x <= t.x + approxW && world.y >= t.y - fs - 4 && world.y <= t.y + (t.h || 4)) {
+        setEditingText({ ...t, isAnnotation: t.kind === 'annotation' });
+        return;
+      }
+    }
+  }, [texts, annotations, zoom, pan, showRulers]);
+
+  // Right-click: context menu for ALL objects
+  const onContextMenu = useCallback((e) => {
+    e.preventDefault();
+    const world = screenToWorld(e.clientX, e.clientY);
+    const hit = hitTestAll(world.x, world.y, true); // includeLocked=true for right-click
+    if (hit) setContextMenu({ sx: e.clientX, sy: e.clientY, hit });
+  }, [fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, layers]);
+
+  const onWheel = useCallback((e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const rect = svgRef.current.getBoundingClientRect();
+    const ox = showRulers ? RULER_SIZE : 0, oy = showRulers ? RULER_SIZE : 0;
+    const mx = e.clientX - rect.left - ox, my = e.clientY - rect.top - oy;
+    onZoomChange(z => {
+      const nz = Math.max(0.1, Math.min(10, z * factor));
+      onPanChange(p => ({ x: mx - (mx - p.x) * (nz / z), y: my - (my - p.y) * (nz / z) }));
+      return nz;
+    });
+  }, [showRulers]);
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [onWheel]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') { setDrawingState(null); setFocusModeId(null); setFocusCursor(null); setCalibState(null); setCableFrom(null); setCableGhost(null); }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') deleteSelected();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedId, selectedIds, drawing]);
+
+  function deleteSelected() {
+    const toDelete = new Set(selectedIds?.length ? selectedIds : selectedId ? [selectedId] : []);
+    if (!toDelete.size) return;
+    commitToDrawing(d => {
+      d.fixtures = d.fixtures.filter(f => !toDelete.has(f.id));
+      d.pipes = d.pipes.filter(p => !toDelete.has(p.id));
+      d.lines = d.lines.filter(l => !toDelete.has(l.id));
+      d.rectangles = d.rectangles.filter(r => !toDelete.has(r.id));
+      d.texts = d.texts.filter(t => !toDelete.has(t.id));
+      d.images = (d.images||[]).filter(i => !toDelete.has(i.id));
+      d.annotations = (d.annotations||[]).filter(a => !toDelete.has(a.id));
+      if (d.infrastructure) d.infrastructure = d.infrastructure.filter(i => !toDelete.has(i.id));
+      // Also remove cables connected to deleted items
+      if (d.cables) d.cables = d.cables.filter(c => !toDelete.has(c.fromId) && !toDelete.has(c.toId) && !toDelete.has(c.id));
+    });
+    onSelect(null); onMultiSelect([]);
+  }
+
+  function toggleLock(id, kind) {
+    commitToDrawing(d => {
+      const setL = arr => { const o = arr.find(o => o.id === id); if (o) o.locked = !o.locked; };
+      if (kind === 'fixture') setL(d.fixtures);
+      else if (kind === 'pipe') setL(d.pipes);
+      else if (kind === 'line') setL(d.lines);
+      else if (kind === 'rect') setL(d.rectangles);
+      else if (kind === 'text') setL(d.texts);
+      else if (kind === 'image') setL(d.images||[]);
+      else if (kind === 'annotation') setL(d.annotations||[]);
+    });
+  }
+
+  // ─── Rendering ────────────────────────────────────────────────────────
+  function renderGrid() {
+    if (!showGrid) return null;
+    const startX = Math.floor(-pan.x / zoom / gridSize) * gridSize - gridSize;
+    const startY = Math.floor(-pan.y / zoom / gridSize) * gridSize - gridSize;
+    const endX = startX + 3000 / zoom + gridSize * 2;
+    const endY = startY + 3000 / zoom + gridSize * 2;
+    const v = [], h = [];
+    for (let x = startX; x <= endX; x += gridSize) v.push(<line key={`v${x}`} x1={x} y1={startY} x2={x} y2={endY} />);
+    for (let y = startY; y <= endY; y += gridSize) h.push(<line key={`h${y}`} x1={startX} y1={y} x2={endX} y2={y} />);
+    return <g stroke="#1a2a4a" strokeWidth={1/zoom}>{v}{h}</g>;
+  }
+
+  function renderRulers(svgW, svgH) {
+    if (!showRulers) return null;
+    const step = gridSize;
+    const ticksX = [], ticksY = [];
+    const si = Math.floor(-pan.x / zoom / step), ei = si + Math.ceil(svgW / zoom / step) + 1;
+    for (let i = si; i <= ei; i++) {
+      const sx = i * step * zoom + pan.x, major = i % 5 === 0;
+      ticksX.push(<g key={`rx${i}`}>
+        <line x1={sx+RULER_SIZE} y1={major?8:13} x2={sx+RULER_SIZE} y2={RULER_SIZE} stroke="#4a6080" strokeWidth={1} />
+        {major && <text x={sx+RULER_SIZE+2} y={10} fontSize={8} fill="#4a6080">{i*step}</text>}
+      </g>);
+    }
+    const sj = Math.floor(-pan.y / zoom / step), ej = sj + Math.ceil(svgH / zoom / step) + 1;
+    for (let j = sj; j <= ej; j++) {
+      const sy = j * step * zoom + pan.y, major = j % 5 === 0;
+      ticksY.push(<g key={`ry${j}`}>
+        <line x1={major?8:13} y1={sy+RULER_SIZE} x2={RULER_SIZE} y2={sy+RULER_SIZE} stroke="#4a6080" strokeWidth={1} />
+        {major && <text x={4} y={sy+RULER_SIZE+4} fontSize={8} fill="#4a6080" transform={`rotate(-90 4 ${sy+RULER_SIZE})`}>{j*step}</text>}
+      </g>);
+    }
+    return (
+      <g>
+        <rect x={0} y={0} width={svgW} height={RULER_SIZE} fill="#111827" />
+        <rect x={0} y={0} width={RULER_SIZE} height={svgH} fill="#111827" />
+        <rect x={0} y={0} width={RULER_SIZE} height={RULER_SIZE} fill="#0d1117" />
+        {ticksX}{ticksY}
+      </g>
+    );
+  }
+
+  // ─── Selection controls (rotation handle + shape handles) ─────────────
+  function renderSelectionControls() {
+    if (!selectedId) return null;
+    const bounds = getObjectBounds(selectedId);
+    if (!bounds) return null;
+
+    const hr = HANDLE_R / zoom;
+    const { x, y, w, h, cx, cy, obj, kind } = bounds;
+    const rhDist = 28 / zoom;
+    // Rotation handle follows the object's rotation so it sits above the visual "top"
+    const rot = obj.rotation || 0;
+    const rotRad = rot * Math.PI / 180;
+    const rhX = cx + Math.sin(rotRad) * rhDist;  // positive → handle tracks clockwise drag
+    const rhY = cy - Math.cos(rotRad) * rhDist;
+
+    const cornerHandle = (hx, hy, hp, cursor) => (
+      <circle key={hp} cx={hx} cy={hy} r={hr}
+        fill={hp === 'scale' ? '#7b61ff' : '#00aaff'} stroke="white" strokeWidth={1/zoom}
+        style={{ cursor }}
+        onMouseDown={e => startHandleDrag(e, hp, kind, obj, cx, cy)} />
+    );
+
+    const edgeHandle = (hx, hy, hp, cursor) => (
+      <circle key={hp} cx={hx} cy={hy} r={hr*0.7}
+        fill="#4a90d9" stroke="white" strokeWidth={1/zoom}
+        style={{ cursor }}
+        onMouseDown={e => startHandleDrag(e, hp, kind, obj, cx, cy)} />
+    );
+
+    return (
+      <g>
+        {/* Bounding box */}
+        <rect x={x} y={y} width={w} height={h}
+          fill="none" stroke="#00aaff" strokeWidth={1/zoom}
+          strokeDasharray={`${4/zoom} ${2/zoom}`} style={{ pointerEvents: 'none' }} />
+
+        {/* Rotation stem + handle — stem from center to handle (tracks rotation) */}
+        <line x1={cx} y1={cy} x2={rhX} y2={rhY}
+          stroke="#00aaff" strokeWidth={1/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} style={{ pointerEvents: 'none' }} />
+        <circle cx={rhX} cy={rhY} r={hr}
+          fill="#16213e" stroke="#00aaff" strokeWidth={1.5/zoom}
+          style={{ cursor: 'crosshair' }}
+          onMouseDown={e => startHandleDrag(e, 'rotate', kind, obj, cx, cy)} />
+        {/* Rotation icon arc */}
+        <text x={rhX} y={rhY+hr*0.4} textAnchor="middle" fontSize={hr*1.4}
+          fill="#00aaff" style={{ pointerEvents: 'none', userSelect: 'none' }}>↻</text>
+
+        {/* Pipe / line endpoint handles */}
+        {(kind === 'pipe' || kind === 'line') && (() => {
+          const seg = kind === 'pipe' ? pipes.find(p => p.id === selectedId) : lines.find(l => l.id === selectedId);
+          if (!seg) return null;
+          return (
+            <>
+              <circle cx={seg.x1} cy={seg.y1} r={hr} fill="#00aaff" stroke="white" strokeWidth={1/zoom}
+                style={{ cursor: 'move' }} onMouseDown={e => startHandleDrag(e, 'p1', kind, obj)} />
+              <circle cx={seg.x2} cy={seg.y2} r={hr} fill="#00aaff" stroke="white" strokeWidth={1/zoom}
+                style={{ cursor: 'move' }} onMouseDown={e => startHandleDrag(e, 'p2', kind, obj)} />
+            </>
+          );
+        })()}
+
+        {/* Rect corner + edge handles */}
+        {kind === 'rect' && (<>
+          {cornerHandle(x,   y,   'tl', 'nw-resize')}
+          {cornerHandle(x+w, y,   'tr', 'ne-resize')}
+          {cornerHandle(x+w, y+h, 'br', 'se-resize')}
+          {cornerHandle(x,   y+h, 'bl', 'sw-resize')}
+          {edgeHandle(x+w/2, y,   'top',    'n-resize')}
+          {edgeHandle(x+w/2, y+h, 'bottom', 's-resize')}
+          {edgeHandle(x,     y+h/2, 'left', 'w-resize')}
+          {edgeHandle(x+w,   y+h/2, 'right','e-resize')}
+        </>)}
+
+        {/* Image corner handles */}
+        {kind === 'image' && (<>
+          {cornerHandle(x,   y,   'tl', 'nw-resize')}
+          {cornerHandle(x+w, y,   'tr', 'ne-resize')}
+          {cornerHandle(x+w, y+h, 'br', 'se-resize')}
+          {cornerHandle(x,   y+h, 'bl', 'sw-resize')}
+        </>)}
+
+        {/* Annotation resize handle */}
+        {kind === 'annotation' && cornerHandle(x+w, y+h, 'br', 'se-resize')}
+
+        {/* Fixture scale handle */}
+        {kind === 'fixture' && (<>
+          <circle cx={x+w} cy={y+h} r={hr}
+            fill="#7b61ff" stroke="white" strokeWidth={1/zoom}
+            style={{ cursor: 'se-resize' }}
+            onMouseDown={e => startHandleDrag(e, 'scale', 'fixture', obj, cx, cy)} />
+        </>)}
+
+        {/* Text scale handle */}
+        {kind === 'text' && (
+          <circle cx={x+w} cy={y+h} r={hr}
+            fill="#7b61ff" stroke="white" strokeWidth={1/zoom}
+            style={{ cursor: 'se-resize' }}
+            onMouseDown={e => startHandleDrag(e, 'scale', 'text', obj, cx, cy)} />
+        )}
+      </g>
+    );
+  }
+
+  // ─── Layer-ordered rendering ──────────────────────────────────────────
+  const allSelected = new Set([...(selectedIds || []), ...(selectedId ? [selectedId] : [])]);
+  const ftypes = {};
+  fixtureTypes.forEach(f => { ftypes[f.id] = f; });
+  const focusFixture = focusModeId ? fixtures.find(f => f.id === focusModeId) : null;
+  const ro = showRulers ? RULER_SIZE : 0;
+
+  const activeLayers = (layers && layers.length) ? layers
+    : [{ id: 'layer-bg', visible: true }, { id: 'layer-arch', visible: true }, { id: 'layer-lighting', visible: true }];
+
+  function renderForLayer(layerId) {
+    const vis = activeLayers.find(l => l.id === layerId)?.visible !== false;
+    if (!vis) return null;
+    return (
+      <g key={layerId}>
+        {/* PDF Background (layer-bg) */}
+        {layerId === 'layer-bg' && pdfBackground && isLayerVisible('layer-bg') && (
+          <image href={pdfBackground.dataUrl} x={pdfBackground.x} y={pdfBackground.y}
+            width={pdfBackground.w} height={pdfBackground.h} opacity={pdfBackground.opacity ?? 0.4} />
+        )}
+        {/* Images */}
+        {images.filter(o => getLayerId(o,'image') === layerId).map(img => (
+          <g key={img.id} style={{ opacity: img.locked ? 0.6 : 1 }}>
+            <g transform={img.rotation ? `rotate(${img.rotation},${img.x+img.w/2},${img.y+img.h/2})` : undefined}>
+              <image href={img.dataUrl} x={img.x} y={img.y} width={img.w} height={img.h} />
+              {allSelected.has(img.id) && <rect x={img.x} y={img.y} width={img.w} height={img.h} fill="none" stroke="#00aaff" strokeWidth={2/zoom} strokeDasharray={`${4/zoom} ${2/zoom}`} />}
+            </g>
+            {img.locked && <text x={img.x+4/zoom} y={img.y+14/zoom} fontSize={14/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+          </g>
+        ))}
+        {/* Lines */}
+        {lines.filter(o => getLayerId(o,'line') === layerId).map(l => (
+          <g key={l.id} style={{ opacity: l.locked ? 0.6 : 1 }}>
+            <g transform={l.rotation ? `rotate(${l.rotation},${(l.x1+l.x2)/2},${(l.y1+l.y2)/2})` : undefined}>
+              <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke={allSelected.has(l.id)?'#00aaff':'#607d8b'} strokeWidth={2/zoom} strokeLinecap="round" />
+            </g>
+            {l.locked && <text x={(l.x1+l.x2)/2} y={(l.y1+l.y2)/2} fontSize={12/zoom} textAnchor="middle" fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+          </g>
+        ))}
+        {/* Rectangles */}
+        {rectangles.filter(o => getLayerId(o,'rect') === layerId).map(r => (
+          <g key={r.id} style={{ opacity: r.locked ? 0.6 : 1 }}>
+            <g transform={r.rotation ? `rotate(${r.rotation},${r.x+r.w/2},${r.y+r.h/2})` : undefined}>
+              <rect x={r.x} y={r.y} width={r.w} height={r.h} stroke={allSelected.has(r.id)?'#00aaff':'#607d8b'} strokeWidth={2/zoom} fill="none" />
+            </g>
+            {r.locked && <text x={r.x+4/zoom} y={r.y+14/zoom} fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+          </g>
+        ))}
+        {/* Texts */}
+        {texts.filter(o => getLayerId(o,'text') === layerId).map(t => (
+          <g key={t.id} transform={t.rotation ? `rotate(${t.rotation},${t.x},${t.y})` : undefined} style={{ opacity: t.locked ? 0.6 : 1 }}>
+            <text x={t.x} y={t.y} fill={allSelected.has(t.id)?'#00aaff':'#a0aec0'} fontSize={(t.fontSize||14)/zoom} style={{ userSelect:'none', cursor:'pointer' }}>{t.label}</text>
+            {t.locked && <text x={t.x} y={t.y-(t.fontSize||14)/zoom-2/zoom} fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+          </g>
+        ))}
+        {/* Annotations */}
+        {annotations.filter(o => getLayerId(o,'annotation') === layerId).map(a => {
+          const aw = a.w || 120, ah = a.h || 50;
+          const sel = allSelected.has(a.id);
+          return (
+            <g key={a.id} style={{ cursor:'pointer', opacity: a.locked ? 0.6 : 1 }}>
+              <rect x={a.x} y={a.y} width={aw} height={ah}
+                fill="rgba(255,220,50,0.1)" stroke={sel?'#ffd032':'rgba(255,208,50,0.5)'}
+                strokeWidth={(sel?2:1)/zoom} rx={4/zoom} />
+              <text x={a.x+5/zoom} y={a.y+16/zoom} fontSize={11/zoom} fill="#ffd032" style={{ userSelect:'none', pointerEvents:'none' }}>
+                {a.label}
+              </text>
+              {a.locked && <text x={a.x+4/zoom} y={a.y+ah-4/zoom} fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+            </g>
+          );
+        })}
+        {/* Pipes and Trusses */}
+        {pipes.filter(o => getLayerId(o,'pipe') === layerId).map(p => {
+          const sel = allSelected.has(p.id), hov = hoveredPipe === p.id;
+          const isTruss = p.type === 'truss';
+          const baseColor = isTruss ? '#60a0d0' : '#e0c060';
+          const color = sel ? '#00aaff' : hov ? '#4a90d9' : baseColor;
+          const sw = (sel ? 5 : isTruss ? 5 : 3) / zoom;
+          return (
+            <g key={p.id} style={{ opacity: p.locked ? 0.6 : 1 }}>
+              {isTruss ? (
+                // Truss: double-line symbol with cross-members
+                <>
+                  <line x1={p.x1} y1={p.y1-3/zoom} x2={p.x2} y2={p.y2-3/zoom} stroke={color} strokeWidth={1.5/zoom} />
+                  <line x1={p.x1} y1={p.y1+3/zoom} x2={p.x2} y2={p.y2+3/zoom} stroke={color} strokeWidth={1.5/zoom} />
+                  {/* Cross-member ticks */}
+                  {(() => {
+                    const len = distance(p.x1, p.y1, p.x2, p.y2);
+                    const n = Math.max(2, Math.floor(len / (20/zoom)));
+                    const ticks = [];
+                    for (let i = 1; i < n; i++) {
+                      const t = i / n;
+                      const tx = p.x1 + (p.x2 - p.x1) * t;
+                      const ty = p.y1 + (p.y2 - p.y1) * t;
+                      ticks.push(<line key={i} x1={tx} y1={ty-3/zoom} x2={tx} y2={ty+3/zoom} stroke={color} strokeWidth={1/zoom} />);
+                    }
+                    return ticks;
+                  })()}
+                </>
+              ) : (
+                <line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke={color} strokeWidth={sw} strokeLinecap="round" />
+              )}
+              {/* End caps */}
+              <line x1={p.x1} y1={p.y1-6/zoom} x2={p.x1} y2={p.y1+6/zoom} stroke={color} strokeWidth={2/zoom} />
+              <line x1={p.x2} y1={p.y2-6/zoom} x2={p.x2} y2={p.y2+6/zoom} stroke={color} strokeWidth={2/zoom} />
+              <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2-10/zoom} textAnchor="middle" fontSize={10/zoom} fill={color} style={{ userSelect:'none', pointerEvents:'none' }}>
+                {isTruss ? '⊞ ' : ''}{p.name}
+              </text>
+              {p.locked && <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2} textAnchor="middle" fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+            </g>
+          );
+        })}
+        {/* Fixtures */}
+        {fixtures.filter(o => getLayerId(o,'fixture') === layerId).map(f => {
+          const ftype = ftypes[f.fixtureTypeId];
+          const sel = allSelected.has(f.id);
+          return (
+            <g key={f.id} transform={`translate(${f.x},${f.y})`} style={{ cursor: f.locked ? 'not-allowed' : 'pointer', opacity: f.locked ? 0.6 : 1 }}>
+              <g transform={`scale(${1/zoom})`}>
+                <FixtureSymbol fixtureType={ftype} unit={f.unit?.trim()||null} channel={f.channel?.trim()||null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} />
+              </g>
+              {f.id === focusModeId && <circle cx={0} cy={0} r={6/zoom} fill="none" stroke="#ffaa00" strokeWidth={2/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} />}
+              {f.locked && <text x={0} y={-20/zoom} textAnchor="middle" fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
+            </g>
+          );
+        })}
+      </g>
+    );
+  }
+
+  // All distinct layer IDs present in objects (to catch unlayered objects)
+  const allLayerIds = [...new Set([
+    ...activeLayers.map(l => l.id),
+    'layer-bg', 'layer-arch', 'layer-lighting',
+  ])];
+
+  // ─── Group bounding box ───────────────────────────────────────────────
+  const groupBounds = (() => {
+    if ((selectedIds||[]).length < 2) return null;
+    const all = [...fixtures, ...pipes, ...lines, ...rectangles, ...texts, ...images, ...annotations];
+    const first = all.find(o => o.id === selectedIds[0]);
+    if (!first?.groupId) return null;
+    if (!selectedIds.every(id => all.find(o => o.id === id)?.groupId === first.groupId)) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    selectedIds.forEach(id => {
+      const o = all.find(o => o.id === id);
+      if (!o) return;
+      if (o.w !== undefined) { minX = Math.min(minX,o.x); minY = Math.min(minY,o.y); maxX = Math.max(maxX,o.x+o.w); maxY = Math.max(maxY,o.y+o.h); }
+      else if (o.x1 !== undefined) { minX = Math.min(minX,o.x1,o.x2); minY = Math.min(minY,o.y1,o.y2); maxX = Math.max(maxX,o.x1,o.x2); maxY = Math.max(maxY,o.y1,o.y2); }
+      else if (o.x !== undefined) { minX = Math.min(minX,o.x-15); minY = Math.min(minY,o.y-15); maxX = Math.max(maxX,o.x+15); maxY = Math.max(maxY,o.y+15); }
+    });
+    return isFinite(minX) ? { x: minX-10, y: minY-10, w: maxX-minX+20, h: maxY-minY+20 } : null;
+  })();
+
+  // ─── Inline text editor ───────────────────────────────────────────────
+  let editOverlay = null;
+  if (editingText) {
+    const sx = editingText.x * zoom + pan.x + ro;
+    const sy = editingText.y * zoom + pan.y + ro;
+    const fs = (editingText.fontSize || 14) * zoom;
+    editOverlay = (
+      <input autoFocus
+        style={{ position: 'fixed', left: sx, top: sy - fs - 2, fontSize: fs, fontFamily: 'inherit', background: 'rgba(13,27,42,0.95)', border: '1px solid #ffd032', borderRadius: 3, color: '#e0e0e0', padding: '0 4px', outline: 'none', minWidth: 60, zIndex: 200 }}
+        value={editingText.label}
+        onChange={e => setEditingText(p => ({ ...p, label: e.target.value }))}
+        onBlur={() => {
+          const label = editingText.label;
+          const id = editingText.id;
+          if (editingText.isAnnotation) commitToDrawing(d => { const a = (d.annotations||[]).find(a => a.id === id); if (a) a.label = label; });
+          else commitToDrawing(d => { const t = d.texts.find(t => t.id === id); if (t) t.label = label; });
+          setEditingText(null);
+        }}
+        onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingText(null); e.stopPropagation(); }}
+      />
+    );
+  }
+
+  function commitCalib() {
+    if (!calibDist || !calibState?.p2) return;
+    const worldDist = distance(calibState.p1.x, calibState.p1.y, calibState.p2.x, calibState.p2.y);
+    const realDist = Number(calibDist);
+    const unitToMm = { mm: 1, cm: 10, m: 1000, ft: 304.8, in: 25.4 };
+    const realDistMm = realDist * (unitToMm[calibUnit] || 1);
+    // Scale factor: how many mm per world unit after calibration
+    const scaleFactor = realDistMm / worldDist;
+    const p1 = calibState.p1;
+
+    commitToDrawing(d => {
+      d.calibration = { p1, p2: calibState.p2, worldDist, realDist, unit: calibUnit, scaleFactor };
+      // Rescale pdfBackground so the calibrated distance matches real-world mm
+      if (d.pdfBackground && scaleFactor > 0 && isFinite(scaleFactor)) {
+        const bg = d.pdfBackground;
+        bg.x = p1.x + (bg.x - p1.x) * scaleFactor;
+        bg.y = p1.y + (bg.y - p1.y) * scaleFactor;
+        bg.w = bg.w * scaleFactor;
+        bg.h = bg.h * scaleFactor;
+      }
+    });
+    setCalibState(null);
+    setCalibDist('');
+    if (onToolDone) onToolDone();
+  }
+
+  const cursorStyle = focusModeId ? 'crosshair' : activeTool === 'calibrate' ? 'crosshair' : pendingFixture ? 'crosshair'
+    : activeTool === 'select' ? (dragging && !dragging.handlePoint ? 'grabbing' : 'default')
+    : 'crosshair';
+
+  return (
+    <>
+      <svg ref={svgRef}
+        style={{ flex: 1, display: 'block', background: '#0d1117', cursor: cursorStyle, userSelect: 'none' }}
+        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
+        onDoubleClick={onDblClick} onContextMenu={onContextMenu}
+        onMouseLeave={() => { setCursorPos(null); setFocusCursor(null); if (dragTargetLayerRef) dragTargetLayerRef.current = null; }}
+      >
+        <g transform={`translate(${ro},${ro})`}>
+          <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+            {renderGrid()}
+
+            {/* Layer-ordered objects */}
+            {allLayerIds.map(lid => renderForLayer(lid))}
+
+            {/* Focus line */}
+            {focusFixture && focusCursor && (
+              <line x1={focusFixture.x} y1={focusFixture.y} x2={focusCursor.x} y2={focusCursor.y}
+                stroke="#ffaa00" strokeWidth={1.5/zoom} strokeDasharray={`${5/zoom} ${3/zoom}`} />
+            )}
+
+            {/* Drawing ghosts */}
+            {drawingState?.kind === 'line' && <line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2} stroke="#607d8b" strokeWidth={2/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} />}
+            {drawingState?.kind === 'pipe' && <g><line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2} stroke="#e0c060" strokeWidth={3/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} /><circle cx={drawingState.x1} cy={drawingState.y1} r={4/zoom} fill="#e0c060" /></g>}
+            {drawingState?.kind === 'rect' && <rect x={Math.min(drawingState.x1,drawingState.x2)} y={Math.min(drawingState.y1,drawingState.y2)} width={Math.abs(drawingState.x2-drawingState.x1)} height={Math.abs(drawingState.y2-drawingState.y1)} stroke="#607d8b" strokeWidth={2/zoom} fill="none" strokeDasharray={`${6/zoom} ${3/zoom}`} />}
+
+            {/* Box selection */}
+            {selBox && <rect x={Math.min(selBox.x1,selBox.x2)} y={Math.min(selBox.y1,selBox.y2)} width={Math.abs(selBox.x2-selBox.x1)} height={Math.abs(selBox.y2-selBox.y1)} stroke="#00aaff" strokeWidth={1.5/zoom} fill="rgba(0,170,255,0.08)" strokeDasharray={`${4/zoom} ${2/zoom}`} />}
+
+            {/* Group bounding box */}
+            {groupBounds && <rect x={groupBounds.x} y={groupBounds.y} width={groupBounds.w} height={groupBounds.h} stroke="#7b61ff" strokeWidth={1.5/zoom} fill="rgba(123,97,255,0.06)" strokeDasharray={`${6/zoom} ${3/zoom}`} />}
+
+            {/* Infrastructure items */}
+            <InfraLayer
+              infrastructure={infrastructure}
+              selectedId={selectedId}
+              zoom={zoom}
+              onMouseDown={(e, item) => {
+                if (activeTool !== 'select') return;
+                onSelect({ kind: 'infra', ...item });
+                const w = screenToWorld(e.clientX, e.clientY);
+                setDragging({ id: item.id, kind: 'infra', handlePoint: null, startX: w.x, startY: w.y, origX: item.x, origY: item.y });
+                e.stopPropagation();
+              }}
+            />
+
+            {/* Cables */}
+            <CablingLayer
+              cables={cables}
+              infrastructure={infrastructure}
+              fixtures={fixtures}
+              pipes={pipes}
+              rigHeight={rigHeight}
+              zoom={zoom}
+              selectedIds={new Set(selectedId ? [selectedId, ...(selectedIds||[])] : (selectedIds||[]))}
+              animating={animating}
+              onCableClick={cable => onSelect({ kind: 'cable', ...cable })}
+            />
+
+            {/* Cable ghost line while drawing */}
+            {cableFrom && cableGhost && (
+              <line
+                x1={cableFrom.x} y1={cableFrom.y}
+                x2={cableGhost.x} y2={cableGhost.y}
+                stroke={activeTool === 'cable-power' ? '#f59e0b' : activeTool === 'cable-dmx' ? '#a78bfa' : '#34d399'}
+                strokeWidth={2/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`}
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+            {cableFrom && (
+              <circle cx={cableFrom.x} cy={cableFrom.y} r={8/zoom}
+                fill="none"
+                stroke={activeTool === 'cable-power' ? '#f59e0b' : activeTool === 'cable-dmx' ? '#a78bfa' : '#34d399'}
+                strokeWidth={2/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} />
+            )}
+
+            {/* Selection controls */}
+            {renderSelectionControls()}
+
+            {/* Pipe snap zone */}
+            {pendingFixture && pipeSnap && hoveredPipe && (() => {
+              const p = pipes.find(p => p.id === hoveredPipe);
+              return p ? <circle cx={(p.x1+p.x2)/2} cy={(p.y1+p.y2)/2} r={PIPE_SNAP_RADIUS/zoom} stroke="#00aaff" strokeWidth={1/zoom} fill="none" opacity={0.3} strokeDasharray={`${4/zoom} ${4/zoom}`} /> : null;
+            })()}
+          </g>
+        </g>
+
+        {renderRulers(3000, 1500)}
+        {cursorPos && !focusModeId && !calibState && <text x={ro+8} y={28} fontSize={9} fill="#4a6080">{cursorPos.x}, {cursorPos.y}</text>}
+        {focusModeId && <text x={ro+8} y={28} fontSize={10} fill="#ffaa00">Click to set focus direction — Esc to cancel</text>}
+        {activeTool === 'calibrate' && !calibState && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click first calibration point — Esc to cancel</text>}
+        {activeTool === 'calibrate' && calibState?.p1 && !calibState?.p2 && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click second calibration point</text>}
+        {/* In-progress calibration line (screen coords) */}
+        {calibState?.p1 && (() => {
+          const x1s = calibState.p1.x * zoom + pan.x + ro, y1s = calibState.p1.y * zoom + pan.y + ro;
+          const p2 = calibState.p2 || cursorPos;
+          const x2s = p2 ? p2.x * zoom + pan.x + ro : x1s, y2s = p2 ? p2.y * zoom + pan.y + ro : y1s;
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <line x1={x1s} y1={y1s} x2={x2s} y2={y2s} stroke="#a0e0a0" strokeWidth={1.5} strokeDasharray="5 3" />
+              <circle cx={x1s} cy={y1s} r={5} fill="#a0e0a0" />
+              {calibState.p2 && <circle cx={x2s} cy={y2s} r={5} fill="#a0e0a0" />}
+            </g>
+          );
+        })()}
+        {/* Saved calibration annotation */}
+        {drawing?.calibration && (() => {
+          const c = drawing.calibration;
+          const x1s = c.p1.x * zoom + pan.x + ro, y1s = c.p1.y * zoom + pan.y + ro;
+          const x2s = c.p2.x * zoom + pan.x + ro, y2s = c.p2.y * zoom + pan.y + ro;
+          const mmPerUnit = (c.realDist * (c.unit==='m'?1000:c.unit==='cm'?10:c.unit==='ft'?304.8:c.unit==='in'?25.4:1)) / c.worldDist;
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <line x1={x1s} y1={y1s} x2={x2s} y2={y2s} stroke="#68d39188" strokeWidth={1.5} strokeDasharray="4 4" />
+              <circle cx={x1s} cy={y1s} r={4} fill="#68d391" />
+              <circle cx={x2s} cy={y2s} r={4} fill="#68d391" />
+              <text x={(x1s+x2s)/2} y={Math.min(y1s,y2s)-7} textAnchor="middle" fontSize={10} fill="#68d391">
+                ↔ {c.realDist}{c.unit} = {Math.round(c.worldDist)}wu · 1wu={mmPerUnit.toFixed(1)}mm
+              </text>
+            </g>
+          );
+        })()}
+        <text x={ro+8} y={1000-8} fontSize={9} fill="#4a6080">1:{meta?.scale||25} · Grid {gridSize}px</text>
+      </svg>
+
+      {editOverlay}
+
+      {/* Scale calibration dialog */}
+      {calibState?.showDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 800 }}>
+          <div style={{ background: '#16213e', border: '1px solid #0f3460', borderRadius: 8, padding: 20, width: 320, boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#4a90d9', marginBottom: 12 }}>📐 Scale Calibration</div>
+            <div style={{ fontSize: 11, color: '#a0aec0', marginBottom: 12 }}>
+              World distance: <strong style={{ color: '#e0e0e0' }}>{Math.round(distance(calibState.p1.x, calibState.p1.y, calibState.p2.x, calibState.p2.y))} units</strong><br/>
+              Enter the real-world measurement for this line:
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input autoFocus type="number" min="0.001" step="0.1"
+                style={{ flex: 1, background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 3, color: '#e0e0e0', fontSize: 13, padding: '6px 8px', outline: 'none' }}
+                value={calibDist} onChange={e => setCalibDist(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && calibDist) commitCalib(); if (e.key === 'Escape') setCalibState(null); e.stopPropagation(); }}
+                placeholder="e.g. 10" />
+              <select value={calibUnit} onChange={e => setCalibUnit(e.target.value)}
+                style={{ background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 3, color: '#e0e0e0', fontSize: 13, padding: '6px 8px' }}>
+                <option value="m">m</option>
+                <option value="cm">cm</option>
+                <option value="mm">mm</option>
+                <option value="ft">ft</option>
+                <option value="in">in</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={{ flex: 1, background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 4, color: '#4a90d9', cursor: 'pointer', padding: '7px', fontSize: 12 }}
+                onClick={commitCalib} disabled={!calibDist}>Set Scale</button>
+              <button style={{ background: '#3a1a1a', border: '1px solid #7a2a2a', borderRadius: 4, color: '#fc8181', cursor: 'pointer', padding: '7px 14px', fontSize: 12 }}
+                onClick={() => setCalibState(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div style={{ position: 'fixed', left: contextMenu.sx, top: contextMenu.sy, background: '#16213e', border: '1px solid #0f3460', borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.6)', zIndex: 999, minWidth: 170 }}
+          onMouseLeave={() => setContextMenu(null)}>
+          {contextMenu.hit.kind === 'fixture' && (
+            <div style={ctxStyle.item} onClick={() => {
+              setFocusModeId(contextMenu.hit.id);
+              onSelect(contextMenu.hit);
+              setContextMenu(null);
+            }}>🎯 Set Focus Direction…</div>
+          )}
+          <div style={ctxStyle.item} onClick={() => {
+            toggleLock(contextMenu.hit.id, contextMenu.hit.kind);
+            setContextMenu(null);
+          }}>
+            {contextMenu.hit.locked ? '🔓 Unlock Object' : '🔒 Lock Object'}
+          </div>
+          {/* Send to Layer */}
+          {(project.layers||[]).length > 0 && (
+            <>
+              <div style={ctxStyle.sep}>Send to Layer</div>
+              {(project.layers||[]).map(l => (
+                <div key={l.id} style={{ ...ctxStyle.item, paddingLeft: 20, display: 'flex', alignItems: 'center', gap: 7 }}
+                  onClick={() => {
+                    const { id, kind } = contextMenu.hit;
+                    commitToDrawing(d => {
+                      const arrMap = { fixture: d.fixtures, pipe: d.pipes, line: d.lines, rect: d.rectangles, text: d.texts, image: d.images||[], annotation: d.annotations||[] };
+                      const arr = arrMap[kind]; if (arr) { const obj = arr.find(o => o.id === id); if (obj) obj.layerId = l.id; }
+                    });
+                    setContextMenu(null);
+                  }}>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: l.color, display: 'inline-block', flexShrink: 0 }} />
+                  {l.name}
+                </div>
+              ))}
+            </>
+          )}
+          <div style={{ ...ctxStyle.item, borderTop: '1px solid #0f3460', color: '#fc8181' }} onClick={() => {
+            commitToDrawing(d => {
+              const id = contextMenu.hit.id;
+              d.fixtures = d.fixtures.filter(f => f.id !== id);
+              d.pipes = d.pipes.filter(p => p.id !== id);
+              d.lines = d.lines.filter(l => l.id !== id);
+              d.rectangles = d.rectangles.filter(r => r.id !== id);
+              d.texts = d.texts.filter(t => t.id !== id);
+              d.images = (d.images||[]).filter(i => i.id !== id);
+              d.annotations = (d.annotations||[]).filter(a => a.id !== id);
+            });
+            onSelect(null);
+            setContextMenu(null);
+          }}>🗑 Delete</div>
+        </div>
+      )}
+    </>
+  );
+}
+
+const ctxStyle = {
+  item: { padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#e0e0e0', transition: 'background 0.1s' },
+  sep:  { padding: '4px 14px 2px', fontSize: 10, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid #0f3460', marginTop: 2 },
+};

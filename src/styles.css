@@ -1,0 +1,41 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #0d1117;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+input:focus {
+  border-color: #4a90d9 !important;
+  outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0f3460;
+  border-radius: 3px;
+}
+
+/* Suppress entire app UI if window.print() is ever called directly.
+   Normal printing goes through SheetEditor's doPrint() popup window. */
+@media print {
+  body > * { display: none !important; }
+}
