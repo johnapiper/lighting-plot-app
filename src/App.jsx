@@ -111,6 +111,7 @@ export default function App() {
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
   const activeDrawingRef   = useRef(null);
+  const fitViewRef         = useRef(null); // Canvas exposes its fitView() here
 
   // ── Derived state ────────────────────────────────────────────────────────
   const activeMode    = project.activeMode    || 'cad';
