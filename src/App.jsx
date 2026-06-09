@@ -532,7 +532,7 @@ export default function App() {
         onDelete={handleDelete}
         onZoomIn={() => setZoom(z => Math.min(10, z*1.2))}
         onZoomOut={() => setZoom(z => Math.max(0.1, z/1.2))}
-        onFit={() => { setZoom(1); setPan({ x:100, y:100 }); }}
+        onFit={() => fitViewRef.current?.()}
         showGrid={showGrid} onToggleGrid={() => setShowGrid(v => !v)}
         pipeSnap={pipeSnap} onTogglePipeSnap={() => setPipeSnap(v => !v)}
         zoom={zoom}
