@@ -167,7 +167,7 @@ export default function App() {
       'menu-delete': handleDelete,
       'menu-zoom-in':  () => setZoom(z => Math.min(10, z * 1.2)),
       'menu-zoom-out': () => setZoom(z => Math.max(0.1, z / 1.2)),
-      'menu-fit':      () => { setZoom(1); setPan({ x: 100, y: 100 }); },
+      'menu-fit':      () => { fitViewRef.current?.() || (setZoom(1) || setPan({ x: 100, y: 100 })); },
       'menu-toggle-grid':   () => setShowGrid(v => !v),
       'menu-toggle-rulers': () => setShowRulers(v => !v),
       'menu-export-png':    handleExportPNG,
