@@ -819,7 +819,7 @@ export default function Canvas({
     const ox = showRulers ? RULER_SIZE : 0, oy = showRulers ? RULER_SIZE : 0;
     const mx = e.clientX - rect.left - ox, my = e.clientY - rect.top - oy;
     onZoomChange(z => {
-      const nz = Math.max(0.1, Math.min(10, z * factor));
+      const nz = Math.max(0.02, Math.min(20, z * factor));
       onPanChange(p => ({ x: mx - (mx - p.x) * (nz / z), y: my - (my - p.y) * (nz / z) }));
       return nz;
     });
