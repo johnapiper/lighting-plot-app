@@ -6,6 +6,7 @@ on:
       - 'v*.*.*'
 
 jobs:
+  # ── Windows NSIS installer ─────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
     permissions:
@@ -27,19 +28,20 @@ jobs:
       - name: Build webpack bundle
         run: npm run build
 
-      - name: Build Windows installer
+      - name: Build Windows installer (NSIS x64)
         run: npx electron-builder --win --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload installer to release
+      - name: Upload Windows installer to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: |
+            dist/*.exe
+            dist/*.blockmap
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ── macOS Universal DMG (Intel + Apple Silicon) ────────────────────────────
   build-mac:
     runs-on: macos-latest
     permissions:
@@ -61,15 +63,48 @@ jobs:
       - name: Build webpack bundle
         run: npm run build
 
-      - name: Build macOS DMG
-        run: npx electron-builder --mac --publish never
+      # ── Code signing (optional — skipped if secrets not set) ──────────────
+      # To enable signing, add these secrets in GitHub repo Settings → Secrets:
+      #   APPLE_CERTIFICATE      — base64-encoded .p12 Developer ID certificate
+      #   APPLE_CERTIFICATE_PWD  — certificate password
+      #   APPLE_ID               — your Apple ID email
+      #   APPLE_ID_PASSWORD      — app-specific password from appleid.apple.com
+      #   APPLE_TEAM_ID          — your Apple Developer Team ID
+      - name: Import Apple certificate (if available)
+        if: ${{ env.APPLE_CERTIFICATE != '' }}
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PWD: ${{ secrets.APPLE_CERTIFICATE_PWD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          security create-keychain -p "" $KEYCHAIN_PATH
+          security default-keychain -s $KEYCHAIN_PATH
+          security unlock-keychain -p "" $KEYCHAIN_PATH
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -k $KEYCHAIN_PATH -P "$APPLE_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" $KEYCHAIN_PATH
+
+      - name: Build macOS Universal DMG + zip
+        run: npx electron-builder --mac --universal --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signing — only active when secrets are present
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Upload DMG to release
+      - name: List dist output
+        run: ls -lh dist/
+
+      - name: Upload macOS DMG and zip to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.dmg
+          files: |
+            dist/*.dmg
+            dist/*.dmg.blockmap
+            dist/*-mac.zip
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
