@@ -530,8 +530,8 @@ export default function App() {
         activeTool={activeTool}
         onToolChange={t => { setActiveTool(t); setPendingFixture(null); }}
         onDelete={handleDelete}
-        onZoomIn={() => setZoom(z => Math.min(10, z*1.2))}
-        onZoomOut={() => setZoom(z => Math.max(0.1, z/1.2))}
+        onZoomIn={() => setZoom(z => Math.min(20, z*1.2))}
+        onZoomOut={() => setZoom(z => Math.max(0.02, z/1.2))}
         onFit={() => fitViewRef.current?.()}
         showGrid={showGrid} onToggleGrid={() => setShowGrid(v => !v)}
         pipeSnap={pipeSnap} onTogglePipeSnap={() => setPipeSnap(v => !v)}
