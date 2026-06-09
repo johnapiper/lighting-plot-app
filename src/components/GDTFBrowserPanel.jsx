@@ -1,149 +1,426 @@
-import React, { useState } from 'react';
+/**
+ * GDTFBrowserPanel — native in-app browser for the GDTF Share fixture library.
+ *
+ * API (session-cookie based):
+ *   POST /apis/public/login.php        { user, password } → { result, notice }
+ *   GET  /apis/public/getList.php      → array of fixture revisions
+ *   GET  /apis/public/downloadFile.php?rid=N → binary .gdtf stream
+ *
+ * Uses Node.js https module directly (bypasses CORS; nodeIntegration=true).
+ * Session cookies are captured from login and replayed on subsequent requests.
+ */
+import React, { useState, useEffect, useMemo } from 'react';
 import { parseGdtf } from '../library/GdtfImporter';
 
-// Electron shell for opening external URLs
-const { shell } = window.require ? window.require('electron') : { shell: null };
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
+// Node modules available because nodeIntegration:true
+const https  = window.require('https');
+const HOST   = 'gdtf-share.com';
+const PER_PAGE = 30;
 
-// How to open gdtf-share.com in the system browser
-function openExternal(url) {
-  if (shell) shell.openExternal(url);
-  else window.open(url, '_blank');
+// ── Minimal HTTPS client with cookie jar ─────────────────────────────────────
+
+let cookieJar = ''; // persists for the lifetime of this panel instance
+
+function httpsGet(path) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      { hostname: HOST, path, method: 'GET', headers: { Cookie: cookieJar } },
+      (res) => {
+        captureCookies(res);
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
 }
 
-export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
-  const [importing, setImporting] = useState(false);
-
-  // Handle a .gdtf file dropped or selected via a hidden input
-  async function handleFiles(files) {
-    setImporting(true);
-    for (const file of Array.from(files)) {
-      if (!file.name.endsWith('.gdtf')) continue;
-      try {
-        const buf = await file.arrayBuffer();
-        const ft = await parseGdtf(buf, file.name);
-        onImportGdtf(ft);
-      } catch (err) {
-        alert(`Failed to import ${file.name}:\n${err.message}`);
+function httpsPost(path, json) {
+  const body = JSON.stringify(json);
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: HOST, path, method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          Cookie: cookieJar,
+        },
+      },
+      (res) => {
+        captureCookies(res);
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
       }
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+function captureCookies(res) {
+  const sc = res.headers['set-cookie'];
+  if (!sc) return;
+  // Merge new cookies into jar (keep name=value pairs, drop attributes)
+  const jar = {};
+  cookieJar.split(';').forEach(c => { const [k,v] = c.trim().split('='); if (k) jar[k.trim()] = v||''; });
+  sc.forEach(c => { const [k,v] = c.split(';')[0].split('='); if (k) jar[k.trim()] = v||''; });
+  cookieJar = Object.entries(jar).map(([k,v]) => `${k}=${v}`).join('; ');
+}
+
+function parseJSON(buf) {
+  try { return JSON.parse(buf.toString('utf8')); }
+  catch { return null; }
+}
+
+// ── Field accessors (handle whatever shape the API returns) ──────────────────
+
+function fMfr(r)  { return r.manufacturer || r.Manufacturer || r.vendor || ''; }
+function fName(r) { return r.fixture || r.name || r.Name || r.FixtureName || r.model || ''; }
+function fRev(r)  { return r.revision || r.Revision || r.revisionName || r.version || ''; }
+function fRid(r)  { return r.rid || r.RID || r.revisionId || r.id || r.RevisionID; }
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [loggedIn,  setLoggedIn]  = useState(false);
+  const [loginErr,  setLoginErr]  = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
+
+  const [allRows,   setAllRows]   = useState(null);  // null = not loaded
+  const [listErr,   setListErr]   = useState('');
+  const [listBusy,  setListBusy]  = useState(false);
+
+  const [query,     setQuery]     = useState('');
+  const [page,      setPage]      = useState(1);
+
+  const [importing, setImporting] = useState(null); // rid | 'done:rid'
+
+  // Reset cookie jar when panel mounts (fresh session each open)
+  useEffect(() => { cookieJar = ''; }, []);
+
+  // ── Login ──────────────────────────────────────────────────────────────────
+  async function handleLogin(e) {
+    e && e.preventDefault();
+    setLoginBusy(true);
+    setLoginErr('');
+    try {
+      const { status, body } = await httpsPost('/apis/public/login.php', { user: email, password });
+      const data = parseJSON(body);
+      if (!data) throw new Error(`Unexpected server response (HTTP ${status})`);
+      if (!data.result) throw new Error(data.error || data.notice || `Login failed (${status})`);
+      setLoggedIn(true);
+      fetchList();
+    } catch (err) {
+      setLoginErr(err.message);
+    } finally {
+      setLoginBusy(false);
     }
-    setImporting(false);
-    onClose();
   }
 
-  function handleDrop(e) {
-    e.preventDefault();
-    handleFiles(e.dataTransfer.files);
+  // ── Fetch full library list ────────────────────────────────────────────────
+  async function fetchList() {
+    setListBusy(true);
+    setListErr('');
+    setAllRows(null);
+    try {
+      const { status, body } = await httpsGet('/apis/public/getList.php');
+      if (status === 401) throw new Error('Session expired — please sign in again.');
+      if (status !== 200) throw new Error(`Server error: HTTP ${status}`);
+      const data = parseJSON(body);
+      if (!data) throw new Error('Could not parse fixture list response.');
+      const list = Array.isArray(data) ? data
+        : (data.list || data.fixtures || data.data || data.result || []);
+      if (!Array.isArray(list)) throw new Error('Unexpected fixture list format.');
+      setAllRows(list);
+      setPage(1);
+    } catch (err) {
+      setListErr(err.message);
+    } finally {
+      setListBusy(false);
+    }
   }
 
+  // ── Filter + paginate ──────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    if (!allRows) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return allRows;
+    return allRows.filter(r =>
+      fMfr(r).toLowerCase().includes(q) || fName(r).toLowerCase().includes(q)
+    );
+  }, [allRows, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const pageRows   = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  useEffect(() => { setPage(1); }, [query]);
+
+  // ── Import ─────────────────────────────────────────────────────────────────
+  async function handleImport(row) {
+    const id = fRid(row);
+    if (id == null) { alert('Cannot determine revision ID for this fixture.'); return; }
+    setImporting(String(id));
+    try {
+      const { status, body } = await httpsGet(`/apis/public/downloadFile.php?rid=${id}`);
+      if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
+      // body is a Node Buffer — convert to ArrayBuffer
+      const ab = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+      const filename = `${fMfr(row)} ${fName(row)} ${fRev(row) || id}.gdtf`.replace(/\s+/g, ' ').trim();
+      const ft = await parseGdtf(ab, filename);
+      onImportGdtf(ft);
+      setImporting('done:' + id);
+      setTimeout(onClose, 900);
+    } catch (err) {
+      alert(`Import failed: ${err.message}`);
+      setImporting(null);
+    }
+  }
+
+  // ── Sign out ───────────────────────────────────────────────────────────────
+  function handleSignOut() {
+    cookieJar = '';
+    setLoggedIn(false);
+    setAllRows(null);
+    setQuery('');
+    setListErr('');
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={sty.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={sty.panel}>
-        {/* Header */}
-        <div style={sty.header}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#4a90d9' }}>🌐 GDTF Share — Fixture Import</div>
-            <div style={{ fontSize: 10, color: '#718096', marginTop: 2 }}>gdtf-share.com community fixture library</div>
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={S.panel}>
+
+        {/* Title bar */}
+        <div style={S.titleBar}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#4a90d9' }}>🌐 GDTF Share</span>
+            <span style={{ fontSize: 11, color: '#718096' }}>community fixture library</span>
           </div>
-          <button style={sty.closeBtn} onClick={onClose}>✕</button>
+          <button style={S.closeBtn} onClick={onClose}>✕</button>
         </div>
 
-        {/* Instructions */}
-        <div style={sty.body}>
-          {/* Step 1 */}
-          <div style={sty.step}>
-            <div style={sty.stepNum}>1</div>
-            <div style={sty.stepContent}>
-              <div style={sty.stepTitle}>Browse & download a fixture from GDTF Share</div>
-              <div style={sty.stepDesc}>
-                Search for your fixture on the website. Find the fixture, click it, and download the <code style={sty.code}>.gdtf</code> file to your computer.
-              </div>
-              <button style={sty.primaryBtn} onClick={() => openExternal('https://gdtf-share.com/share.php?v=gdtf')}>
-                Open gdtf-share.com ↗
+        {/* ── LOGIN ──────────────────────────────────────────────────────── */}
+        {!loggedIn && (
+          <div style={S.loginWrap}>
+            <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 14, lineHeight: 1.6 }}>
+              Sign in with your{' '}
+              <strong style={{ color: '#e0e0e0' }}>gdtf-share.com</strong> account to
+              browse the community library and import fixtures directly into your plot.
+            </div>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input
+                style={S.inp} type="text"
+                placeholder="Username or email"
+                value={email} onChange={e => setEmail(e.target.value)}
+                autoComplete="username"
+              />
+              <input
+                style={S.inp} type="password"
+                placeholder="Password"
+                value={password} onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              {loginErr && <div style={S.errBox}>{loginErr}</div>}
+              <button style={S.loginBtn} type="submit" disabled={loginBusy || !email || !password}>
+                {loginBusy ? 'Signing in…' : 'Sign In'}
               </button>
+            </form>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#718096' }}>
+              No account?{' '}
+              <span style={S.link} onClick={() => {
+                const { shell } = window.require('electron');
+                shell.openExternal('https://gdtf-share.com/landing/pages/signUp.php');
+              }}>
+                Register on gdtf-share.com ↗
+              </span>
             </div>
           </div>
+        )}
 
-          <div style={sty.divider} />
+        {/* ── LIBRARY BROWSER ─────────────────────────────────────────────── */}
+        {loggedIn && (
+          <>
+            {/* Search + controls */}
+            <div style={S.toolbar}>
+              <input
+                style={{ ...S.inp, flex: 1, fontSize: 12 }}
+                placeholder="Search manufacturer or fixture name…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+              {allRows && !listBusy && (
+                <span style={{ fontSize: 10, color: '#718096', whiteSpace: 'nowrap' }}>
+                  {filtered.length.toLocaleString()} result{filtered.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              <button style={S.signOutBtn} title="Sign out" onClick={handleSignOut}>Sign out</button>
+            </div>
 
-          {/* Step 2 */}
-          <div style={sty.step}>
-            <div style={sty.stepNum}>2</div>
-            <div style={sty.stepContent}>
-              <div style={sty.stepTitle}>Drop the downloaded .gdtf file here</div>
-              <div style={sty.stepDesc}>
-                Drag and drop the <code style={sty.code}>.gdtf</code> file onto the box below, or click it to browse for the file.
+            {/* Loading / error */}
+            {listBusy && (
+              <div style={S.banner}>
+                <span style={{ opacity: 0.6 }}>⏳</span> Loading fixture library from gdtf-share.com…
               </div>
-              {/* Drop zone */}
-              <label style={sty.dropZone}
-                onDragOver={e => e.preventDefault()}
-                onDrop={handleDrop}>
-                <input type="file" accept=".gdtf" multiple style={{ display: 'none' }}
-                  onChange={e => handleFiles(e.target.files)} />
-                <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
-                <div style={{ fontSize: 12, color: '#a0aec0' }}>
-                  {importing ? 'Importing…' : 'Drop .gdtf file here or click to browse'}
+            )}
+            {listErr && !listBusy && (
+              <div style={{ ...S.banner, color: '#fc8181' }}>
+                ⚠ {listErr}
+                <button style={S.retryBtn} onClick={fetchList}>Retry</button>
+              </div>
+            )}
+
+            {/* Table */}
+            <div style={S.tableWrap}>
+              {/* Header */}
+              <div style={S.headerRow}>
+                <span style={{ flex: '0 0 160px', color: '#4a90d9' }}>Manufacturer</span>
+                <span style={{ flex: 1, color: '#4a90d9' }}>Fixture</span>
+                <span style={{ flex: '0 0 70px', color: '#4a90d9' }}>Rev</span>
+                <span style={{ flex: '0 0 64px' }} />
+              </div>
+
+              {!listBusy && !listErr && allRows !== null && pageRows.length === 0 && (
+                <div style={S.empty}>
+                  {query ? 'No fixtures match your search.' : 'Library is empty.'}
                 </div>
-              </label>
+              )}
+
+              {pageRows.map((row, i) => {
+                const id   = String(fRid(row) ?? '');
+                const done = importing === 'done:' + id;
+                const busy = importing === id;
+                return (
+                  <div key={`${id}-${i}`} style={{
+                    ...S.row,
+                    background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                  }}>
+                    <span style={{ ...S.cell, flex: '0 0 160px', color: '#a0aec0', fontSize: 11 }}>
+                      {fMfr(row)}
+                    </span>
+                    <span style={{ ...S.cell, flex: 1, color: '#e0e0e0' }}>
+                      {fName(row)}
+                    </span>
+                    <span style={{ ...S.cell, flex: '0 0 70px', color: '#4a6080', fontSize: 10 }}>
+                      {fRev(row)}
+                    </span>
+                    <span style={{ flex: '0 0 64px', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        style={{ ...S.importBtn, ...(done ? S.importDone : {}) }}
+                        disabled={!!importing}
+                        onClick={() => handleImport(row)}
+                      >
+                        {done ? '✓' : busy ? '…' : 'Import'}
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-          </div>
 
-          <div style={sty.divider} />
-
-          {/* Alternative: Fixture Builder */}
-          <div style={{ padding: '10px 0 4px', fontSize: 11, color: '#718096', textAlign: 'center' }}>
-            Want to create a custom fixture?{' '}
-            <span style={{ color: '#4a90d9', cursor: 'pointer', textDecoration: 'underline' }}
-              onClick={() => openExternal('https://fixturebuilder.gdtf-share.com')}>
-              Open GDTF Fixture Builder ↗
-            </span>
-          </div>
-        </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={S.pager}>
+                <button style={S.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹ Prev</button>
+                <span style={{ fontSize: 11, color: '#a0aec0' }}>Page {page} / {totalPages}</span>
+                <button style={S.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next ›</button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-const sty = {
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const S = {
   overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900,
   },
   panel: {
     background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
-    width: 460, display: 'flex', flexDirection: 'column',
-    boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
+    width: 580, maxHeight: '84vh',
+    display: 'flex', flexDirection: 'column',
+    boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
   },
-  header: {
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    padding: '14px 16px', borderBottom: '1px solid #0f3460',
+  titleBar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '12px 16px', borderBottom: '1px solid #0f3460', flexShrink: 0,
   },
   closeBtn: {
     background: 'none', border: 'none', color: '#718096',
-    cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1,
+    cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1,
   },
-  body: { padding: '16px 20px' },
-  step: { display: 'flex', gap: 14, alignItems: 'flex-start' },
-  stepNum: {
-    width: 26, height: 26, borderRadius: '50%',
-    background: '#0f3460', border: '1px solid #4a90d9',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 12, fontWeight: 700, color: '#4a90d9', flexShrink: 0,
-  },
-  stepContent: { flex: 1 },
-  stepTitle: { fontSize: 13, fontWeight: 600, color: '#e0e0e0', marginBottom: 5 },
-  stepDesc: { fontSize: 11, color: '#a0aec0', lineHeight: 1.5, marginBottom: 10 },
-  code: { background: '#0d1b2a', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 11, color: '#68d391' },
-  primaryBtn: {
-    padding: '7px 16px', background: '#4a90d9', border: 'none',
-    borderRadius: 4, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-  },
-  dropZone: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    border: '2px dashed #1a3a5c', borderRadius: 6,
-    padding: '24px 16px', cursor: 'pointer',
-    background: '#0d1b2a', transition: 'border-color 0.2s',
+  loginWrap: { padding: '22px 24px', flexShrink: 0 },
+  inp: {
+    background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 3,
+    color: '#e0e0e0', fontSize: 13, padding: '7px 10px', outline: 'none',
     width: '100%', boxSizing: 'border-box',
   },
-  divider: { borderTop: '1px solid #0f3460', margin: '14px 0' },
+  loginBtn: {
+    padding: '9px', background: '#4a90d9', border: 'none',
+    borderRadius: 4, color: '#fff', cursor: 'pointer',
+    fontSize: 13, fontWeight: 600,
+    opacity: 1,
+  },
+  errBox: {
+    color: '#fc8181', fontSize: 11,
+    background: 'rgba(252,129,129,0.08)', padding: '6px 10px', borderRadius: 3,
+  },
+  link: { color: '#4a90d9', cursor: 'pointer', textDecoration: 'underline' },
+  toolbar: {
+    display: 'flex', gap: 8, alignItems: 'center',
+    padding: '9px 12px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+  },
+  signOutBtn: {
+    background: 'none', border: '1px solid #2a3a5a', borderRadius: 3,
+    color: '#718096', cursor: 'pointer', fontSize: 10, padding: '4px 8px', whiteSpace: 'nowrap',
+  },
+  banner: {
+    padding: '9px 14px', fontSize: 12, color: '#a0aec0',
+    borderBottom: '1px solid #0f3460', flexShrink: 0,
+    display: 'flex', alignItems: 'center', gap: 8,
+  },
+  retryBtn: {
+    background: 'none', border: '1px solid #fc8181', borderRadius: 3,
+    color: '#fc8181', cursor: 'pointer', fontSize: 10, padding: '2px 8px',
+  },
+  tableWrap: { flex: 1, overflowY: 'auto' },
+  headerRow: {
+    display: 'flex', gap: 6, padding: '7px 14px',
+    background: '#0f2040', fontSize: 10, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '0.06em',
+    position: 'sticky', top: 0, zIndex: 1,
+  },
+  row: {
+    display: 'flex', gap: 6, alignItems: 'center',
+    padding: '7px 14px', borderBottom: '1px solid rgba(15,52,96,0.4)',
+  },
+  cell: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 },
+  empty: { padding: 28, textAlign: 'center', fontSize: 12, color: '#4a5568' },
+  importBtn: {
+    padding: '3px 10px', background: '#0f3460', border: '1px solid #4a90d9',
+    borderRadius: 3, color: '#4a90d9', cursor: 'pointer', fontSize: 11,
+  },
+  importDone: {
+    background: '#0f3a1a', borderColor: '#68d391', color: '#68d391', cursor: 'default',
+  },
+  pager: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
+    padding: '8px 12px', borderTop: '1px solid #0f3460', flexShrink: 0,
+  },
+  pageBtn: {
+    background: '#0f3460', border: '1px solid #1a4a7a',
+    borderRadius: 3, color: '#a0aec0', cursor: 'pointer',
+    fontSize: 11, padding: '4px 12px',
+  },
 };
