@@ -253,6 +253,8 @@ export default function SheetEditor({
     const el = svgRef.current;
     if (!el) return;
     function handleWheel(e) {
+      // Only zoom a viewport when Ctrl/Cmd is held; otherwise let the page scroll normally
+      if (!e.ctrlKey && !e.metaKey) return;
       const rect = el.getBoundingClientRect();
       const currentPs = psRef.current;
       const mx = (e.clientX - rect.left) / currentPs;
