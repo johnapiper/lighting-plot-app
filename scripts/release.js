@@ -117,15 +117,21 @@ const distDir = path.join(__dirname, '..', 'dist');
 let installerFiles = [];
 try {
   const allFiles = fs.readdirSync(distDir);
+  // Pick installers for current platform only; CI attaches the other platform's builds
+  const exts = process.platform === 'darwin' ? /\.(dmg|zip)$/
+             : process.platform === 'linux'  ? /\.(AppImage|deb|rpm)$/
+             :                                 /\.exe$/;
   installerFiles = allFiles
-    .filter(f => /\.(exe|dmg|AppImage|deb|rpm|zip)$/.test(f))
+    .filter(f => exts.test(f))
     .map(f => path.join(distDir, f));
   if (installerFiles.length) {
-    console.log(`\n📎 Found ${installerFiles.length} installer(s):`);
+    console.log(`\n📎 Found ${installerFiles.length} installer(s) to attach:`);
     installerFiles.forEach(f => console.log(`   ${path.basename(f)}`));
+  } else {
+    console.log('⚠  No installer files found in dist/ — GitHub Actions CI will attach them.');
   }
 } catch {
-  console.log('⚠  No dist/ directory found — skipping installer upload.');
+  console.log('⚠  No dist/ directory found — GitHub Actions CI will attach installers.');
 }
 
 // ── GitHub Release ────────────────────────────────────────────────────────────
