@@ -31,6 +31,7 @@ export default function Canvas({
   activeLayerId,
   animating,
   activeMode = 'cad',
+  fitRef,
 }) {
   const svgRef = useRef(null);
 
