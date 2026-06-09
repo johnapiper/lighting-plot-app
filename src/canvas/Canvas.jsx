@@ -52,6 +52,7 @@ export default function Canvas({
 
   const [hoveredPipe, setHoveredPipe] = useState(null);
   const [cursorPos, setCursorPos] = useState(null);
+  const [pipePlaceAngle, setPipePlaceAngle] = useState(null); // null=free, 0/90/180/270 = constrained
   const isPanning = useRef(false);
   const lastMouse = useRef(null);
 
@@ -74,6 +75,7 @@ export default function Canvas({
   const { meta, layers } = project;
   const gridSize = meta?.gridSize || 20;
   const rigHeight = meta?.rigHeight || 5500;
+  const gridHeight = meta?.gridHeight || 6000;
 
   // ── Cable drawing state ────────────────────────────────────────────────
   const [cableFrom, setCableFrom] = useState(null); // {id, type, x, y} when mid-draw
@@ -124,6 +126,26 @@ export default function Canvas({
       if (d < bestDist) { bestDist = d; best = p; }
     }
     return bestDist < PIPE_SNAP_RADIUS / zoom ? best : null;
+  }
+
+  // Snap to nearest pipe/truss endpoint (for pipe placement chaining)
+  function findNearestPipeEndpoint(wx, wy) {
+    let best = null, bestDist = Infinity;
+    for (const p of pipes) {
+      const d1 = distance(wx, wy, p.x1, p.y1);
+      const d2 = distance(wx, wy, p.x2, p.y2);
+      if (d1 < d2 && d1 < bestDist) { bestDist = d1; best = { x: p.x1, y: p.y1 }; }
+      else if (d2 < d1 && d2 < bestDist) { bestDist = d2; best = { x: p.x2, y: p.y2 }; }
+    }
+    return bestDist < PIPE_SNAP_RADIUS / zoom ? best : null;
+  }
+
+  // Given a free endpoint and a constrained angle (deg), compute snapped endpoint
+  function constrainToAngle(sx, sy, ex, ey, angleDeg) {
+    const rad = angleDeg * Math.PI / 180;
+    const dx = ex - sx, dy = ey - sy;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    return { x: sx + Math.cos(rad) * len, y: sy + Math.sin(rad) * len };
   }
 
   // ─── Group helpers ────────────────────────────────────────────────────
@@ -404,6 +426,16 @@ export default function Canvas({
         const gm = hit.groupId ? getGroupMembersForDrag(hit.groupId, hit.id) : null;
         if (hit.groupId) onMultiSelect(getGroupMemberIds(hit.groupId));
         else onSelect(hit);
+        // Collect fixtures/infra snapped to this pipe/truss so they move with it
+        let pipeFollowers = null;
+        if (hit.kind === 'pipe') {
+          pipeFollowers = [
+            ...fixtures.filter(f => f.pipeId === hit.id || f.onStructureId === hit.id)
+              .map(f => ({ id: f.id, kind: 'fixture', origX: f.x, origY: f.y })),
+            ...(drawing?.infrastructure || []).filter(i => i.onStructureId === hit.id)
+              .map(i => ({ id: i.id, kind: 'infra', origX: i.x, origY: i.y })),
+          ];
+        }
         setDragging({
           id: hit.id, kind: hit.kind, handlePoint: null,
           startX: world.x, startY: world.y,
@@ -412,6 +444,7 @@ export default function Canvas({
           origY2: hit.y2 ?? (hit.y != null ? hit.y + (hit.h||0) : null),
           origW: hit.w, origH: hit.h,
           groupMembers: gm,
+          pipeFollowers,
         });
       } else {
         // Also check direct infra hit (already covered by hitTestAll now)
@@ -439,14 +472,28 @@ export default function Canvas({
     if (activeTool === 'pipe') {
       const cur = drawingRef.current;
       if (!cur) {
-        setDrawingState({ kind: 'pipe', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+        // Snap start to nearest pipe endpoint when pipeSnap is on
+        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        const sx = epSnap ? epSnap.x : snapped.x;
+        const sy = epSnap ? epSnap.y : snapped.y;
+        setPipePlaceAngle(null);
+        setDrawingState({ kind: 'pipe', x1: sx, y1: sy, x2: sx, y2: sy });
       } else {
-        if (distance(cur.x1, cur.y1, snapped.x, snapped.y) > 2) {
-          const np = { id: generateId(), kind: 'pipe', x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
+        // Snap end to nearest pipe endpoint when pipeSnap is on
+        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        let ex = epSnap ? epSnap.x : snapped.x;
+        let ey = epSnap ? epSnap.y : snapped.y;
+        if (pipePlaceAngle !== null) {
+          const c = constrainToAngle(cur.x1, cur.y1, ex, ey, pipePlaceAngle);
+          ex = c.x; ey = c.y;
+        }
+        if (distance(cur.x1, cur.y1, ex, ey) > 2) {
+          const np = { id: generateId(), kind: 'pipe', x1: cur.x1, y1: cur.y1, x2: ex, y2: ey, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
           commitToDrawing(d => d.pipes.push(np));
           onSelect({ kind: 'pipe', ...np });
         }
         setDrawingState(null);
+        setPipePlaceAngle(null);
       }
       return;
     }
@@ -472,14 +519,26 @@ export default function Canvas({
     if (activeTool === 'truss') {
       const cur = drawingRef.current;
       if (!cur) {
-        setDrawingState({ kind: 'pipe', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        const sx = epSnap ? epSnap.x : snapped.x;
+        const sy = epSnap ? epSnap.y : snapped.y;
+        setPipePlaceAngle(null);
+        setDrawingState({ kind: 'pipe', x1: sx, y1: sy, x2: sx, y2: sy });
       } else {
-        if (distance(cur.x1, cur.y1, snapped.x, snapped.y) > 2) {
-          const nt = { id: generateId(), kind: 'pipe', type: 'truss', x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, name: 'Truss', height: '5.5', layerId: activeLayerId || 'layer-lighting' };
+        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        let ex = epSnap ? epSnap.x : snapped.x;
+        let ey = epSnap ? epSnap.y : snapped.y;
+        if (pipePlaceAngle !== null) {
+          const c = constrainToAngle(cur.x1, cur.y1, ex, ey, pipePlaceAngle);
+          ex = c.x; ey = c.y;
+        }
+        if (distance(cur.x1, cur.y1, ex, ey) > 2) {
+          const nt = { id: generateId(), kind: 'pipe', type: 'truss', x1: cur.x1, y1: cur.y1, x2: ex, y2: ey, name: 'Truss', height: '5.5', layerId: activeLayerId || 'layer-lighting' };
           commitToDrawing(d => d.pipes.push(nt));
           onSelect({ kind: 'pipe', ...nt });
         }
         setDrawingState(null);
+        setPipePlaceAngle(null);
       }
       return;
     }
@@ -567,7 +626,20 @@ export default function Canvas({
         setSelBox({ x1: selBoxStart.current.x, y1: selBoxStart.current.y, x2: world.x, y2: world.y });
     }
 
-    if (drawingState) setDrawingState(d => ({ ...d, x2: snapped.x, y2: snapped.y }));
+    if (drawingState) {
+      let ex = snapped.x, ey = snapped.y;
+      // Snap end to nearest endpoint when placing pipe/truss
+      if ((activeTool === 'pipe' || activeTool === 'truss') && pipeSnap) {
+        const ep = findNearestPipeEndpoint(snapped.x, snapped.y);
+        if (ep) { ex = ep.x; ey = ep.y; }
+      }
+      // Angle constraint for R-key rotation
+      if ((activeTool === 'pipe' || activeTool === 'truss') && pipePlaceAngle !== null) {
+        const c = constrainToAngle(drawingState.x1, drawingState.y1, ex, ey, pipePlaceAngle);
+        ex = c.x; ey = c.y;
+      }
+      setDrawingState(d => ({ ...d, x2: ex, y2: ey }));
+    }
 
     if (dragging?.handlePoint) {
       applyHandleDrag(dragging, snapped, world);
@@ -600,6 +672,16 @@ export default function Canvas({
       softUpdateDrawing(d => {
         moveObjectInDrawing(d, dragging.id, dragging.kind, dragging.origX, dragging.origY, dragging.origX2, dragging.origY2, dx, dy);
         (dragging.groupMembers || []).forEach(m => moveObjectInDrawing(d, m.id, m.kind, m.origX, m.origY, m.origX2, m.origY2, dx, dy));
+        // Move fixtures and infra items attached to a dragged pipe/truss
+        (dragging.pipeFollowers || []).forEach(f => {
+          if (f.kind === 'fixture') {
+            const fix = d.fixtures.find(fx => fx.id === f.id);
+            if (fix) { fix.x = f.origX + dx; fix.y = f.origY + dy; }
+          } else if (f.kind === 'infra') {
+            const inf = (d.infrastructure || []).find(i => i.id === f.id);
+            if (inf) { inf.x = f.origX + dx; inf.y = f.origY + dy; }
+          }
+        });
       });
     }
 
@@ -666,13 +748,18 @@ export default function Canvas({
     }
   }, [texts, annotations, zoom, pan, showRulers]);
 
-  // Right-click: context menu for ALL objects
+  // Right-click: context menu for ALL objects; also rotates pipe/truss during placement
   const onContextMenu = useCallback((e) => {
     e.preventDefault();
+    // If actively drawing a pipe/truss, right-click rotates by 90° instead of context menu
+    if (drawingRef.current && (activeTool === 'pipe' || activeTool === 'truss')) {
+      setPipePlaceAngle(a => a === null ? 0 : (a + 90) % 360);
+      return;
+    }
     const world = screenToWorld(e.clientX, e.clientY);
     const hit = hitTestAll(world.x, world.y, true); // includeLocked=true for right-click
     if (hit) setContextMenu({ sx: e.clientX, sy: e.clientY, hit });
-  }, [fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, layers]);
+  }, [activeTool, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, layers]);
 
   const onWheel = useCallback((e) => {
     e.preventDefault();
@@ -696,8 +783,16 @@ export default function Canvas({
 
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape') { setDrawingState(null); setFocusModeId(null); setFocusCursor(null); setCalibState(null); setCableFrom(null); setCableGhost(null); }
+      if (e.key === 'Escape') {
+        setDrawingState(null); setFocusModeId(null); setFocusCursor(null);
+        setCalibState(null); setCableFrom(null); setCableGhost(null);
+        setPipePlaceAngle(null);
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') deleteSelected();
+      // R key: rotate pipe/truss placement by 90°
+      if ((e.key === 'r' || e.key === 'R') && drawingRef.current && document.activeElement.tagName !== 'INPUT') {
+        setPipePlaceAngle(a => a === null ? 0 : (a + 90) % 360);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -1076,6 +1171,11 @@ export default function Canvas({
         bg.y = p1.y + (bg.y - p1.y) * scaleFactor;
         bg.w = bg.w * scaleFactor;
         bg.h = bg.h * scaleFactor;
+        // Rescale p2 so calibration line stays aligned with the rescaled background
+        d.calibration.p2 = {
+          x: p1.x + (calibState.p2.x - p1.x) * scaleFactor,
+          y: p1.y + (calibState.p2.y - p1.y) * scaleFactor,
+        };
       }
     });
     setCalibState(null);
@@ -1110,7 +1210,27 @@ export default function Canvas({
 
             {/* Drawing ghosts */}
             {drawingState?.kind === 'line' && <line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2} stroke="#607d8b" strokeWidth={2/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} />}
-            {drawingState?.kind === 'pipe' && <g><line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2} stroke="#e0c060" strokeWidth={3/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} /><circle cx={drawingState.x1} cy={drawingState.y1} r={4/zoom} fill="#e0c060" /></g>}
+            {drawingState?.kind === 'pipe' && (
+              <g>
+                <line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2}
+                  stroke={(activeTool === 'truss') ? '#60a0d0' : '#e0c060'} strokeWidth={3/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} />
+                <circle cx={drawingState.x1} cy={drawingState.y1} r={4/zoom}
+                  fill={(activeTool === 'truss') ? '#60a0d0' : '#e0c060'} />
+                {/* Endpoint snap highlights */}
+                {pipes.filter(p => {
+                  const snap = PIPE_SNAP_RADIUS / zoom;
+                  return (distance(drawingState.x2, drawingState.y2, p.x1, p.y1) < snap ||
+                          distance(drawingState.x2, drawingState.y2, p.x2, p.y2) < snap);
+                }).map(p => (
+                  <g key={p.id}>
+                    {distance(drawingState.x2, drawingState.y2, p.x1, p.y1) < PIPE_SNAP_RADIUS / zoom &&
+                      <circle cx={p.x1} cy={p.y1} r={6/zoom} fill="none" stroke="#00ff88" strokeWidth={2/zoom} />}
+                    {distance(drawingState.x2, drawingState.y2, p.x2, p.y2) < PIPE_SNAP_RADIUS / zoom &&
+                      <circle cx={p.x2} cy={p.y2} r={6/zoom} fill="none" stroke="#00ff88" strokeWidth={2/zoom} />}
+                  </g>
+                ))}
+              </g>
+            )}
             {drawingState?.kind === 'rect' && <rect x={Math.min(drawingState.x1,drawingState.x2)} y={Math.min(drawingState.y1,drawingState.y2)} width={Math.abs(drawingState.x2-drawingState.x1)} height={Math.abs(drawingState.y2-drawingState.y1)} stroke="#607d8b" strokeWidth={2/zoom} fill="none" strokeDasharray={`${6/zoom} ${3/zoom}`} />}
 
             {/* Box selection */}
@@ -1140,6 +1260,7 @@ export default function Canvas({
               fixtures={fixtures}
               pipes={pipes}
               rigHeight={rigHeight}
+              gridHeight={gridHeight}
               zoom={zoom}
               selectedIds={new Set(selectedId ? [selectedId, ...(selectedIds||[])] : (selectedIds||[]))}
               animating={animating}
@@ -1179,6 +1300,11 @@ export default function Canvas({
         {focusModeId && <text x={ro+8} y={28} fontSize={10} fill="#ffaa00">Click to set focus direction — Esc to cancel</text>}
         {activeTool === 'calibrate' && !calibState && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click first calibration point — Esc to cancel</text>}
         {activeTool === 'calibrate' && calibState?.p1 && !calibState?.p2 && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click second calibration point</text>}
+        {(activeTool === 'pipe' || activeTool === 'truss') && drawingRef.current && (
+          <text x={ro+8} y={28} fontSize={10} fill="#e0c060">
+            {pipePlaceAngle !== null ? `🔄 Angle: ${pipePlaceAngle}° (R=rotate, Esc=cancel)` : 'Click to place — R or right-click to rotate 90°'}
+          </text>
+        )}
         {/* In-progress calibration line (screen coords) */}
         {calibState?.p1 && (() => {
           const x1s = calibState.p1.x * zoom + pan.x + ro, y1s = calibState.p1.y * zoom + pan.y + ro;

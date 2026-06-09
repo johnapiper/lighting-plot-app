@@ -8,7 +8,7 @@ import { calcCableRoute, formatLength } from '../cabling/routing';
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
-function buildRows(drawing, pipes, rigHeight) {
+function buildRows(drawing, pipes, rigHeight, gridHeight = 6000) {
   if (!drawing) return [];
   const { infrastructure = [], cables = [], fixtures = [] } = drawing;
 
@@ -20,7 +20,7 @@ function buildRows(drawing, pipes, rigHeight) {
   function label(id, type) {
     if (type === 'fixture') {
       const f = fixtureMap[id];
-      return f ? `${f.name || f.fixtureType || 'Fixture'} #${f.channel || f.dmxAddress || '—'}` : id;
+      return f ? `${f.name || f.type || 'Fixture'} #${f.unit || f.channel || '—'}` : id;
     }
     if (type === 'infra') {
       const i = infraMap[id];
@@ -29,15 +29,22 @@ function buildRows(drawing, pipes, rigHeight) {
     return id;
   }
 
+  function formatDrop(riseMm, dropMm) {
+    if (!riseMm && !dropMm) return '—';
+    const riseM = (riseMm / 1000).toFixed(2);
+    const dropM = (dropMm / 1000).toFixed(2);
+    return `(${riseM} + ${dropM} m)`;
+  }
+
   return cables.map((c, idx) => {
     const fromObj = c.fromType === 'fixture' ? fixtureMap[c.fromId] : infraMap[c.fromId];
     const toObj   = c.toType   === 'fixture' ? fixtureMap[c.toId]   : infraMap[c.toId];
 
-    let lengthMm = 0;
+    let lengthMm = 0, riseMm = 0, dropMm = 0;
     if (fromObj && toObj) {
       const from = { x: fromObj.x, y: fromObj.y, onStructureId: fromObj.onStructureId || null };
       const to   = { x: toObj.x,   y: toObj.y,   onStructureId: toObj.onStructureId   || null };
-      ({ lengthMm } = calcCableRoute(from, to, pipes, rigHeight));
+      ({ lengthMm, riseMm, dropMm } = calcCableRoute(from, to, pipes, rigHeight, gridHeight));
     }
 
     // Power load
@@ -63,6 +70,7 @@ function buildRows(drawing, pipes, rigHeight) {
       to:   label(c.toId,   c.toType),
       length: formatLength(lengthMm),
       lengthMm,
+      drop: formatDrop(riseMm, dropMm),
       load: loadStr,
       status: statusStr,
       overloaded,
@@ -71,21 +79,22 @@ function buildRows(drawing, pipes, rigHeight) {
 }
 
 const COLS = [
-  { key: 'num',      label: '#',        w: 40 },
-  { key: 'label',    label: 'Label',    w: 90 },
-  { key: 'cableType',label: 'Type',     w: 70 },
-  { key: 'subtype',  label: 'Connector',w: 140 },
-  { key: 'from',     label: 'From',     w: 160 },
-  { key: 'to',       label: 'To',       w: 160 },
-  { key: 'length',   label: 'Length',   w: 80 },
-  { key: 'load',     label: 'Load',     w: 160 },
-  { key: 'status',   label: 'Status',   w: 100 },
+  { key: 'num',      label: '#',          w: 40 },
+  { key: 'label',    label: 'Label',      w: 90 },
+  { key: 'cableType',label: 'Type',       w: 70 },
+  { key: 'subtype',  label: 'Connector',  w: 130 },
+  { key: 'from',     label: 'From',       w: 150 },
+  { key: 'to',       label: 'To',         w: 150 },
+  { key: 'length',   label: 'Length',     w: 80 },
+  { key: 'drop',     label: 'Cable Drop', w: 130 },
+  { key: 'load',     label: 'Load',       w: 150 },
+  { key: 'status',   label: 'Status',     w: 100 },
 ];
 
-export default function CableReport({ drawing, pipes, rigHeight, onClose }) {
+export default function CableReport({ drawing, pipes, rigHeight, gridHeight, onClose }) {
   const [filterType, setFilterType] = useState('all');
 
-  const rows = buildRows(drawing, pipes, rigHeight);
+  const rows = buildRows(drawing, pipes, rigHeight, gridHeight || 6000);
   const filtered = filterType === 'all' ? rows : rows.filter(r => r.cableType === filterType);
 
   const totalLen = filtered.reduce((s, r) => s + r.lengthMm, 0);

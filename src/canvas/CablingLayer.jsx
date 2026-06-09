@@ -42,12 +42,19 @@ function AnimDot({ pathD, color, duration = 2, offset = 0 }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
+// Returns true if this object is a power/dmx/network supply source
+function isSupplyItem(obj, type) {
+  if (type !== 'infra' || !obj) return false;
+  return ['distro', 'node', 'netport', 'switch'].includes(obj.type);
+}
+
 export default function CablingLayer({
   cables = [],
   infrastructure = [],
   fixtures = [],
   pipes = [],
   rigHeight = 5500,
+  gridHeight = 6000,
   zoom = 1,
   selectedIds = new Set(),
   animating = false,
@@ -75,7 +82,7 @@ export default function CablingLayer({
     const from = { x: fromObj.x, y: fromObj.y, onStructureId: fromObj.onStructureId || null };
     const to   = { x: toObj.x,   y: toObj.y,   onStructureId: toObj.onStructureId   || null };
 
-    const { waypoints, dropPoints, lengthMm } = calcCableRoute(from, to, pipes, rigHeight);
+    const { waypoints, dropPoints, lengthMm } = calcCableRoute(from, to, pipes, rigHeight, gridHeight);
 
     // Determine if this cable is "active" (attached to selected item)
     const isHighlighted = highlightCableIds.has(cable.id)
@@ -85,7 +92,6 @@ export default function CablingLayer({
     // Load warning for power cables
     let overloaded = false;
     if (cable.cableType === 'power') {
-      // Find all fixtures on this chain
       const chainFixtures = [];
       if (cable.fromType === 'fixture') chainFixtures.push(fromObj);
       if (cable.toType   === 'fixture') chainFixtures.push(toObj);
@@ -95,12 +101,20 @@ export default function CablingLayer({
       }
     }
 
+    // Animation direction: always source → load
+    // Supply items: distro, node, netport, switch (infra). Load = fixture.
+    // If "to" is the supply and "from" is the load, reverse waypoints for animation.
+    const fromIsSupply = isSupplyItem(fromObj, cable.fromType);
+    const toIsSupply   = isSupplyItem(toObj,   cable.toType);
+    const animWaypoints = (toIsSupply && !fromIsSupply) ? [...waypoints].reverse() : waypoints;
+
     const color    = cableColor(cable);
     const pathId   = `cable-path-${cable.id}`;
     const pointsStr = waypoints.map(p => `${p.x},${p.y}`).join(' ');
     const pathD    = waypointsToPath(waypoints);
+    const animPathD = waypointsToPath(animWaypoints);
 
-    return { cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD };
+    return { cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD, animPathD };
   }).filter(Boolean);
 
   const sw = (v) => v / zoom; // scale with zoom (for stroke widths etc.)
@@ -114,7 +128,7 @@ export default function CablingLayer({
         ))}
       </defs>
 
-      {routedCables.map(({ cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD }) => {
+      {routedCables.map(({ cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD, animPathD }) => {
         const alpha = isHighlighted ? 1 : 0.4;
         const sw1   = isHighlighted ? 2.5 / zoom : 1.2 / zoom;
         const strokeColor = overloaded ? '#ef4444' : color;
@@ -180,7 +194,7 @@ export default function CablingLayer({
                     dur={`${duration}s`}
                     begin={`${-offset * duration}s`}
                     repeatCount="indefinite"
-                    path={pathD}
+                    path={animPathD}
                   />
                 </circle>
               );

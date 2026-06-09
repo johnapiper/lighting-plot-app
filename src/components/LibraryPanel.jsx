@@ -1,16 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { FixturePreview } from '../fixtures/FixtureSymbol';
 import { parseGdtf } from '../library/GdtfImporter';
+import FixturePropertiesModal from './FixturePropertiesModal';
 
 export default function LibraryPanel({
   builtinFixtures, customFixtures, pendingFixture,
   onSelectFixture, onImportGdtf, onDeleteCustomFixture,
-  onRenameFixture, onOpenGdtfBrowser,
+  onRenameFixture, onUpdateFixture, onOpenGdtfBrowser,
 }) {
   const fileRef = useRef(null);
   const [ctxMenu, setCtxMenu] = useState(null);   // { x, y, fixture }
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState('');
+  const [propertiesFixture, setPropertiesFixture] = useState(null);
 
   const allFixtures = [...builtinFixtures, ...customFixtures];
   const categories = [...new Set(allFixtures.map(f => f.category))];
@@ -62,6 +64,11 @@ export default function LibraryPanel({
 
   function handleDelete(f) {
     onDeleteCustomFixture(f.id);
+    closeCtx();
+  }
+
+  function openProperties(f) {
+    setPropertiesFixture(f);
     closeCtx();
   }
 
@@ -120,6 +127,15 @@ export default function LibraryPanel({
         </div>
       ))}
 
+      {/* Fixture Properties Modal */}
+      {propertiesFixture && (
+        <FixturePropertiesModal
+          fixture={propertiesFixture}
+          onSave={updated => { if (onUpdateFixture) onUpdateFixture(updated); }}
+          onClose={() => setPropertiesFixture(null)}
+        />
+      )}
+
       {/* Context menu */}
       {ctxMenu && (
         <div
@@ -131,7 +147,10 @@ export default function LibraryPanel({
           }}
           onMouseLeave={closeCtx}
         >
-          <div style={ctxItem} onClick={() => handleDuplicate(ctxMenu.fixture)}>
+          <div style={ctxItem} onClick={() => openProperties(ctxMenu.fixture)}>
+            ⚙️ Properties…
+          </div>
+          <div style={{ ...ctxItem, borderTop: '1px solid #0f3460' }} onClick={() => handleDuplicate(ctxMenu.fixture)}>
             📋 Duplicate
           </div>
           {isCustom(ctxMenu.fixture) && (

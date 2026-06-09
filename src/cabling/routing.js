@@ -34,17 +34,25 @@ function nearestOnSeg(px, py, ax, ay, bx, by) {
  *
  * @param {{ x:number, y:number, onStructureId:string|null }} from
  * @param {{ x:number, y:number, onStructureId:string|null }} to
- * @param {Array}  structs   - array of pipe/truss objects [{id, x1, y1, x2, y2}]
- * @param {number} rigHeight - trim height in world units (same as project coords, e.g. mm)
- * @returns {{ waypoints: Array<{x:number,y:number}>, lengthMm: number, dropPoints: Array }}
+ * @param {Array}  structs    - array of pipe/truss objects [{id, x1, y1, x2, y2}]
+ * @param {number} rigHeight  - trim height in world units (mm), height of trusses
+ * @param {number} gridHeight - grid/ceiling height (mm), cables route up to this before dropping
+ * @returns {{ waypoints, lengthMm, dropPoints, riseMm, dropMm }}
+ *   riseMm / dropMm are the vertical components for the Cable Drop column in reports.
  */
-export function calcCableRoute(from, to, structs, rigHeight = 5500) {
+export function calcCableRoute(from, to, structs, rigHeight = 5500, gridHeight = 6000) {
   const fromStruct = from.onStructureId ? structs.find(p => p.id === from.onStructureId) : null;
   const toStruct   = to.onStructureId   ? structs.find(p => p.id === to.onStructureId)   : null;
 
   const waypoints  = [];
   const dropPoints = [];   // {x,y} where cable drops from rig — drawn as tick marks
   let length = 0;
+  let riseMm = 0;   // upward vertical component (for Cable Drop report column)
+  let dropMm = 0;   // downward vertical component
+
+  // Cable routing uses gridHeight as the ceiling level through which cables travel.
+  // Fixtures on a truss are at rigHeight; floor items are at 0.
+  // Route: item_at_height → up to gridHeight → horizontal → down to dest_height.
 
   if (fromStruct && toStruct && fromStruct.id === toStruct.id) {
     // ── Same structure: run along it ───────────────────────────────────────
@@ -54,26 +62,32 @@ export function calcCableRoute(from, to, structs, rigHeight = 5500) {
 
   } else if (fromStruct && !toStruct) {
     // ── From rig, to floor ─────────────────────────────────────────────────
+    // Cable leaves fixture at rigHeight, rises to gridHeight, drops to floor (0)
     const drop = nearestOnSeg(to.x, to.y, fromStruct.x1, fromStruct.y1, fromStruct.x2, fromStruct.y2);
     waypoints.push({ x: from.x,  y: from.y });
     waypoints.push({ x: drop.x,  y: drop.y });  // along rig
-    waypoints.push({ x: drop.x,  y: drop.y });  // drop (same xy, visual tick only)
+    waypoints.push({ x: drop.x,  y: drop.y });  // drop tick
     waypoints.push({ x: to.x,    y: to.y });    // floor run
     dropPoints.push({ x: drop.x, y: drop.y });
+    riseMm = gridHeight - rigHeight;             // rise from rig level up to ceiling grid
+    dropMm = gridHeight;                         // drop from ceiling grid down to floor
     length = dist2d(from.x, from.y, drop.x, drop.y) // along rig
-           + rigHeight                               // drop to floor
-           + dist2d(drop.x, drop.y, to.x, to.y);    // floor to dest
+           + riseMm + dropMm                          // vertical: up to grid, then down to floor
+           + dist2d(drop.x, drop.y, to.x, to.y);     // floor run to dest
 
   } else if (!fromStruct && toStruct) {
     // ── From floor, up to rig ─────────────────────────────────────────────
+    // Cable leaves floor (0), rises to gridHeight, drops to rigHeight
     const drop = nearestOnSeg(from.x, from.y, toStruct.x1, toStruct.y1, toStruct.x2, toStruct.y2);
     waypoints.push({ x: from.x,  y: from.y });
     waypoints.push({ x: drop.x,  y: drop.y });  // floor run
-    waypoints.push({ x: drop.x,  y: drop.y });  // rise (visual tick)
+    waypoints.push({ x: drop.x,  y: drop.y });  // rise tick
     waypoints.push({ x: to.x,    y: to.y });    // along rig
     dropPoints.push({ x: drop.x, y: drop.y });
+    riseMm = gridHeight;                         // rise from floor up to ceiling grid
+    dropMm = gridHeight - rigHeight;             // drop from ceiling grid down to rig
     length = dist2d(from.x, from.y, drop.x, drop.y)
-           + rigHeight
+           + riseMm + dropMm
            + dist2d(drop.x, drop.y, to.x, to.y);
 
   } else if (fromStruct && toStruct) {
@@ -86,10 +100,12 @@ export function calcCableRoute(from, to, structs, rigHeight = 5500) {
     waypoints.push({ x: to.x,     y: to.y });
     dropPoints.push({ x: dropF.x, y: dropF.y });
     dropPoints.push({ x: dropT.x, y: dropT.y });
+    riseMm = gridHeight - rigHeight;  // up from first rig to grid
+    dropMm = gridHeight - rigHeight;  // down from grid to second rig
     length = dist2d(from.x, from.y, dropF.x, dropF.y)
-           + rigHeight
-           + dist2d(dropF.x, dropF.y, dropT.x, dropT.y)
-           + rigHeight
+           + (gridHeight - rigHeight)                          // up from first rig
+           + dist2d(dropF.x, dropF.y, dropT.x, dropT.y)      // horizontal at ceiling
+           + (gridHeight - rigHeight)                          // down to second rig
            + dist2d(dropT.x, dropT.y, to.x, to.y);
 
   } else {
@@ -103,6 +119,8 @@ export function calcCableRoute(from, to, structs, rigHeight = 5500) {
     waypoints,
     dropPoints,
     lengthMm: Math.round(length),
+    riseMm: Math.round(riseMm),
+    dropMm: Math.round(dropMm),
   };
 }
 

@@ -299,6 +299,20 @@ export default function App() {
       return proj;
     });
   }
+  function handleUpdateFixture(updated) {
+    commit(proj => {
+      // Update in customFixtureTypes if it exists there
+      const idx = (proj.customFixtureTypes||[]).findIndex(f => f.id === updated.id);
+      if (idx >= 0) {
+        proj.customFixtureTypes[idx] = { ...proj.customFixtureTypes[idx], ...updated };
+      } else {
+        // Add as a custom override (built-in fixture being edited)
+        if (!proj.customFixtureTypes) proj.customFixtureTypes = [];
+        proj.customFixtureTypes.push({ ...updated, source: 'gdtf' });
+      }
+      return proj;
+    });
+  }
 
   // ── Patch open/close with auto-notes ─────────────────────────────────────
   function openPatch() {
@@ -442,6 +456,7 @@ export default function App() {
             onImportGdtf={handleImportGdtf}
             onDeleteCustomFixture={handleDeleteCustomFixture}
             onRenameFixture={handleRenameFixture}
+            onUpdateFixture={handleUpdateFixture}
             onOpenGdtfBrowser={() => setShowGdtfBrowser(true)}
           />
         )}
@@ -589,6 +604,7 @@ export default function App() {
           drawing={activeDrawing}
           pipes={activeDrawing?.pipes || []}
           rigHeight={project.meta?.rigHeight || 5500}
+          gridHeight={project.meta?.gridHeight || 6000}
           onClose={() => setShowCableReport(false)}
         />
       )}
