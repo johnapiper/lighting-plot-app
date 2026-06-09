@@ -585,6 +585,7 @@ export default function App() {
               activeLayerId={activeLayerId}
               animating={animating}
               activeMode={activeMode}
+              fitRef={fitViewRef}
             />
             <DrawingTabs
               drawings={project.drawings||[]}
