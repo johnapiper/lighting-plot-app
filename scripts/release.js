@@ -118,12 +118,12 @@ let installerFiles = [];
 try {
   const allFiles = fs.readdirSync(distDir);
   // Pick installers for current platform only; CI attaches the other platform's builds
-  const exts = process.platform === 'darwin' ? /\.(dmg|zip)$/
-             : process.platform === 'linux'  ? /\.(AppImage|deb|rpm)$/
-             :                                 /\.exe$/;
-  installerFiles = allFiles
-    .filter(f => exts.test(f))
-    .map(f => path.join(distDir, f));
+  const names = process.platform === 'darwin' ? ['Lighting-Plot.dmg', 'Lighting-Plot.zip']
+              : process.platform === 'linux'  ? allFiles.filter(f => /\.(AppImage|deb|rpm)$/.test(f))
+              :                                 ['Lighting-Plot-Setup.exe'];
+  installerFiles = (Array.isArray(names) ? names : names)
+    .filter(f => typeof f === 'string' && allFiles.includes(path.basename(f)))
+    .map(f => path.join(distDir, path.basename(f)));
   if (installerFiles.length) {
     console.log(`\n📎 Found ${installerFiles.length} installer(s) to attach:`);
     installerFiles.forEach(f => console.log(`   ${path.basename(f)}`));
