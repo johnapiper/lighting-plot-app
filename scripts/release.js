@@ -81,9 +81,13 @@ console.log(`\n📦 Bumping ${pkg.version} → ${newVersion} (${bump})\n`);
 pkg.version = newVersion;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
-// ── Build ─────────────────────────────────────────────────────────────────────
-console.log('🔨 Building…');
+// ── Build webpack bundle ───────────────────────────────────────────────────────
+console.log('🔨 Building webpack bundle…');
 run('npm run build');
+
+// ── Build installer ───────────────────────────────────────────────────────────
+console.log('📦 Building installer…');
+run('npx electron-builder --win --publish never');
 
 // ── Git commit + tag ──────────────────────────────────────────────────────────
 console.log('\n📝 Committing…');
@@ -103,6 +107,22 @@ try { runSilent('git push origin :refs/tags/latest'); } catch {}
 run('git tag -a latest -m "Latest release"');
 run('git push origin latest');
 
+// ── Collect installer artefacts ───────────────────────────────────────────────
+const distDir = path.join(__dirname, '..', 'dist');
+let installerFiles = [];
+try {
+  const allFiles = fs.readdirSync(distDir);
+  installerFiles = allFiles
+    .filter(f => /\.(exe|dmg|AppImage|deb|rpm|zip)$/.test(f))
+    .map(f => path.join(distDir, f));
+  if (installerFiles.length) {
+    console.log(`\n📎 Found ${installerFiles.length} installer(s):`);
+    installerFiles.forEach(f => console.log(`   ${path.basename(f)}`));
+  }
+} catch {
+  console.log('⚠  No dist/ directory found — skipping installer upload.');
+}
+
 // ── GitHub Release ────────────────────────────────────────────────────────────
 console.log('\n🌐 Creating GitHub release…');
 
@@ -111,13 +131,11 @@ const tmpFile = path.join(__dirname, '_release_body.md');
 fs.writeFileSync(tmpFile, releaseBody);
 
 try {
-  run(`gh release create ${tag} --title "${tag} — ${releaseNote}" --notes-file "${tmpFile}" --latest`);
+  const attachArgs = installerFiles.map(f => `"${f}"`).join(' ');
+  run(`gh release create ${tag} --title "${tag} — ${releaseNote}" --notes-file "${tmpFile}" --latest ${attachArgs}`);
 } finally {
   fs.unlinkSync(tmpFile);
 }
-
-// Also update (or create) the `latest` release alias on GitHub
-// (gh release create with --latest already marks this as latest)
 
 console.log(`\n✅ Released ${tag} successfully!\n`);
 console.log(`   GitHub: https://github.com/${getRepoSlug()}/releases/tag/${tag}`);

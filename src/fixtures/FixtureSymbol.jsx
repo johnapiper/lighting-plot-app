@@ -1,18 +1,19 @@
 import React from 'react';
 
-export default function FixtureSymbol({ fixtureType, unit, channel, selected, rotation = 0, scale = 1, colourHex }) {
+export default function FixtureSymbol({ fixtureType, unit, channel, selected, rotation = 0, scale = 1, colourHex, symbolOverride, symbolColor }) {
   if (!fixtureType) return null;
 
-  const color = selected ? '#00aaff' : '#e0e0e0';
+  const color = selected ? '#00aaff' : (symbolColor || '#e0e0e0');
   const labelColor = selected ? '#00aaff' : '#ffffff';
   const subColor = selected ? '#80ccff' : '#a0aec0';
   const sc = scale || 1;
+  const sym = symbolOverride || fixtureType.symbol;
 
   return (
     <g>
       {/* Symbol and colour swatch rotate with fixture */}
       <g transform={`rotate(${rotation}) scale(${sc})`} style={{ color }}>
-        <g dangerouslySetInnerHTML={{ __html: fixtureType.symbol }} />
+        <g dangerouslySetInnerHTML={{ __html: sym }} />
         {colourHex && (
           <circle cx={0} cy={-14} r={4} fill={colourHex} stroke={selected ? '#00aaff' : 'rgba(0,0,0,0.4)'} strokeWidth={0.5} />
         )}

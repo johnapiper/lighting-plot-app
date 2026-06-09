@@ -17,6 +17,28 @@ import React, { useEffect, useRef, useState } from 'react';
 import { calcCableRoute, formatLength, waypointsToPath } from '../cabling/routing';
 import { CABLE_TYPES, calcCircuitLoad, wattsToAmps } from '../cabling/ratings';
 
+// ── Downstream fixture traversal (for accurate load per cable) ─────────────
+function collectDownstream(entryId, entryType, allCables, fixtureMap, infraMap, excludeCableId) {
+  const visited = new Set([`${entryType}-${entryId}`]);
+  const queue = [{ id: entryId, type: entryType }];
+  const result = [];
+  while (queue.length) {
+    const node = queue.shift();
+    if (node.type === 'fixture' && fixtureMap[node.id]) result.push(fixtureMap[node.id]);
+    for (const cable of allCables) {
+      if (cable.id === excludeCableId || cable.cableType !== 'power') continue;
+      let nextId = null, nextType = null;
+      if (cable.fromId === node.id && cable.fromType === node.type) { nextId = cable.toId;   nextType = cable.toType; }
+      else if (cable.toId === node.id && cable.toType === node.type) { nextId = cable.fromId; nextType = cable.fromType; }
+      if (nextId) {
+        const key = `${nextType}-${nextId}`;
+        if (!visited.has(key)) { visited.add(key); queue.push({ id: nextId, type: nextType }); }
+      }
+    }
+  }
+  return result;
+}
+
 // ── Colour by cable category ───────────────────────────────────────────────
 function cableColor(cable) {
   const spec = CABLE_TYPES[cable.subtype];
@@ -53,6 +75,7 @@ export default function CablingLayer({
   infrastructure = [],
   fixtures = [],
   pipes = [],
+  fixtureTypes = [],
   rigHeight = 5500,
   gridHeight = 6000,
   zoom = 1,
@@ -79,26 +102,29 @@ export default function CablingLayer({
     const toObj   = getPos(cable.toId,   cable.toType);
     if (!fromObj || !toObj) return null;
 
-    const from = { x: fromObj.x, y: fromObj.y, onStructureId: fromObj.onStructureId || null };
-    const to   = { x: toObj.x,   y: toObj.y,   onStructureId: toObj.onStructureId   || null };
+    const from = { x: fromObj.x, y: fromObj.y, onStructureId: fromObj.onStructureId || fromObj.pipeId || null };
+    const to   = { x: toObj.x,   y: toObj.y,   onStructureId: toObj.onStructureId   || toObj.pipeId   || null };
 
-    const { waypoints, dropPoints, lengthMm } = calcCableRoute(from, to, pipes, rigHeight, gridHeight);
+    const { waypoints, dropPoints, lengthMm } = calcCableRoute(from, to, pipes, rigHeight, gridHeight, cable.userWaypoints || null);
 
     // Determine if this cable is "active" (attached to selected item)
     const isHighlighted = highlightCableIds.has(cable.id)
       || selectedIds.has(cable.fromId)
       || selectedIds.has(cable.toId);
 
-    // Load warning for power cables
+    // Load warning for power cables — traverse full downstream chain
     let overloaded = false;
-    if (cable.cableType === 'power') {
-      const chainFixtures = [];
-      if (cable.fromType === 'fixture') chainFixtures.push(fromObj);
-      if (cable.toType   === 'fixture') chainFixtures.push(toObj);
-      if (cable.subtype) {
-        const load = calcCircuitLoad(chainFixtures, cable.subtype);
-        overloaded = load.overloaded;
-      }
+    if (cable.cableType === 'power' && cable.subtype) {
+      const supplyTypes = ['distro', 'node', 'netport', 'switch'];
+      const fromIsSupply = cable.fromType === 'infra' && supplyTypes.includes(fromObj?.type);
+      const toIsSupply   = cable.toType   === 'infra' && supplyTypes.includes(toObj?.type);
+      let loadId, loadType;
+      if (fromIsSupply && !toIsSupply) { loadId = cable.toId;   loadType = cable.toType; }
+      else if (toIsSupply)             { loadId = cable.fromId; loadType = cable.fromType; }
+      else                             { loadId = cable.toId;   loadType = cable.toType; }
+      const chainFixtures = collectDownstream(loadId, loadType, cables, fixtureMap, infraMap, cable.id);
+      const load = calcCircuitLoad(chainFixtures, cable.subtype, fixtureTypes);
+      overloaded = load.overloaded;
     }
 
     // Animation direction: always source → load
@@ -134,8 +160,17 @@ export default function CablingLayer({
         const strokeColor = overloaded ? '#ef4444' : color;
 
         return (
-          <g key={cable.id} style={{ pointerEvents: 'visibleStroke', cursor: 'pointer' }}
-            onClick={e => { e.stopPropagation(); onCableClick && onCableClick(cable); }}>
+          <g key={cable.id} style={{ cursor: 'pointer' }}
+            onClick={e => { e.stopPropagation(); onCableClick && onCableClick(cable, e.clientX, e.clientY); }}>
+
+            {/* Wide invisible hit area for easy clicking */}
+            <polyline
+              points={pointsStr}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={Math.max(12 / zoom, sw1 * 4)}
+              style={{ pointerEvents: 'stroke' }}
+            />
 
             {/* Cable line */}
             <polyline
@@ -144,6 +179,7 @@ export default function CablingLayer({
               stroke={strokeColor}
               strokeWidth={sw1}
               strokeOpacity={alpha}
+              style={{ pointerEvents: 'none' }}
               strokeDasharray={
                 cable.cableType === 'dmx'     ? `${4/zoom} ${2/zoom}` :
                 cable.cableType === 'network' ? `${6/zoom} ${2/zoom} ${1/zoom} ${2/zoom}` :
@@ -155,7 +191,7 @@ export default function CablingLayer({
             {overloaded && (
               <polyline points={pointsStr} fill="none"
                 stroke="#ef4444" strokeWidth={4/zoom} strokeOpacity={0.25}
-                strokeDasharray={`${8/zoom} ${4/zoom}`} />
+                strokeDasharray={`${8/zoom} ${4/zoom}`} style={{ pointerEvents: 'none' }} />
             )}
 
             {/* Drop point ticks (vertical ↕ indicator where cable drops from rig) */}

@@ -8,10 +8,54 @@
     "watch": "webpack --config webpack.config.js --watch",
     "start": "npm run build && electron .",
     "dev": "electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
     "release": "node scripts/release.js patch",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",
     "release:major": "node scripts/release.js major"
+  },
+  "build": {
+    "appId": "com.johnpiper.lightingplot",
+    "productName": "Lighting Plot",
+    "copyright": "© 2025 John Piper. All rights reserved.",
+    "files": [
+      "public/**/*",
+      "main.js",
+      "data/**/*",
+      "node_modules/**/*",
+      "!node_modules/.cache/**/*",
+      "!**/*.map"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lighting Plot"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Graphics"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "johnapiper",
+      "repo": "lighting-plot-app"
+    }
   },
   "keywords": [],
   "author": "",

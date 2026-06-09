@@ -30,6 +30,7 @@ export default function Canvas({
   onToolDone, dragTargetLayerRef,
   activeLayerId,
   animating,
+  activeMode = 'cad',
 }) {
   const svgRef = useRef(null);
 
@@ -52,7 +53,15 @@ export default function Canvas({
 
   const [hoveredPipe, setHoveredPipe] = useState(null);
   const [cursorPos, setCursorPos] = useState(null);
+  const [rawCursorPos, setRawCursorPos] = useState(null); // unsnapped world coords for calibrate hover
+  const [fixtureClipboard, setFixtureClipboard] = useState(null); // copied fixture data
+  const fixtureClipboardRef = useRef(null);
+  useEffect(() => { fixtureClipboardRef.current = fixtureClipboard; }, [fixtureClipboard]);
   const [pipePlaceAngle, setPipePlaceAngle] = useState(null); // null=free, 0/90/180/270 = constrained
+  // Cable waypoint editing: { cableId, wpIdx, baseWaypoints }
+  const [wpDrag, setWpDrag] = useState(null);
+  const wpDragRef = useRef(null);
+  useEffect(() => { wpDragRef.current = wpDrag; }, [wpDrag]);
   const isPanning = useRef(false);
   const lastMouse = useRef(null);
 
@@ -610,9 +619,22 @@ export default function Canvas({
       return;
     }
 
+    // Cable waypoint drag
+    if (wpDragRef.current) {
+      const { cableId, wpIdx, baseWaypoints } = wpDragRef.current;
+      const world = screenToWorld(e.clientX, e.clientY);
+      const newWps = baseWaypoints.map((wp, i) => i === wpIdx ? { x: world.x, y: world.y } : wp);
+      softUpdateDrawing(d => {
+        const c = (d.cables || []).find(c => c.id === cableId);
+        if (c) c.userWaypoints = newWps;
+      });
+      return;
+    }
+
     const world = screenToWorld(e.clientX, e.clientY);
     const snapped = getSnapped(e.clientX, e.clientY);
     setCursorPos(snapped);
+    setRawCursorPos(world);
 
     // Update cable ghost line while drawing
     if (cableFrom) { setCableGhost({ x: world.x, y: world.y }); }
@@ -672,6 +694,12 @@ export default function Canvas({
       softUpdateDrawing(d => {
         moveObjectInDrawing(d, dragging.id, dragging.kind, dragging.origX, dragging.origY, dragging.origX2, dragging.origY2, dx, dy);
         (dragging.groupMembers || []).forEach(m => moveObjectInDrawing(d, m.id, m.kind, m.origX, m.origY, m.origX2, m.origY2, dx, dy));
+        // When a fixture is freely moved (not snapping to a pipe this frame), clear pipeId
+        // so cables re-route from the floor position rather than staying tacked to the old truss
+        if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
+          const f = d.fixtures.find(f => f.id === dragging.id);
+          if (f) { f.pipeId = null; f.position = ''; }
+        }
         // Move fixtures and infra items attached to a dragged pipe/truss
         (dragging.pipeFollowers || []).forEach(f => {
           if (f.kind === 'fixture') {
@@ -691,6 +719,13 @@ export default function Canvas({
 
   const onMouseUp = useCallback((e) => {
     isPanning.current = false;
+
+    // Commit cable waypoint drag
+    if (wpDragRef.current) {
+      commit(p => p);
+      setWpDrag(null);
+      return;
+    }
 
     if (selBoxStart.current) {
       if (selBox) onMultiSelect(getItemsInBox(selBox.x1, selBox.y1, selBox.x2, selBox.y2));
@@ -713,7 +748,22 @@ export default function Canvas({
     }
 
     if (dragging) {
-      commit(p => p);
+      // If we were dragging a fixture, explicitly commit pipeId based on final drop position
+      if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
+        const upWorld = screenToWorld(e.clientX, e.clientY);
+        const nearPipe = pipeSnap ? findNearestPipe(upWorld.x, upWorld.y) : null;
+        if (!nearPipe) {
+          // Dropped away from any pipe — commit with pipeId cleared
+          commitToDrawing(d => {
+            const f = d.fixtures.find(f => f.id === dragging.id);
+            if (f) { f.pipeId = null; f.position = ''; }
+          });
+        } else {
+          commit(p => p);
+        }
+      } else {
+        commit(p => p);
+      }
       setDragging(null);
       setHoveredPipe(null);
       return;
@@ -733,7 +783,7 @@ export default function Canvas({
         commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x: Math.min(ds.x1,snapped.x), y: Math.min(ds.y1,snapped.y), w: rw, h: rh, layerId: activeLayerId || 'layer-arch' }));
     }
     setDrawingState(null);
-  }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, layers]);
+  }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, pipeSnap, layers]);
 
   // Double-click: edit text / annotation
   const onDblClick = useCallback((e) => {
@@ -793,6 +843,25 @@ export default function Canvas({
       if ((e.key === 'r' || e.key === 'R') && drawingRef.current && document.activeElement.tagName !== 'INPUT') {
         setPipePlaceAngle(a => a === null ? 0 : (a + 90) % 360);
       }
+      // Ctrl+C: copy selected fixture(s)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && document.activeElement.tagName !== 'INPUT') {
+        const d = drawingRef.current;
+        if (!d) return;
+        const ids = new Set(selectedIds?.length ? selectedIds : selectedId ? [selectedId] : []);
+        const copied = d.fixtures.filter(f => ids.has(f.id));
+        if (copied.length) setFixtureClipboard(copied.map(f => ({ ...f })));
+      }
+      // Ctrl+V: paste copied fixture(s)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && document.activeElement.tagName !== 'INPUT') {
+        const cb = fixtureClipboardRef.current;
+        if (cb?.length) {
+          const offset = 50;
+          const newFixtures = cb.map(f => ({ ...f, id: Math.random().toString(36).slice(2), x: f.x + offset, y: f.y + offset, pipeId: null, position: '' }));
+          commitToDrawing(d => { d.fixtures.push(...newFixtures); });
+          onSelect(newFixtures.length === 1 ? newFixtures[0].id : null);
+          if (newFixtures.length > 1) onMultiSelect(newFixtures.map(f => f.id));
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -832,13 +901,22 @@ export default function Canvas({
   // ─── Rendering ────────────────────────────────────────────────────────
   function renderGrid() {
     if (!showGrid) return null;
-    const startX = Math.floor(-pan.x / zoom / gridSize) * gridSize - gridSize;
-    const startY = Math.floor(-pan.y / zoom / gridSize) * gridSize - gridSize;
-    const endX = startX + 3000 / zoom + gridSize * 2;
-    const endY = startY + 3000 / zoom + gridSize * 2;
+    const svgEl = svgRef.current;
+    const svgW = svgEl ? svgEl.clientWidth : 1600;
+    const svgH = svgEl ? svgEl.clientHeight : 900;
+    const ro = showRulers ? RULER_SIZE : 0;
+    // World-space bounds of the visible area
+    const startX = Math.floor((-pan.x - ro) / zoom / gridSize) * gridSize - gridSize;
+    const startY = Math.floor((-pan.y - ro) / zoom / gridSize) * gridSize - gridSize;
+    const endX   = startX + (svgW + ro) / zoom + gridSize * 2;
+    const endY   = startY + (svgH + ro) / zoom + gridSize * 2;
+    // Adapt step at very low zoom to avoid thousands of lines
+    const step = gridSize * Math.max(1, Math.ceil(1 / (zoom * 2)));
     const v = [], h = [];
-    for (let x = startX; x <= endX; x += gridSize) v.push(<line key={`v${x}`} x1={x} y1={startY} x2={x} y2={endY} />);
-    for (let y = startY; y <= endY; y += gridSize) h.push(<line key={`h${y}`} x1={startX} y1={y} x2={endX} y2={y} />);
+    const sx = Math.floor(startX / step) * step;
+    const sy = Math.floor(startY / step) * step;
+    for (let x = sx; x <= endX; x += step) v.push(<line key={`v${x}`} x1={x} y1={startY} x2={x} y2={endY} />);
+    for (let y = sy; y <= endY; y += step) h.push(<line key={`h${y}`} x1={startX} y1={y} x2={endX} y2={y} />);
     return <g stroke="#1a2a4a" strokeWidth={1/zoom}>{v}{h}</g>;
   }
 
@@ -1094,7 +1172,7 @@ export default function Canvas({
           return (
             <g key={f.id} transform={`translate(${f.x},${f.y})`} style={{ cursor: f.locked ? 'not-allowed' : 'pointer', opacity: f.locked ? 0.6 : 1 }}>
               <g transform={`scale(${1/zoom})`}>
-                <FixtureSymbol fixtureType={ftype} unit={f.unit?.trim()||null} channel={f.channel?.trim()||null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} />
+                <FixtureSymbol fixtureType={ftype} unit={f.unit?.trim()||null} channel={f.channel?.trim()||null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} symbolOverride={f.symbolOverride||null} symbolColor={f.symbolColor||null} />
               </g>
               {f.id === focusModeId && <circle cx={0} cy={0} r={6/zoom} fill="none" stroke="#ffaa00" strokeWidth={2/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} />}
               {f.locked && <text x={0} y={-20/zoom} textAnchor="middle" fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
@@ -1239,33 +1317,178 @@ export default function Canvas({
             {/* Group bounding box */}
             {groupBounds && <rect x={groupBounds.x} y={groupBounds.y} width={groupBounds.w} height={groupBounds.h} stroke="#7b61ff" strokeWidth={1.5/zoom} fill="rgba(123,97,255,0.06)" strokeDasharray={`${6/zoom} ${3/zoom}`} />}
 
-            {/* Infrastructure items */}
-            <InfraLayer
-              infrastructure={infrastructure}
-              selectedId={selectedId}
-              zoom={zoom}
-              onMouseDown={(e, item) => {
-                if (activeTool !== 'select') return;
-                onSelect({ kind: 'infra', ...item });
-                const w = screenToWorld(e.clientX, e.clientY);
-                setDragging({ id: item.id, kind: 'infra', handlePoint: null, startX: w.x, startY: w.y, origX: item.x, origY: item.y });
-                e.stopPropagation();
-              }}
-            />
+            {/* Infrastructure items — cable mode only */}
+            {activeMode === 'cable' && (
+              <InfraLayer
+                infrastructure={infrastructure}
+                selectedId={selectedId}
+                zoom={zoom}
+                onMouseDown={(e, item) => {
+                  if (activeTool !== 'select') return;
+                  onSelect({ kind: 'infra', ...item });
+                  const w = screenToWorld(e.clientX, e.clientY);
+                  setDragging({ id: item.id, kind: 'infra', handlePoint: null, startX: w.x, startY: w.y, origX: item.x, origY: item.y });
+                  e.stopPropagation();
+                }}
+              />
+            )}
 
-            {/* Cables */}
-            <CablingLayer
+            {/* Cables — cable mode only */}
+            {activeMode === 'cable' && <CablingLayer
               cables={cables}
               infrastructure={infrastructure}
               fixtures={fixtures}
               pipes={pipes}
+              fixtureTypes={fixtureTypes}
               rigHeight={rigHeight}
               gridHeight={gridHeight}
               zoom={zoom}
               selectedIds={new Set(selectedId ? [selectedId, ...(selectedIds||[])] : (selectedIds||[]))}
               animating={animating}
-              onCableClick={cable => onSelect({ kind: 'cable', ...cable })}
-            />
+              onCableClick={(cable, sx, sy) => {
+                if (selectedId === cable.id) {
+                  // Cable already selected: insert waypoint at nearest point on the existing route
+                  const world = screenToWorld(sx, sy);
+                  commitToDrawing(d => {
+                    const c = (d.cables || []).find(c => c.id === cable.id);
+                    if (!c) return;
+                    const fromO = cable.fromType === 'fixture'
+                      ? fixtures.find(f => f.id === cable.fromId)
+                      : (drawing?.infrastructure || []).find(i => i.id === cable.fromId);
+                    const toO = cable.toType === 'fixture'
+                      ? fixtures.find(f => f.id === cable.toId)
+                      : (drawing?.infrastructure || []).find(i => i.id === cable.toId);
+                    const wps = c.userWaypoints ? [...c.userWaypoints] : [];
+                    // Find best insert position: nearest segment in anchor list
+                    const anchors = [fromO, ...wps, toO].filter(Boolean);
+                    let bestIdx = wps.length, bestDist = Infinity;
+                    for (let i = 0; i < anchors.length - 1; i++) {
+                      const a = anchors[i], b = anchors[i + 1];
+                      const dx = b.x - a.x, dy = b.y - a.y;
+                      const lenSq = dx*dx + dy*dy;
+                      if (lenSq === 0) continue;
+                      const t = Math.max(0, Math.min(1, ((world.x - a.x)*dx + (world.y - a.y)*dy) / lenSq));
+                      const nx = a.x + t*dx, ny = a.y + t*dy;
+                      const d2 = (world.x-nx)**2 + (world.y-ny)**2;
+                      if (d2 < bestDist) { bestDist = d2; bestIdx = i; }
+                    }
+                    wps.splice(bestIdx, 0, { x: world.x, y: world.y });
+                    c.userWaypoints = wps;
+                  });
+                } else {
+                  onSelect({ kind: 'cable', ...cable });
+                }
+              }}
+            />}
+
+            {/* Cable waypoint editing handles (shown when a cable is selected, cable mode only) */}
+            {activeMode === 'cable' && activeTool === 'select' && selectedId && (() => {
+              const selCable = cables.find(c => c.id === selectedId);
+              if (!selCable) return null;
+              const fromObj = selCable.fromType === 'fixture'
+                ? fixtures.find(f => f.id === selCable.fromId)
+                : (drawing?.infrastructure || []).find(i => i.id === selCable.fromId);
+              const toObj = selCable.toType === 'fixture'
+                ? fixtures.find(f => f.id === selCable.toId)
+                : (drawing?.infrastructure || []).find(i => i.id === selCable.toId);
+              if (!fromObj || !toObj) return null;
+
+              const userWps = selCable.userWaypoints || [];
+              const hr = 8 / zoom;   // handle radius (larger = easier to grab)
+              const mr = 5 / zoom;   // midpoint handle radius
+
+              // Build midpoints between consecutive anchors (from → wps → to)
+              const anchors = [fromObj, ...userWps.map(w => ({ x: w.x, y: w.y })), toObj];
+              const midpoints = [];
+              for (let i = 0; i < anchors.length - 1; i++) {
+                midpoints.push({
+                  x: (anchors[i].x + anchors[i+1].x) / 2,
+                  y: (anchors[i].y + anchors[i+1].y) / 2,
+                  insertIdx: i,
+                });
+              }
+
+              function deleteWaypoint(idx) {
+                commitToDrawing(d => {
+                  const c = (d.cables || []).find(c => c.id === selCable.id);
+                  if (c) c.userWaypoints = (c.userWaypoints || []).filter((_, j) => j !== idx);
+                });
+              }
+
+              return (
+                <g style={{ pointerEvents: 'all' }}>
+                  {/* Midpoint insert handles */}
+                  {midpoints.map((mp, i) => (
+                    <g key={'mid-'+i} style={{ cursor: 'crosshair' }}
+                      title="Click to insert waypoint"
+                      onMouseDown={e => {
+                        e.stopPropagation();
+                        const world = screenToWorld(e.clientX, e.clientY);
+                        const newWps = [...userWps];
+                        newWps.splice(mp.insertIdx, 0, { x: world.x, y: world.y });
+                        commitToDrawing(d => {
+                          const c = (d.cables || []).find(c => c.id === selCable.id);
+                          if (c) c.userWaypoints = newWps;
+                        });
+                        setWpDrag({ cableId: selCable.id, wpIdx: mp.insertIdx, baseWaypoints: newWps });
+                      }}>
+                      {/* Larger invisible hit area */}
+                      <circle cx={mp.x} cy={mp.y} r={mr * 2} fill="transparent" stroke="none" />
+                      <circle cx={mp.x} cy={mp.y} r={mr}
+                        fill="rgba(0,170,255,0.18)" stroke="#00aaff"
+                        strokeWidth={0.8/zoom} strokeDasharray={`${2/zoom} ${2/zoom}`} />
+                      <text x={mp.x} y={mp.y + 0.4*mr} textAnchor="middle"
+                        fontSize={mr * 1.4} fill="#00aaff"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}>+</text>
+                    </g>
+                  ))}
+                  {/* Drag handles for existing user waypoints */}
+                  {userWps.map((wp, i) => (
+                    <g key={'wp-'+i}>
+                      {/* Invisible hit area */}
+                      <circle cx={wp.x} cy={wp.y} r={hr * 1.6}
+                        fill="transparent" stroke="none" style={{ cursor: 'move' }}
+                        onMouseDown={e => { e.stopPropagation(); setWpDrag({ cableId: selCable.id, wpIdx: i, baseWaypoints: [...userWps] }); }}
+                        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); deleteWaypoint(i); }}
+                      />
+                      <circle cx={wp.x} cy={wp.y} r={hr}
+                        fill="#00aaff" stroke="white" strokeWidth={1.5/zoom}
+                        style={{ cursor: 'move', pointerEvents: 'none' }}
+                      />
+                      {/* Index label */}
+                      <text x={wp.x} y={wp.y - hr - 2/zoom}
+                        textAnchor="middle" fontSize={8/zoom} fill="#00aaff"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                        {i + 1}
+                      </text>
+                    </g>
+                  ))}
+                  {/* Clear all button (shown when waypoints exist) */}
+                  {userWps.length > 0 && (() => {
+                    const cx = fromObj.x + 8/zoom, cy = fromObj.y - 12/zoom;
+                    return (
+                      <g style={{ cursor: 'pointer' }}
+                        title="Clear all waypoints (reset to auto-route)"
+                        onClick={e => {
+                          e.stopPropagation();
+                          commitToDrawing(d => {
+                            const c = (d.cables || []).find(c => c.id === selCable.id);
+                            if (c) c.userWaypoints = [];
+                          });
+                        }}>
+                        <rect x={cx - 1/zoom} y={cy - 7/zoom} width={26/zoom} height={10/zoom}
+                          rx={2/zoom} fill="#0d1b2a" stroke="#00aaff" strokeWidth={0.5/zoom} />
+                        <text x={cx + 12/zoom} y={cy - 0.5/zoom}
+                          textAnchor="middle" fontSize={6.5/zoom} fill="#00aaff"
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                          ↺ reset
+                        </text>
+                      </g>
+                    );
+                  })()}
+                </g>
+              );
+            })()}
 
             {/* Cable ghost line while drawing */}
             {cableFrom && cableGhost && (
@@ -1308,7 +1531,7 @@ export default function Canvas({
         {/* In-progress calibration line (screen coords) */}
         {calibState?.p1 && (() => {
           const x1s = calibState.p1.x * zoom + pan.x + ro, y1s = calibState.p1.y * zoom + pan.y + ro;
-          const p2 = calibState.p2 || cursorPos;
+          const p2 = calibState.p2 || rawCursorPos;
           const x2s = p2 ? p2.x * zoom + pan.x + ro : x1s, y2s = p2 ? p2.y * zoom + pan.y + ro : y1s;
           return (
             <g style={{ pointerEvents: 'none' }}>

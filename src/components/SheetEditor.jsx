@@ -24,32 +24,45 @@ function arrowheadPoints(x1, y1, x2, y2, ah = 8, aw = 4) {
 }
 
 // ── CAD plot content (display-only) ──────────────────────────────────────────
-function CadContent({ drawing, fixtureTypes }) {
+const LAYER_DEFAULTS = {
+  fixture: 'layer-lighting', pipe: 'layer-lighting',
+  line: 'layer-arch', rect: 'layer-arch', text: 'layer-arch',
+  image: 'layer-bg',
+};
+function layerVisible(obj, kind, layers) {
+  if (!layers || layers.length === 0) return true;
+  const lid = obj.layerId || LAYER_DEFAULTS[kind] || 'layer-arch';
+  const layer = layers.find(l => l.id === lid);
+  return layer ? layer.visible !== false : true;
+}
+
+function CadContent({ drawing, fixtureTypes, layers }) {
   if (!drawing) return null;
   const { pipes=[], fixtures=[], lines=[], rectangles=[], texts=[], images=[], pdfBackground } = drawing;
   const ftypes = {};
   fixtureTypes.forEach(f => { ftypes[f.id] = f; });
+  const vis = (obj, kind) => layerVisible(obj, kind, layers);
   return (
     <g>
-      {pdfBackground && (
+      {pdfBackground && layerVisible({layerId:'layer-bg'}, 'image', layers) && (
         <image href={pdfBackground.dataUrl} x={pdfBackground.x} y={pdfBackground.y}
           width={pdfBackground.w} height={pdfBackground.h} opacity={pdfBackground.opacity ?? 0.4} />
       )}
-      {images.map(img => (
+      {images.filter(img => vis(img, 'image')).map(img => (
         <image key={img.id} href={img.dataUrl} x={img.x} y={img.y} width={img.w} height={img.h} />
       ))}
-      {lines.map(l => (
+      {lines.filter(l => vis(l, 'line')).map(l => (
         <line key={l.id} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
           stroke="#607d8b" strokeWidth={1} vectorEffect="non-scaling-stroke" />
       ))}
-      {rectangles.map(r => (
+      {rectangles.filter(r => vis(r, 'rect')).map(r => (
         <rect key={r.id} x={r.x} y={r.y} width={r.w} height={r.h}
           stroke="#607d8b" fill="none" strokeWidth={1} vectorEffect="non-scaling-stroke" />
       ))}
-      {texts.map(t => (
+      {texts.filter(t => vis(t, 'text')).map(t => (
         <text key={t.id} x={t.x} y={t.y} fontSize={t.fontSize || 14} fill="#555">{t.label}</text>
       ))}
-      {pipes.map(p => (
+      {pipes.filter(p => vis(p, 'pipe')).map(p => (
         <g key={p.id}>
           <line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2}
             stroke="#c0a030" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
@@ -58,15 +71,18 @@ function CadContent({ drawing, fixtureTypes }) {
           <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2-8} textAnchor="middle" fontSize={10} fill="#c0a030">{p.name}</text>
         </g>
       ))}
-      {fixtures.map(f => {
+      {fixtures.filter(f => vis(f, 'fixture')).map(f => {
         const ftype = ftypes[f.fixtureTypeId];
         if (!ftype) return null;
         const s = f.scale || 1;
+        // Use per-fixture symbol override if set, else type default
+        const sym = f.symbolOverride || ftype.symbol;
+        const symColor = f.symbolColor || f.colourHex || '#222';
         return (
           <g key={f.id} transform={`translate(${f.x},${f.y})`}>
             <g transform={`rotate(${f.rotation||0}) scale(${s})`}
-              style={{ color: f.colourHex||'#222', stroke: 'currentColor', strokeWidth: 1.5, fill: 'none' }}
-              dangerouslySetInnerHTML={{ __html: ftype.symbol }} />
+              style={{ color: symColor, stroke: 'currentColor', strokeWidth: 1.5, fill: 'none' }}
+              dangerouslySetInnerHTML={{ __html: sym }} />
             {f.colourHex && <circle cx={0} cy={-14*s} r={4*s} fill={f.colourHex} />}
             {f.unit?.trim() && <text x={0} y={20*s} textAnchor="middle" fontSize={10} fill="#333">{f.unit}</text>}
           </g>
@@ -77,7 +93,7 @@ function CadContent({ drawing, fixtureTypes }) {
 }
 
 // ── Viewport element ──────────────────────────────────────────────────────────
-function ViewportEl({ vp, drawing, fixtureTypes, ps, selected, onMouseDown, onContextMenu }) {
+function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDown, onContextMenu }) {
   const x = vp.x*ps, y = vp.y*ps, w = vp.w*ps, h = vp.h*ps;
   const renderScale = vp.displayScale || vp.scale;
   const worldScale = ps / renderScale;
@@ -98,7 +114,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, ps, selected, onMouseDown, onCo
       <rect x={x} y={y} width={w} height={h} fill="white" stroke="#bbb" strokeWidth={0.5} />
       <g clipPath={`url(#${clipId})`}>
         <g transform={`translate(${tx},${ty}) scale(${worldScale})`}>
-          <CadContent drawing={drawing} fixtureTypes={fixtureTypes} />
+          <CadContent drawing={drawing} fixtureTypes={fixtureTypes} layers={layers} />
         </g>
       </g>
       <rect x={x} y={y} width={w} height={h} fill="none"
@@ -123,7 +139,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, ps, selected, onMouseDown, onCo
           ))}
           <text x={x+3} y={y+11} fontSize={6} fill="#2a6090"
             style={{ userSelect:'none', pointerEvents:'none' }}>
-            Ctrl+drag to pan · Ctrl+scroll to zoom
+            Ctrl+drag to pan · scroll to zoom
           </text>
         </>
       )}
@@ -132,7 +148,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, ps, selected, onMouseDown, onCo
 }
 
 // ── Key Block element ─────────────────────────────────────────────────────────
-function KeyBlockEl({ kb, drawings, fixtureTypes, ps, selected, onMouseDown }) {
+function KeyBlockEl({ kb, drawings, fixtureTypes, ps, selected, onMouseDown, onContextMenu }) {
   const x = kb.x*ps, y = kb.y*ps, w = kb.w*ps, h = kb.h*ps;
   const drawing = drawings.find(d => d.id === kb.drawingId) || drawings[0];
   const usedTypeIds = [...new Set((drawing?.fixtures||[]).map(f => f.fixtureTypeId))];
@@ -143,7 +159,7 @@ function KeyBlockEl({ kb, drawings, fixtureTypes, ps, selected, onMouseDown }) {
   const labelFs = Math.min(rowH*0.42, 8);
 
   return (
-    <g onMouseDown={e => onMouseDown(e, kb, null)} style={{ cursor:'move' }}>
+    <g onMouseDown={e => onMouseDown(e, kb, null)} onContextMenu={onContextMenu} style={{ cursor:'move' }}>
       <rect x={x} y={y} width={w} height={h} fill="white"
         stroke={selected?'#2a6090':'#aaa'} strokeWidth={selected?1.5:0.5} />
       <rect x={x} y={y} width={w} height={rowH} fill="#e8eef4" />
@@ -197,6 +213,9 @@ export default function SheetEditor({
   const [editingTitleField, setEditingTitleField] = useState(null);
   const [editingTitleVal, setEditingTitleVal] = useState('');
   const [vpCtxMenu, setVpCtxMenu] = useState(null); // {sx,sy,vp}
+  const [sheetCtxMenu, setSheetCtxMenu] = useState(null); // {sx,sy,itemId}
+  const [clipboard, setClipboard] = useState(null); // copied sheet item
+  const [printPreview, setPrintPreview] = useState(null); // { svgData, pwMm, phMm }
 
   const drawings = project.drawings || [];
   const tb = activeSheet.titleBlock || {};
@@ -228,13 +247,12 @@ export default function SheetEditor({
   useEffect(() => { psRef.current = ps; }, [ps]);
   useEffect(() => { sheetRef.current = activeSheet; }, [activeSheet]);
 
-  // Non-passive native wheel listener — Ctrl+scroll zooms the viewport under the cursor.
+  // Non-passive native wheel listener — scroll zooms the viewport under the cursor.
   // React's synthetic onWheel is passive and cannot call preventDefault.
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
     function handleWheel(e) {
-      if (!e.ctrlKey) return;
       const rect = el.getBoundingClientRect();
       const currentPs = psRef.current;
       const mx = (e.clientX - rect.left) / currentPs;
@@ -276,53 +294,46 @@ export default function SheetEditor({
     });
   }
 
-  // ── Print ─────────────────────────────────────────────────────────────────
-  // Use a hidden iframe inside the same BrowserWindow so Electron shows its
-  // native print preview correctly. window.open() creates a new BrowserWindow
-  // that reports "This app doesn't support print preview".
+  // ── Print preview ─────────────────────────────────────────────────────────
   function doPrint() {
     const svgEl = svgRef.current; if (!svgEl) return;
 
-    // Build a scaled SVG with real paper dimensions
+    // Clone SVG and stamp real paper dimensions onto it
     const clone = svgEl.cloneNode(true);
     clone.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
     clone.setAttribute('width',  `${pw}mm`);
     clone.setAttribute('height', `${ph}mm`);
-    clone.style.cssText = 'display:block;box-shadow:none;';
+    clone.style.cssText = 'display:block;box-shadow:none;background:white;';
     const svgData = new XMLSerializer().serializeToString(clone);
+
+    // Show in-app preview modal so the user can see what will print
+    setPrintPreview({ svgData, pwMm: pw, phMm: ph });
+  }
+
+  async function confirmPrint() {
+    if (!printPreview) return;
+    const { svgData, pwMm, phMm } = printPreview;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
   *{margin:0;padding:0;}
   html,body{background:white;overflow:hidden;}
-  @page{size:${pw}mm ${ph}mm;margin:0;}
-  svg{display:block;width:${pw}mm;height:${ph}mm;}
+  @page{size:${pwMm}mm ${phMm}mm;margin:0;}
+  svg{display:block;width:${pwMm}mm;height:${phMm}mm;}
 </style></head><body>${svgData}</body></html>`;
 
-    // Reuse or create the hidden iframe
-    let iframe = document.getElementById('__sheet_print_frame__');
-    if (iframe) iframe.remove();
-    iframe = document.createElement('iframe');
-    iframe.id = '__sheet_print_frame__';
-    iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:1px;height:1px;border:none;visibility:hidden;';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    // Allow SVG to render before opening the print dialog
-    setTimeout(() => {
-      try {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      } catch (err) {
-        console.error('Print failed:', err);
-      }
-      // Remove the iframe after the dialog likely closed
-      setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 8000);
-    }, 350);
+    const ipcRenderer = window.require ? window.require('electron').ipcRenderer : null;
+    if (ipcRenderer) {
+      // Use a dedicated BrowserWindow for printing — this gives the proper
+      // Electron print dialog with preview, rather than the app's main window
+      await ipcRenderer.invoke('print-sheet', { html });
+    } else {
+      // Fallback for non-Electron environments
+      const w = window.open('', '_blank', 'width=900,height=700');
+      w.document.write(html); w.document.close();
+      setTimeout(() => w.print(), 300);
+    }
+    setPrintPreview(null);
   }
 
   // ── Viewport right-click menu actions ──────────────────────────────────────
@@ -409,8 +420,9 @@ export default function SheetEditor({
   }, [tool, activeSheet, drawings, ps]);
 
   function startVpDrag(e, vp, handle) {
+    if (tool !== 'select') return; // Let click fall through to canvas onMouseDown for placement tools
     e.stopPropagation();
-    if (vp.locked || tool !== 'select') { setSelectedId(vp.id); return; }
+    if (vp.locked) { setSelectedId(vp.id); return; }
     setSelectedId(vp.id);
     const pt = svgPt(e);
     if (!handle && e.ctrlKey) {
@@ -421,8 +433,8 @@ export default function SheetEditor({
   }
 
   function startAnnotDrag(e, obj, kind) {
-    e.stopPropagation();
     if (tool !== 'select') return;
+    e.stopPropagation();
     setSelectedId(obj.id);
     const pt = svgPt(e);
     setDragging({ id:obj.id, kind, startX:pt.x, startY:pt.y, origX:obj.x, origY:obj.y });
@@ -438,8 +450,8 @@ export default function SheetEditor({
     setDragging({ id:obj.id, kind:resizeKind, handle:'se', startX:pt.x, startY:pt.y, origW:obj.w||45, origH:obj.h||22, origX:obj.x, origY:obj.y });
   }
   function startKbDrag(e, kb, handle) {
-    e.stopPropagation();
     if (tool !== 'select') return;
+    e.stopPropagation();
     setSelectedId(kb.id);
     const pt = svgPt(e);
     if (handle === 'se') {
@@ -545,10 +557,37 @@ export default function SheetEditor({
         setSelectedId(null);
       }
       if (e.key==='Escape') { setTool('select'); setZoomWindowVpId(null); setDrawingVp(null); }
+      if ((e.ctrlKey||e.metaKey) && e.key==='c') copySelected();
+      if ((e.ctrlKey||e.metaKey) && e.key==='v') pasteClipboard();
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [selectedId, activeSheet]);
+  }, [selectedId, activeSheet, clipboard]);
+
+  // ── Copy / Paste ──────────────────────────────────────────────────────────
+  function copySelected() {
+    if (!selectedId) return;
+    const vp  = (activeSheet.viewports  ||[]).find(v=>v.id===selectedId);
+    const ann = (activeSheet.annotations||[]).find(a=>a.id===selectedId);
+    const txt = (activeSheet.texts      ||[]).find(t=>t.id===selectedId);
+    const kb  = (activeSheet.keyBlocks  ||[]).find(k=>k.id===selectedId);
+    const item = vp || ann || txt || kb;
+    if (item) setClipboard({ ...item, _kind: vp?'viewport':ann?'annotation':txt?'text':'keyBlock' });
+  }
+
+  function pasteClipboard() {
+    if (!clipboard) return;
+    const newId = Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+    const copy = { ...clipboard, id: newId, x: (clipboard.x||0)+5, y: (clipboard.y||0)+5 };
+    const { _kind, ...item } = copy;
+    commitSheet(s => {
+      if (_kind==='viewport')   { if(!s.viewports)   s.viewports=[];   s.viewports.push(item); }
+      if (_kind==='annotation') { if(!s.annotations) s.annotations=[]; s.annotations.push(item); }
+      if (_kind==='text')       { if(!s.texts)       s.texts=[];       s.texts.push(item); }
+      if (_kind==='keyBlock')   { if(!s.keyBlocks)   s.keyBlocks=[];   s.keyBlocks.push(item); }
+    });
+    setSelectedId(newId);
+  }
 
   // ── Title block editing ───────────────────────────────────────────────────
   function startTitleEdit(field, val, e) { e.stopPropagation(); setEditingTitleField(field); setEditingTitleVal(val||''); }
@@ -629,7 +668,10 @@ export default function SheetEditor({
             style={{background:'white',boxShadow:'0 4px 32px rgba(0,0,0,0.7)',display:'block',
               cursor:(tool==='viewport'||tool==='zoom-window')?'crosshair':'default'}}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
-            onContextMenu={e => e.preventDefault()}>
+            onContextMenu={e => {
+              e.preventDefault();
+              if (!vpCtxMenu) setSheetCtxMenu({ sx: e.clientX, sy: e.clientY, itemId: selectedId });
+            }}>
 
             <rect x={0} y={0} width={svgW} height={svgH} fill="white" />
 
@@ -642,6 +684,7 @@ export default function SheetEditor({
             {(activeSheet.viewports||[]).map(vp => (
               <ViewportEl key={vp.id} vp={vp}
                 drawing={drawings.find(d=>d.id===vp.drawingId)} fixtureTypes={fixtureTypes}
+                layers={project.layers||[]}
                 ps={ps} selected={selectedId===vp.id}
                 onMouseDown={(e,v,h) => startVpDrag(e,v,h)}
                 onContextMenu={(e,v) => { e.stopPropagation(); setVpCtxMenu({sx:e.clientX,sy:e.clientY,vp:v}); }} />
@@ -651,7 +694,8 @@ export default function SheetEditor({
             {(activeSheet.keyBlocks||[]).map(kb => (
               <KeyBlockEl key={kb.id} kb={kb} drawings={drawings} fixtureTypes={fixtureTypes}
                 ps={ps} selected={selectedId===kb.id}
-                onMouseDown={(e,k,h) => startKbDrag(e,k,h)} />
+                onMouseDown={(e,k,h) => startKbDrag(e,k,h)}
+                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setSelectedId(kb.id); setSheetCtxMenu({sx:e.clientX,sy:e.clientY,itemId:kb.id}); }} />
             ))}
 
             {/* Annotations */}
@@ -668,7 +712,9 @@ export default function SheetEditor({
                   <polygon points={arrowheadPoints(bCx,bCy,arrowX,arrowY,7*ps/96,3.5*ps/96)}
                     fill="rgba(180,140,0,0.8)" style={{pointerEvents:'none'}} />
                   <g onMouseDown={e=>startAnnotDrag(e,a,'annotation')}
-                    onDoubleClick={e=>onAnnotDblClick(e,a,'annotation')} style={{cursor:'move'}}>
+                    onDoubleClick={e=>onAnnotDblClick(e,a,'annotation')}
+                    onContextMenu={e=>{e.preventDefault();e.stopPropagation();setSelectedId(a.id);setSheetCtxMenu({sx:e.clientX,sy:e.clientY,itemId:a.id});}}
+                    style={{cursor:'move'}}>
                     <rect x={a.x*ps} y={a.y*ps} width={aw*ps} height={ah2*ps}
                       fill="rgba(255,220,50,0.18)"
                       stroke={sel?'#ffd032':'rgba(255,190,0,0.55)'}
@@ -703,7 +749,9 @@ export default function SheetEditor({
               return (
                 <g key={t.id}
                   onMouseDown={e=>startAnnotDrag(e,t,'text')}
-                  onDoubleClick={e=>onAnnotDblClick(e,t,'text')} style={{cursor:'move'}}>
+                  onDoubleClick={e=>onAnnotDblClick(e,t,'text')}
+                  onContextMenu={e=>{e.preventDefault();e.stopPropagation();setSelectedId(t.id);setSheetCtxMenu({sx:e.clientX,sy:e.clientY,itemId:t.id});}}
+                  style={{cursor:'move'}}>
                   <defs>
                     <clipPath id={`txt-clip-${t.id}`}>
                       <rect x={t.x*ps+1} y={t.y*ps} width={tw*ps-2} height={th*ps} />
@@ -869,6 +917,74 @@ export default function SheetEditor({
         </div>
       </div>
 
+      {/* ── Print Preview Modal ──────────────────────────────────────────── */}
+      {printPreview && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.82)', display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center', zIndex:1100 }}>
+          {/* Toolbar */}
+          <div style={{ display:'flex', gap:10, marginBottom:12, alignItems:'center' }}>
+            <span style={{ color:'#e0e0e0', fontSize:13, fontWeight:600 }}>🖨 Print Preview</span>
+            <span style={{ color:'#718096', fontSize:11 }}>{printPreview.pwMm}×{printPreview.phMm} mm</span>
+            <button
+              style={{ padding:'6px 20px', background:'#0f3460', border:'1px solid #4a90d9', borderRadius:4,
+                color:'#4a90d9', cursor:'pointer', fontSize:13, fontWeight:600 }}
+              onClick={confirmPrint}>
+              🖨 Print…
+            </button>
+            <button
+              style={{ padding:'6px 14px', background:'#3a1a1a', border:'1px solid #7a2a2a', borderRadius:4,
+                color:'#fc8181', cursor:'pointer', fontSize:13 }}
+              onClick={() => setPrintPreview(null)}>
+              Cancel
+            </button>
+          </div>
+          {/* Preview image */}
+          <div style={{ background:'white', boxShadow:'0 8px 40px rgba(0,0,0,0.8)',
+            maxWidth:'90vw', maxHeight:'80vh', overflow:'auto' }}>
+            <img
+              src={`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(printPreview.svgData)))}`}
+              alt="Print preview"
+              style={{ display:'block', maxWidth:'100%', maxHeight:'80vh' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Sheet context menu (right-click on canvas / selected item) */}
+      {sheetCtxMenu && !vpCtxMenu && (
+        <div style={{position:'fixed',left:sheetCtxMenu.sx,top:sheetCtxMenu.sy,background:'#16213e',
+          border:'1px solid #0f3460',borderRadius:4,boxShadow:'0 4px 20px rgba(0,0,0,0.6)',zIndex:999,minWidth:160}}
+          onMouseLeave={()=>setSheetCtxMenu(null)}>
+          {sheetCtxMenu.itemId && <>
+            <div style={ctxSty.item} onClick={()=>{copySelected();setSheetCtxMenu(null);}}>
+              📋 Copy
+            </div>
+          </>}
+          {clipboard && (
+            <div style={ctxSty.item} onClick={()=>{pasteClipboard();setSheetCtxMenu(null);}}>
+              📌 Paste
+            </div>
+          )}
+          {sheetCtxMenu.itemId && (
+            <div style={{...ctxSty.item,borderTop:'1px solid #0f3460',color:'#fc8181'}}
+              onClick={()=>{
+                commitSheet(s=>{
+                  s.viewports   =(s.viewports||[]).filter(v=>v.id!==sheetCtxMenu.itemId);
+                  s.annotations =(s.annotations||[]).filter(a=>a.id!==sheetCtxMenu.itemId);
+                  s.texts       =(s.texts||[]).filter(t=>t.id!==sheetCtxMenu.itemId);
+                  s.keyBlocks   =(s.keyBlocks||[]).filter(k=>k.id!==sheetCtxMenu.itemId);
+                });
+                setSelectedId(null); setSheetCtxMenu(null);
+              }}>
+              🗑 Delete
+            </div>
+          )}
+          {!sheetCtxMenu.itemId && !clipboard && (
+            <div style={{...ctxSty.item,color:'#718096',cursor:'default'}}>Nothing to paste</div>
+          )}
+        </div>
+      )}
+
       {/* Viewport context menu */}
       {vpCtxMenu && (
         <div style={{position:'fixed',left:vpCtxMenu.sx,top:vpCtxMenu.sy,background:'#16213e',
@@ -884,6 +1000,11 @@ export default function SheetEditor({
           <div style={ctxSty.item} onClick={()=>{startZoomWindow(vpCtxMenu.vp);setVpCtxMenu(null);}}>
             🔍 Zoom to Window…
           </div>
+          <div style={ctxSty.item} onClick={()=>{
+            const vp=vpCtxMenu.vp;
+            setClipboard({...vp,id:Date.now().toString(36),x:vp.x+10,y:vp.y+10,_kind:'viewport'});
+            setVpCtxMenu(null);
+          }}>📋 Copy Viewport</div>
           <div style={{...ctxSty.item,borderTop:'1px solid #0f3460',color:'#fc8181'}}
             onClick={()=>{commitSheet(s=>{s.viewports=s.viewports.filter(v=>v.id!==vpCtxMenu.vp.id);});setSelectedId(null);setVpCtxMenu(null);}}>
             🗑 Delete Viewport
@@ -936,7 +1057,7 @@ function VpInspector({ vp, drawings, onUpdate, onDelete, onZoomExtents, onZoomWi
           {vp.locked?'🔓 Unlock Viewport':'🔒 Lock Viewport'}
         </button>
         <div style={{fontSize:9,color:'#718096',lineHeight:1.5}}>
-          Ctrl+drag to pan · Ctrl+scroll to zoom
+          Ctrl+drag to pan · scroll to zoom
         </div>
         <button style={sty.delBtn} onClick={onDelete}>🗑 Delete viewport</button>
       </div>

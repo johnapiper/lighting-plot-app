@@ -66,6 +66,8 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Export PNG…', click: () => mainWindow.webContents.send('menu-export-png') },
         { label: 'Export SVG…', click: () => mainWindow.webContents.send('menu-export-svg') },
+        { label: 'Export MVR…', click: menuExportMVR },
+        { label: 'Import MVR…', click: menuOpenMVR },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -109,9 +111,13 @@ function buildMenu() {
           label: 'About Lighting Plot',
           click: () => dialog.showMessageBox(mainWindow, {
             title: 'About Lighting Plot',
-            message: 'Lighting Plot\nVersion 1.0.0\n\nA theatrical lighting design CAD tool.',
+            message: `Lighting Plot\nVersion ${app.getVersion()}\n\nA theatrical lighting design CAD tool.\n\n© ${new Date().getFullYear()} John Piper. All rights reserved.\nUnauthorised copying or distribution is prohibited.`,
             type: 'info',
           }),
+        },
+        {
+          label: 'App Settings…',
+          click: () => mainWindow.webContents.send('menu-app-settings'),
         },
       ],
     },
@@ -122,13 +128,23 @@ function buildMenu() {
 
 async function menuOpen() {
   const result = await dialog.showOpenDialog(mainWindow, {
-    filters: [{ name: 'Lighting Plot', extensions: ['lightplot'] }],
+    filters: [
+      { name: 'Lighting Plot / MVR', extensions: ['lightplot', 'mvr'] },
+      { name: 'Lighting Plot', extensions: ['lightplot'] },
+      { name: 'MVR (My Virtual Rig)', extensions: ['mvr'] },
+    ],
     properties: ['openFile'],
   });
   if (!result.canceled && result.filePaths[0]) {
     const filePath = result.filePaths[0];
-    const data = fs.readFileSync(filePath, 'utf8');
-    mainWindow.webContents.send('load-file', { filePath, data });
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.mvr') {
+      const buf = fs.readFileSync(filePath);
+      mainWindow.webContents.send('load-mvr-file', { filePath, buffer: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) });
+    } else {
+      const data = fs.readFileSync(filePath, 'utf8');
+      mainWindow.webContents.send('load-file', { filePath, data });
+    }
     addRecentFile(filePath);
   }
 }
@@ -140,6 +156,29 @@ async function menuSaveAs() {
   });
   if (!result.canceled && result.filePath) {
     mainWindow.webContents.send('save-file-as', result.filePath);
+  }
+}
+
+async function menuExportMVR() {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    filters: [{ name: 'MVR (My Virtual Rig)', extensions: ['mvr'] }],
+    defaultPath: 'lighting-plot.mvr',
+  });
+  if (!result.canceled && result.filePath) {
+    mainWindow.webContents.send('export-mvr-request', result.filePath);
+  }
+}
+
+async function menuOpenMVR() {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    filters: [{ name: 'MVR (My Virtual Rig)', extensions: ['mvr'] }],
+    properties: ['openFile'],
+  });
+  if (!result.canceled && result.filePaths[0]) {
+    const filePath = result.filePaths[0];
+    const buf = fs.readFileSync(filePath);
+    mainWindow.webContents.send('load-mvr-file', { filePath, buffer: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) });
+    addRecentFile(filePath);
   }
 }
 
@@ -214,8 +253,36 @@ ipcMain.on('export-csv', async (event, { filename, csv }) => {
   }
 });
 
+ipcMain.on('save-mvr-data', (event, { filePath, buffer }) => {
+  fs.writeFileSync(filePath, Buffer.from(buffer));
+  mainWindow.setTitle(`Lighting Plot — ${path.basename(filePath)}`);
+});
+
 ipcMain.on('set-title', (event, title) => {
   mainWindow.setTitle(title);
+});
+
+ipcMain.handle('get-app-version', () => app.getVersion());
+
+ipcMain.handle('print-sheet', async (event, { html }) => {
+  return new Promise((resolve) => {
+    const { BrowserWindow: BW } = require('electron');
+    const printWin = new BW({
+      width: 1200, height: 900, show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+    printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    printWin.webContents.once('did-finish-load', () => {
+      printWin.webContents.print(
+        { silent: false, printBackground: true, color: true },
+        (success, failureReason) => {
+          if (!printWin.isDestroyed()) printWin.close();
+          resolve({ success, failureReason: failureReason || null });
+        }
+      );
+    });
+    printWin.webContents.once('crashed', () => { if (!printWin.isDestroyed()) printWin.close(); resolve({ success: false }); });
+  });
 });
 
 app.whenReady().then(createWindow);

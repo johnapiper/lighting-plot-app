@@ -117,12 +117,18 @@ export function ampsToWatts(amps, voltage = 230) {
 
 /**
  * Calculate total load on a circuit.
- * @param {Array} items - fixtures/infra with { wattage } property
- * @param {string} cableType - key of CABLE_TYPES
+ * @param {Array}  items        - fixture/infra instances with optional { wattage, fixtureTypeId } fields
+ * @param {string} cableType    - key of CABLE_TYPES
+ * @param {Array}  fixtureTypes - optional array of fixture type definitions (for powerW lookup)
  */
-export function calcCircuitLoad(items, cableType) {
+export function calcCircuitLoad(items, cableType, fixtureTypes = []) {
   const spec = CABLE_TYPES[cableType];
-  const totalWatts = items.reduce((s, f) => s + (Number(f.wattage) || 0), 0);
+  const totalWatts = items.reduce((s, f) => {
+    // Prefer wattage on instance; fall back to powerW on the fixture type definition
+    const type = fixtureTypes.find(t => t.id === f.fixtureTypeId);
+    const watts = Number(f.wattage) || Number(type?.powerW) || 0;
+    return s + watts;
+  }, 0);
   const totalAmps  = wattsToAmps(totalWatts);
   const maxAmps    = spec?.maxAmps ?? 16;
   const maxWatts   = spec?.maxWatts ?? ampsToWatts(maxAmps);

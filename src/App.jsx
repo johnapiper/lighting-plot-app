@@ -11,6 +11,7 @@ import ReportWindow from './components/ReportWindow';
 import PatchPanel from './components/PatchPanel';
 import GDTFBrowserPanel from './components/GDTFBrowserPanel';
 import StudioSettingsModal from './components/StudioSettingsModal';
+import AppSettingsModal from './components/AppSettingsModal';
 import CableReport from './components/CableReport';
 import InfraInspector, { CableInspector } from './components/InfraInspector';
 import { calcCircuitLoad } from './cabling/ratings';
@@ -19,6 +20,8 @@ import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
 import { findDmxConflicts } from './components/PatchPanel';
 import fixtureTypesData from '../data/fixtures.json';
 import { generateId } from './canvas/geometry';
+import { exportMVR } from './mvr/mvrExport';
+import { importMVR } from './mvr/mvrImport';
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
@@ -98,10 +101,12 @@ export default function App() {
   const [showPatch, setShowPatch]       = useState(false);
   const [showGdtfBrowser, setShowGdtfBrowser] = useState(false);
   const [showStudioSettings, setShowStudioSettings] = useState(false);
+  const [showAppSettings, setShowAppSettings]       = useState(false);
   const [showCableReport, setShowCableReport]       = useState(false);
-  const [animating, setAnimating]                   = useState(false);
+  const [animating, setAnimating]                   = useState(true);
   const [currentFile, setCurrentFile]   = useState(null);
   const [dirty, setDirty]               = useState(false);
+  const [updateBanner, setUpdateBanner] = useState(null); // { version, url }
 
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
@@ -114,7 +119,12 @@ export default function App() {
   const activeSheet   = project.sheets?.find(s => s.id === project.activeSheetId)     || project.sheets?.[0];
   activeDrawingRef.current = activeDrawing;
 
-  const allFixtureTypes = [...fixtureTypesData, ...(project.customFixtureTypes || [])];
+  // Custom types override built-ins with the same id (e.g. edited powerW on a built-in fixture)
+  const customById = Object.fromEntries((project.customFixtureTypes || []).map(f => [f.id, f]));
+  const allFixtureTypes = [
+    ...fixtureTypesData.map(f => customById[f.id] || f),
+    ...(project.customFixtureTypes || []).filter(f => !fixtureTypesData.some(b => b.id === f.id)),
+  ];
   const dmxConflicts    = findDmxConflicts(activeDrawing?.fixtures || []);
 
   const allSelectedIds = [...new Set([...(selectedIds||[]), ...(selectedId ? [selectedId] : [])])];
@@ -133,6 +143,7 @@ export default function App() {
   useEffect(() => {
     if (!ipcRenderer) return;
     const handlers = {
+      'menu-app-settings': () => setShowAppSettings(true),
       'menu-new':    () => { resetProject(); setCurrentFile(null); setDirty(false); clearSelection(); },
       'menu-save':   handleSave,
       'save-file-as': (e, fp) => saveToFile(fp),
@@ -140,9 +151,16 @@ export default function App() {
         try { loadProject(JSON.parse(data)); setCurrentFile(filePath); setDirty(false); clearSelection(); }
         catch (err) { alert('Failed to load: ' + err.message); }
       },
-      'open-recent': (e, fp) => {
-        try { loadProject(JSON.parse(require('fs').readFileSync(fp, 'utf8'))); setCurrentFile(fp); setDirty(false); }
-        catch (err) { alert('Could not open: ' + err.message); }
+      'open-recent': async (e, fp) => {
+        try {
+          if (fp.toLowerCase().endsWith('.mvr')) {
+            const buf = require('fs').readFileSync(fp);
+            const proj = await importMVR(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+            loadProject(proj); setCurrentFile(fp); setDirty(false); clearSelection();
+          } else {
+            loadProject(JSON.parse(require('fs').readFileSync(fp, 'utf8'))); setCurrentFile(fp); setDirty(false);
+          }
+        } catch (err) { alert('Could not open: ' + err.message); }
       },
       'menu-undo': undo, 'menu-redo': redo,
       'menu-delete': handleDelete,
@@ -158,6 +176,21 @@ export default function App() {
       'menu-report-dimmer':     () => setReport({ type: 'dimmer' }),
       'pdf-opened':   (e, { dataUrl }) => handlePdfData(dataUrl),
       'image-opened': (e, { dataUrl, fileName }) => handleImageData(dataUrl, fileName),
+      'load-mvr-file': async (e, { filePath, buffer }) => {
+        try {
+          const proj = await importMVR(buffer);
+          loadProject(proj);
+          setCurrentFile(filePath);
+          setDirty(false);
+          clearSelection();
+        } catch (err) { alert('Failed to import MVR: ' + err.message); }
+      },
+      'export-mvr-request': async (e, filePath) => {
+        try {
+          const buf = await exportMVR(project, allFixtureTypes);
+          ipcRenderer.send('save-mvr-data', { filePath, buffer: Array.from(buf) });
+        } catch (err) { alert('Failed to export MVR: ' + err.message); }
+      },
     };
     Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.on(ch, fn));
     return () => Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.removeListener(ch, fn));
@@ -188,6 +221,54 @@ export default function App() {
 
   const isFirst = useRef(true);
   useEffect(() => { if (isFirst.current) { isFirst.current = false; return; } setDirty(true); }, [project]);
+
+  // ── Auto-update check ────────────────────────────────────────────────────
+  useEffect(() => {
+    async function checkForUpdate() {
+      try {
+        const https = require('https');
+        const ipc   = window.require ? window.require('electron').ipcRenderer : null;
+        const currentVersion = ipc ? await ipc.invoke('get-app-version') : null;
+        if (!currentVersion) return;
+
+        const data = await new Promise((resolve, reject) => {
+          const req = https.get(
+            'https://api.github.com/repos/johnapiper/lighting-plot-app/releases/latest',
+            { headers: { 'User-Agent': 'lighting-plot-app' } },
+            res => {
+              let body = '';
+              res.on('data', chunk => { body += chunk; });
+              res.on('end', () => {
+                try { resolve(JSON.parse(body)); } catch { reject(new Error('Parse error')); }
+              });
+            }
+          );
+          req.on('error', reject);
+          req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
+        });
+
+        const latestTag = (data.tag_name || '').replace(/^v/, '');
+        if (!latestTag) return;
+
+        // Simple semver comparison: split by '.' and compare numerically
+        function semverGt(a, b) {
+          const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+          for (let i = 0; i < 3; i++) {
+            if ((pa[i] || 0) > (pb[i] || 0)) return true;
+            if ((pa[i] || 0) < (pb[i] || 0)) return false;
+          }
+          return false;
+        }
+
+        if (semverGt(latestTag, currentVersion)) {
+          setUpdateBanner({ version: latestTag, url: data.html_url || 'https://github.com/johnapiper/lighting-plot-app/releases' });
+        }
+      } catch {
+        // Silently ignore network errors — update check is best-effort
+      }
+    }
+    checkForUpdate();
+  }, []);
 
   function clearSelection() { setSelectedId(null); setSelectedObj(null); setSelectedIds([]); }
   function handleSave() { if (currentFile) saveToFile(currentFile); else if (ipcRenderer) ipcRenderer.send('save-as-request'); }
@@ -220,6 +301,10 @@ export default function App() {
   // ── Mode ─────────────────────────────────────────────────────────────────
   function handleSetMode(mode) {
     commit(proj => { proj.activeMode = mode; return proj; });
+    // Clear selection so cable/infra inspectors don't bleed into the new mode
+    clearSelection();
+    // Reset any cable/infra tool when leaving cable mode
+    if (mode !== 'cable') setActiveTool('select');
   }
 
   // ── Active layer ─────────────────────────────────────────────────────────
@@ -240,7 +325,7 @@ export default function App() {
   function handleGroupToggle() { if (groupInfo) handleUngroup(); else if (canGroup) handleGroup(); }
 
   // ── Object updates ───────────────────────────────────────────────────────
-  function handleUpdateFixture(id, rawFields) {
+  function handleUpdateFixtureInstance(id, rawFields) {
     const cur = activeDrawing?.fixtures?.find(f => f.id === id);
     const fields = syncFields(rawFields, cur);
     commitToActiveDrawing(d => { const f = d.fixtures.find(f => f.id === id); if (f) Object.assign(f, fields); });
@@ -299,7 +384,7 @@ export default function App() {
       return proj;
     });
   }
-  function handleUpdateFixture(updated) {
+  function handleUpdateFixtureType(updated) {
     commit(proj => {
       // Update in customFixtureTypes if it exists there
       const idx = (proj.customFixtureTypes||[]).findIndex(f => f.id === updated.id);
@@ -425,6 +510,21 @@ export default function App() {
 
   return (
     <div style={styles.app}>
+      {/* Update available banner */}
+      {updateBanner && (
+        <div style={styles.updateBanner}>
+          <span>🚀 Update available: <strong>v{updateBanner.version}</strong></span>
+          <a href={updateBanner.url} target="_blank" rel="noreferrer"
+            style={{ color: '#90cdf4', marginLeft: 10, textDecoration: 'underline', cursor: 'pointer' }}
+            onClick={e => { e.preventDefault(); require('electron').shell.openExternal(updateBanner.url); }}>
+            Download
+          </a>
+          <button onClick={() => setUpdateBanner(null)}
+            style={{ marginLeft: 12, background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: 13 }}>
+            ✕
+          </button>
+        </div>
+      )}
       <Toolbar
         activeTool={activeTool}
         onToolChange={t => { setActiveTool(t); setPendingFixture(null); }}
@@ -443,6 +543,7 @@ export default function App() {
         animating={animating} onToggleAnimation={() => setAnimating(v => !v)}
         onShowCableReport={() => setShowCableReport(true)}
         onStudioSettings={() => setShowStudioSettings(true)}
+        onAppSettings={() => setShowAppSettings(true)}
       />
 
       <div style={styles.main}>
@@ -456,13 +557,13 @@ export default function App() {
             onImportGdtf={handleImportGdtf}
             onDeleteCustomFixture={handleDeleteCustomFixture}
             onRenameFixture={handleRenameFixture}
-            onUpdateFixture={handleUpdateFixture}
+            onUpdateFixture={handleUpdateFixtureType}
             onOpenGdtfBrowser={() => setShowGdtfBrowser(true)}
           />
         )}
 
-        {activeMode === 'cad' ? (
-          /* ── CAD mode ─────────────────────────────────────────── */
+        {activeMode === 'cad' || activeMode === 'cable' ? (
+          /* ── CAD / Cable mode — same canvas ───────────────────── */
           <div style={styles.canvasColumn}>
             <Canvas
               project={project}
@@ -482,6 +583,7 @@ export default function App() {
               dragTargetLayerRef={dragTargetLayerRef}
               activeLayerId={activeLayerId}
               animating={animating}
+              activeMode={activeMode}
             />
             <DrawingTabs
               drawings={project.drawings||[]}
@@ -511,7 +613,7 @@ export default function App() {
 
         {/* Right panel — inspector + layers, always visible */}
         <div style={styles.rightPanel}>
-          {activeMode === 'cad' && (() => {
+          {(activeMode === 'cad' || activeMode === 'cable') && (() => {
             const kind = selectedObj?.kind;
             if (kind === 'infra') {
               return (
@@ -532,15 +634,15 @@ export default function App() {
                 : drawing?.infrastructure?.find(i => i.id === cable.toId);
               let lengthMm = 0, loadInfo = null;
               if (fromObj && toObj) {
-                const from = { x: fromObj.x, y: fromObj.y, onStructureId: fromObj.onStructureId || null };
-                const to   = { x: toObj.x,   y: toObj.y,   onStructureId: toObj.onStructureId   || null };
+                const from = { x: fromObj.x, y: fromObj.y, onStructureId: fromObj.onStructureId || fromObj.pipeId || null };
+                const to   = { x: toObj.x,   y: toObj.y,   onStructureId: toObj.onStructureId   || toObj.pipeId   || null };
                 ({ lengthMm } = calcCableRoute(from, to, drawing?.pipes || [], project.meta?.rigHeight || 5500));
               }
               if (cable.cableType === 'power' && cable.subtype) {
                 const items = [];
                 if (fromObj && cable.fromType === 'fixture') items.push(fromObj);
                 if (toObj   && cable.toType   === 'fixture') items.push(toObj);
-                loadInfo = calcCircuitLoad(items, cable.subtype);
+                loadInfo = calcCircuitLoad(items, cable.subtype, allFixtureTypes);
               }
               const fromLabel = fromObj ? (fromObj.label || fromObj.name || fromObj.type || cable.fromId) : cable.fromId;
               const toLabel   = toObj   ? (toObj.label   || toObj.name   || toObj.type   || cable.toId)   : cable.toId;
@@ -557,7 +659,7 @@ export default function App() {
             return (
               <InspectorPanel
                 selected={selectedObj}
-                onUpdateFixture={handleUpdateFixture}
+                onUpdateFixture={handleUpdateFixtureInstance}
                 onUpdatePipe={handleUpdatePipe}
                 onUpdateText={handleUpdateText}
                 onUpdateObject={handleUpdateObject}
@@ -587,7 +689,7 @@ export default function App() {
       {report && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
       {showPatch && (
         <PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
-          onUpdateFixture={handleUpdateFixture} onClose={closePatch} />
+          onUpdateFixture={handleUpdateFixtureInstance} onClose={closePatch} />
       )}
       {showGdtfBrowser && (
         <GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} />
@@ -599,12 +701,16 @@ export default function App() {
           onClose={() => setShowStudioSettings(false)}
         />
       )}
+      {showAppSettings && (
+        <AppSettingsModal onClose={() => setShowAppSettings(false)} />
+      )}
       {showCableReport && (
         <CableReport
           drawing={activeDrawing}
           pipes={activeDrawing?.pipes || []}
           rigHeight={project.meta?.rigHeight || 5500}
           gridHeight={project.meta?.gridHeight || 6000}
+          fixtureTypes={allFixtureTypes}
           onClose={() => setShowCableReport(false)}
         />
       )}
@@ -614,6 +720,11 @@ export default function App() {
 
 const styles = {
   app: { display:'flex', flexDirection:'column', height:'100vh', background:'#0d1117', color:'#e0e0e0', fontFamily:"'Segoe UI', system-ui, sans-serif", overflow:'hidden' },
+  updateBanner: {
+    display: 'flex', alignItems: 'center', padding: '5px 16px',
+    background: '#0f3460', borderBottom: '1px solid #1a4a80',
+    fontSize: 12, color: '#e0e0e0', gap: 4, flexShrink: 0,
+  },
   main: { display:'flex', flex:1, overflow:'hidden' },
   canvasColumn: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden' },
   rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid #0f3460', overflow:'hidden', flexShrink:0 },

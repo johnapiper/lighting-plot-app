@@ -139,6 +139,33 @@ export default function InspectorPanel({
         <Field label="Rotation°" value={f.rotation ?? 0} type="number" onChange={v => onUpdateFixture(f.id, { rotation: Number(v) })} />
         <Field label="Scale" value={(f.scale || 1).toFixed(2)} type="number" onChange={v => onUpdateFixture(f.id, { scale: Math.max(0.1, Number(v)) })} />
         <LayerField layerId={f.layerId} layers={layers} onChange={layerId => onUpdateFixture(f.id, { layerId })} />
+        {/* Symbol override */}
+        <Field label="Symbol">
+          <select style={styles.input} value={f.symbolOverride || ''}
+            onChange={e => onUpdateFixture(f.id, { symbolOverride: e.target.value || null })}>
+            <option value="">— Default ({ftype?.name || 'type default'}) —</option>
+            {(allFixtureTypes || []).filter(t => t.symbol).map(t => (
+              <option key={t.id} value={t.symbol}>{t.name}</option>
+            ))}
+          </select>
+        </Field>
+        {/* Symbol colour override */}
+        <Field label="Symbol Colour">
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input type="color" value={f.symbolColor || '#ffffff'}
+              style={{ width: 32, height: 22, padding: 1, border: '1px solid #2a4a6a', borderRadius: 3, cursor: 'pointer', background: 'none' }}
+              onChange={e => onUpdateFixture(f.id, { symbolColor: e.target.value })}
+              title="Symbol stroke colour" />
+            <input type="text" value={f.symbolColor || ''}
+              placeholder="default"
+              style={{ ...styles.input, flex: 1 }}
+              onChange={e => onUpdateFixture(f.id, { symbolColor: e.target.value || null })} />
+            {f.symbolColor && (
+              <button style={{ ...styles.iconBtn, color: '#718096' }} title="Reset to default"
+                onClick={() => onUpdateFixture(f.id, { symbolColor: null })}>×</button>
+            )}
+          </div>
+        </Field>
       </div>
     );
   }
