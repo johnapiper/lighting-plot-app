@@ -34,7 +34,8 @@
     "win": {
       "target": [
         { "target": "nsis", "arch": ["x64"] }
-      ]
+      ],
+      "artifactName": "Lighting-Plot-Setup.exe"
     },
     "nsis": {
       "oneClick": false,
@@ -48,6 +49,7 @@
         { "target": "dmg", "arch": ["universal"] },
         { "target": "zip", "arch": ["universal"] }
       ],
+      "artifactName": "${name}-${version}-${arch}.${ext}",
       "category": "public.app-category.graphics-design",
       "darkModeSupport": true,
       "hardenedRuntime": true,
