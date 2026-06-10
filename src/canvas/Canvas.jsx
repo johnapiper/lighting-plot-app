@@ -516,9 +516,13 @@ export default function Canvas({
           const np = { id: generateId(), kind: 'pipe', x1: cur.x1, y1: cur.y1, x2: ex, y2: ey, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
           commitToDrawing(d => d.pipes.push(np));
           onSelect({ kind: 'pipe', ...np });
+          // Chain: start next section from this endpoint (Escape to stop)
+          setPipePlaceAngle(null);
+          setDrawingState({ kind: 'pipe', x1: ex, y1: ey, x2: ex, y2: ey });
+        } else {
+          setDrawingState(null);
+          setPipePlaceAngle(null);
         }
-        setDrawingState(null);
-        setPipePlaceAngle(null);
       }
       return;
     }
