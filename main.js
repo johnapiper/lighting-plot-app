@@ -13,6 +13,7 @@ try {
 }
 
 let mainWindow;
+let currentLicenseFeatures = [];
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -128,10 +129,12 @@ function buildMenu() {
           },
         },
         { type: 'separator' },
-        {
-          label: 'License Manager…',
-          click: () => mainWindow.webContents.send('menu-license-manager'),
-        },
+        ...(currentLicenseFeatures.includes('license_manager') ? [
+          {
+            label: 'License Manager…',
+            click: () => mainWindow.webContents.send('menu-license-manager'),
+          },
+        ] : []),
         {
           label: 'Deactivate License…',
           click: () => mainWindow.webContents.send('menu-deactivate'),
@@ -280,6 +283,11 @@ ipcMain.on('set-title', (event, title) => {
 });
 
 ipcMain.handle('get-app-version', () => app.getVersion());
+
+ipcMain.on('license-features', (event, { features }) => {
+  currentLicenseFeatures = features || [];
+  buildMenu();
+});
 
 // ── GDTF Share credential storage (safeStorage = OS keychain encryption) ─────
 const { safeStorage } = require('electron');

@@ -1,15 +1,45 @@
 {
-  "_comment": "Lighting Plot App — License Database. Managed via the in-app License Manager (developer rights required).",
+  "_comment": "Lighting Plot App — License Database. Managed via the in-app License Manager (license_manager feature required).",
+  "rightsGroups": [
+    {
+      "id": "trial",
+      "name": "Trial",
+      "features": ["cad_view", "cad_edit", "fixture_library"]
+    },
+    {
+      "id": "standard",
+      "name": "Standard",
+      "features": [
+        "cad_view", "cad_edit", "beam_footprints",
+        "fixture_library", "gdtf_browser",
+        "patch_panel", "reports", "cable_routing",
+        "mvr_import", "mvr_export", "eos_import", "pdf_background",
+        "multi_drawing", "sheet_editor"
+      ]
+    },
+    {
+      "id": "developer",
+      "name": "Developer",
+      "features": [
+        "cad_view", "cad_edit", "beam_footprints",
+        "fixture_library", "gdtf_browser",
+        "patch_panel", "reports", "cable_routing",
+        "mvr_import", "mvr_export", "eos_import", "pdf_background",
+        "multi_drawing", "sheet_editor",
+        "license_manager"
+      ]
+    }
+  ],
   "licenses": [
     {
       "key": "LPLOT-DEV0-0000-0000-0001",
       "keyHash": "d0ad1cd044334b846b59b30dd5102644d7436fa3ee4084966233e674ca7b0891",
       "name": "Developer Account",
       "email": "dev@lightingplot.app",
-      "rights": "developer",
+      "rights": ["developer"],
       "expiresAt": "2099-12-31",
       "createdAt": "2026-06-10",
-      "active": false,
+      "active": true,
       "notes": "Master developer key"
     },
     {
@@ -17,7 +47,7 @@
       "keyHash": "1d596e85a71fa1f85cab3ed55c42a6076444a8359603016a5eb60b0af6e92ddf",
       "name": "John Piper",
       "email": "john@jplighting.net",
-      "rights": "developer",
+      "rights": ["developer"],
       "expiresAt": "2027-06-10",
       "createdAt": "2026-06-10",
       "active": true,

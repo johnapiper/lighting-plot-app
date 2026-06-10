@@ -3,7 +3,7 @@
  * license is loaded. Shows an activation screen otherwise.
  */
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { fetchDatabase, verifyKey, hashKey } from '../license/licenseService';
+import { fetchDatabase, verifyKey, hasFeature as checkFeature } from '../license/licenseService';
 
 const { ipcRenderer } = require('electron');
 
@@ -51,6 +51,7 @@ export default function LicenseGate({ children }) {
         localStorage.setItem('lplot_license_result', JSON.stringify(result));
         setLicense(result);
         setStatus('valid');
+        ipcRenderer.send('license-features', { features: result.features || [] });
       } else {
         setErrMsg(result.reason);
         setStatus('activating');
@@ -73,6 +74,7 @@ export default function LicenseGate({ children }) {
       localStorage.setItem('lplot_license_result', JSON.stringify(result));
       setLicense(result);
       setStatus('valid');
+      ipcRenderer.send('license-features', { features: result.features || [] });
     } catch (e) {
       setErrMsg(e.message || 'Activation failed.');
     } finally {
@@ -82,6 +84,7 @@ export default function LicenseGate({ children }) {
 
   function handleDeactivate() {
     ipcRenderer.invoke('license-clear-key');
+    ipcRenderer.send('license-features', { features: [] });
     localStorage.removeItem('lplot_license_result');
     setLicense(null);
     setInputKey('');
@@ -144,8 +147,10 @@ export default function LicenseGate({ children }) {
   }
 
   // ── Valid — render app with context ───────────────────────────────────
+  const hasFeature = (featureId) => checkFeature(license, featureId);
+
   return (
-    <LicenseContext.Provider value={{ license, offlineOk, deactivate: handleDeactivate }}>
+    <LicenseContext.Provider value={{ license, offlineOk, hasFeature, deactivate: handleDeactivate }}>
       {children}
     </LicenseContext.Provider>
   );

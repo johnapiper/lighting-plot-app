@@ -6,10 +6,10 @@
  * Database URL:  https://raw.githubusercontent.com/johnapiper/lighting-plot-app/master/licenses/database.json
  * GitHub API:    https://api.github.com/repos/johnapiper/lighting-plot-app/contents/licenses/database.json
  *
- * Rights levels (ordered, each includes all below):
- *   developer  – full access + License Manager UI + GitHub writes
- *   standard   – full app access
- *   trial      – app access, read-only (no save/export)
+ * Rights model:
+ *   - Each license has a `rights` array of group IDs (e.g. ["developer", "trial"])
+ *   - Each group in `db.rightsGroups` lists the feature IDs it enables
+ *   - A license holder can use any feature enabled by ANY of their groups
  */
 
 const REPO_OWNER  = 'johnapiper';
@@ -42,12 +42,9 @@ export function generateLicenseKey() {
 // ── Database fetch (with 24h local cache) ─────────────────────────────────
 
 export async function fetchDatabase() {
-  // Try cache first
   try {
     const cached = JSON.parse(localStorage.getItem('lplot_license_db') || 'null');
-    if (cached && Date.now() - cached._fetchedAt < CACHE_TTL) {
-      return cached;
-    }
+    if (cached && Date.now() - cached._fetchedAt < CACHE_TTL) return cached;
   } catch {}
 
   const res = await fetch(RAW_URL, { cache: 'no-store' });
@@ -58,9 +55,16 @@ export async function fetchDatabase() {
   return db;
 }
 
-// Force a fresh fetch (called after writing)
 export function invalidateCache() {
   localStorage.removeItem('lplot_license_db');
+}
+
+// ── Coerce legacy string rights to array ──────────────────────────────────
+
+function toRightsArray(rights) {
+  if (!rights) return [];
+  if (Array.isArray(rights)) return rights;
+  return [rights]; // backward compat: "developer" → ["developer"]
 }
 
 // ── Key verification ───────────────────────────────────────────────────────
@@ -69,20 +73,23 @@ export async function verifyKey(rawKey, db) {
   const hash = await hashKey(rawKey);
   const normalized = rawKey.trim().toUpperCase();
 
-  // Match by hash first, fall back to plain-text key for the initial dev key
   const entry = db.licenses.find(
     l => l.keyHash === hash || l.key === normalized
   );
 
-  if (!entry)         return { valid: false, reason: 'Key not found.' };
-  if (!entry.active)  return { valid: false, reason: 'License has been revoked.' };
+  if (!entry)        return { valid: false, reason: 'Key not found.' };
+  if (!entry.active) return { valid: false, reason: 'License has been revoked.' };
 
   const expiry = new Date(entry.expiresAt);
   if (expiry < new Date()) return { valid: false, reason: `License expired on ${entry.expiresAt}.` };
 
+  const rights = toRightsArray(entry.rights);
+  const features = resolveFeatures(rights, db.rightsGroups || []);
+
   return {
     valid:    true,
-    rights:   entry.rights,
+    rights,
+    features,
     name:     entry.name,
     email:    entry.email,
     expiresAt: entry.expiresAt,
@@ -90,19 +97,33 @@ export async function verifyKey(rawKey, db) {
   };
 }
 
-// ── Rights helpers ─────────────────────────────────────────────────────────
+// ── Feature resolution ─────────────────────────────────────────────────────
 
-const RIGHTS_ORDER = ['trial', 'standard', 'developer'];
+/**
+ * Given an array of group IDs and the DB's rightsGroups list,
+ * return the set of feature IDs this license holder can use.
+ */
+export function resolveFeatures(rights, rightsGroups) {
+  const granted = new Set();
+  for (const groupId of rights) {
+    const group = rightsGroups.find(g => g.id === groupId);
+    if (!group) continue;
+    for (const f of (group.features || [])) granted.add(f);
+  }
+  return [...granted];
+}
 
-export function hasRights(licenseInfo, required) {
-  if (!licenseInfo?.valid) return false;
-  return RIGHTS_ORDER.indexOf(licenseInfo.rights) >= RIGHTS_ORDER.indexOf(required);
+/**
+ * Check if a verified license result grants a specific feature.
+ */
+export function hasFeature(licenseResult, featureId) {
+  if (!licenseResult?.valid) return false;
+  return (licenseResult.features || []).includes(featureId);
 }
 
 // ── GitHub write (requires a PAT with repo write scope) ───────────────────
 
 export async function writeDatabase(db, githubToken) {
-  // Get current file SHA (required by GitHub API for updates)
   const headRes = await fetch(API_URL, {
     headers: {
       Authorization: `token ${githubToken}`,
@@ -112,7 +133,6 @@ export async function writeDatabase(db, githubToken) {
   if (!headRes.ok) throw new Error(`GitHub API error fetching file SHA (${headRes.status})`);
   const { sha } = await headRes.json();
 
-  // Strip internal cache key before writing
   const toWrite = { ...db };
   delete toWrite._fetchedAt;
 
@@ -141,7 +161,7 @@ export async function writeDatabase(db, githubToken) {
   return true;
 }
 
-// ── Add / revoke license (returns updated db, does NOT write — call writeDatabase separately) ──
+// ── License CRUD (returns updated db — call writeDatabase separately) ──────
 
 export async function addLicense(db, { name, email, rights, expiresAt, notes }) {
   const key  = generateLicenseKey();
@@ -151,14 +171,14 @@ export async function addLicense(db, { name, email, rights, expiresAt, notes }) 
     keyHash:   hash,
     name:      name || '',
     email:     email || '',
-    rights:    rights || 'standard',
+    rights:    Array.isArray(rights) ? rights : (rights ? [rights] : ['standard']),
     expiresAt: expiresAt || '',
     createdAt: new Date().toISOString().slice(0, 10),
     active:    true,
     notes:     notes || '',
   };
   return {
-    newDb: { ...db, licenses: [...db.licenses, entry] },
+    newDb:  { ...db, licenses: [...db.licenses, entry] },
     newKey: key,
     entry,
   };
@@ -167,17 +187,44 @@ export async function addLicense(db, { name, email, rights, expiresAt, notes }) 
 export function revokeLicense(db, key) {
   return {
     ...db,
-    licenses: db.licenses.map(l =>
-      l.key === key ? { ...l, active: false } : l
-    ),
+    licenses: db.licenses.map(l => l.key === key ? { ...l, active: false } : l),
   };
+}
+
+export function deleteLicense(db, key) {
+  return { ...db, licenses: db.licenses.filter(l => l.key !== key) };
 }
 
 export function updateLicense(db, key, patch) {
   return {
     ...db,
-    licenses: db.licenses.map(l =>
-      l.key === key ? { ...l, ...patch } : l
-    ),
+    licenses: db.licenses.map(l => l.key === key ? { ...l, ...patch } : l),
+  };
+}
+
+// ── Rights group CRUD ──────────────────────────────────────────────────────
+
+export function addRightsGroup(db, { id, name, features }) {
+  const groups = db.rightsGroups || [];
+  if (groups.find(g => g.id === id)) throw new Error(`Group ID "${id}" already exists.`);
+  return { ...db, rightsGroups: [...groups, { id, name, features: features || [] }] };
+}
+
+export function updateRightsGroup(db, id, patch) {
+  return {
+    ...db,
+    rightsGroups: (db.rightsGroups || []).map(g => g.id === id ? { ...g, ...patch } : g),
+  };
+}
+
+export function deleteRightsGroup(db, id) {
+  return {
+    ...db,
+    rightsGroups: (db.rightsGroups || []).filter(g => g.id !== id),
+    // Strip this group from any licenses that reference it
+    licenses: (db.licenses || []).map(l => ({
+      ...l,
+      rights: toRightsArray(l.rights).filter(r => r !== id),
+    })),
   };
 }

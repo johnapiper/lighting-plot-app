@@ -163,7 +163,7 @@ function App() {
       'menu-app-settings': () => setShowAppSettings(true),
       'menu-check-updates': () => setShowUpdater(true),
       'update-available': () => setShowUpdater(true),
-      'menu-license-manager': () => license?.license?.rights === 'developer' && setShowLicenseManager(true),
+      'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
       'menu-new':    () => { resetProject(); setCurrentFile(null); setDirty(false); clearSelection(); },
       'menu-save':   handleSave,
@@ -747,7 +747,7 @@ function App() {
       {showAppSettings && (
         <AppSettingsModal onClose={() => setShowAppSettings(false)} />
       )}
-      {showLicenseManager && license?.license?.rights === 'developer' && (
+      {showLicenseManager && license?.hasFeature('license_manager') && (
         <LicenseManager onClose={() => setShowLicenseManager(false)} />
       )}
       {showUpdater && (
