@@ -141,9 +141,10 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
       </text>
       {isFalseScale && (
         <text x={x+w/2} y={y+14} textAnchor="middle" fontSize={9}
-          fill="rgba(220,60,60,0.6)" fontWeight="bold" letterSpacing="0.12em"
-          style={{ userSelect:'none', pointerEvents:'none' }}>
-          FALSE SCALE
+          fill="rgba(220,120,0,0.7)" fontWeight="bold" letterSpacing="0.12em"
+          style={{ userSelect:'none', pointerEvents:'none' }}
+          data-print-hide="true">
+          CUSTOM SCALE
         </text>
       )}
       {selected && !vp.locked && (
