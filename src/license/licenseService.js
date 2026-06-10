@@ -86,10 +86,13 @@ export async function fetchDatabase() {
     if (cached && cached._cacheVersion === CACHE_VERSION && Date.now() - cached._fetchedAt < CACHE_TTL) return cached;
   } catch {}
 
-  const res = await fetch(RAW_URL, { cache: 'no-store' });
+  const res = await fetch(`${RAW_URL}?t=${Date.now()}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Could not fetch license database (HTTP ${res.status})`);
   const blob = await res.json();
   const db = await decryptDb(blob);
+  if (!db || typeof db !== 'object') throw new Error('License database is corrupt or unreadable.');
+  if (!db.licenses) db.licenses = [];
+  if (!db.rightsGroups) db.rightsGroups = [];
   db._fetchedAt = Date.now();
   db._cacheVersion = CACHE_VERSION;
   localStorage.setItem('lplot_license_db', JSON.stringify(db));
@@ -114,7 +117,8 @@ export async function verifyKey(rawKey, db) {
   const hash = await hashKey(rawKey);
   const normalized = rawKey.trim().toUpperCase();
 
-  const entry = db.licenses.find(
+  const licenses = db?.licenses || [];
+  const entry = licenses.find(
     l => l.keyHash === hash || l.key === normalized
   );
 
