@@ -310,6 +310,28 @@ export default function SheetEditor({
     clone.setAttribute('width',  `${pw}mm`);
     clone.setAttribute('height', `${ph}mm`);
     clone.style.cssText = 'display:block;box-shadow:none;background:white;';
+
+    // ── Print cleanup ─────────────────────────────────────────────────────────
+    // Remove UI-only elements (selection handles, hint text, resize knobs, text boxes)
+    clone.querySelectorAll('[data-print-hide]').forEach(el => el.remove());
+
+    // Reset selection outlines from blue back to their neutral grey
+    clone.querySelectorAll('[data-sel-outline]').forEach(el => {
+      const neutral = el.getAttribute('data-sel-outline');
+      el.setAttribute('stroke', neutral);
+      el.setAttribute('stroke-width', '0.5');
+    });
+
+    // Strip padlock symbol from viewport labels
+    clone.querySelectorAll('[data-vp-label]').forEach(el => {
+      el.textContent = el.textContent.replace(/\s*🔒/g, '');
+    });
+
+    // Normalise text colour (selected text renders blue; make it black for print)
+    clone.querySelectorAll('[data-print-text]').forEach(el => {
+      if (el.getAttribute('fill') === '#2a6090') el.setAttribute('fill', '#222');
+    });
+
     const svgData = new XMLSerializer().serializeToString(clone);
 
     // Show in-app preview modal so the user can see what will print
