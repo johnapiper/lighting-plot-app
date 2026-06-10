@@ -314,20 +314,24 @@ ipcMain.handle('gdtf-clear-credentials', () => {
   store.delete('gdtfPassword');
 });
 
-// ── License key storage ───────────────────────────────────────────────────
-// Keys are stored plaintext in electron-store. The key itself is not a secret
-// (the licensee knows it); security comes from the encrypted GitHub database.
+// ── License key storage (raw file — most reliable cross-context approach) ─
+// Stored as a plain UTF-8 file in userData. Bypasses electron-store and
+// safeStorage so the key persists identically across dev and installed builds.
+function keyFilePath() {
+  return path.join(app.getPath('userData'), 'lplot-license.key');
+}
 ipcMain.handle('license-save-key', (event, { key }) => {
-  if (!store) return;
-  store.set('licenseKey', key);
+  try { fs.writeFileSync(keyFilePath(), key.trim(), 'utf8'); } catch {}
 });
 ipcMain.handle('license-load-key', () => {
-  if (!store) return '';
-  return store.get('licenseKey', '');
+  try {
+    const key = fs.readFileSync(keyFilePath(), 'utf8').trim();
+    // Sanity check: must look like a LPLOT key or be non-empty
+    return key || '';
+  } catch { return ''; }
 });
 ipcMain.handle('license-clear-key', () => {
-  if (!store) return;
-  store.delete('licenseKey');
+  try { fs.unlinkSync(keyFilePath()); } catch {}
 });
 
 // ── GitHub token storage (encrypted — this IS sensitive) ─────────────────
