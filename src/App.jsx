@@ -762,6 +762,13 @@ function App() {
       {showAppSettings && (
         <AppSettingsModal onClose={() => setShowAppSettings(false)} />
       )}
+      {showMyLicense && (
+        <MyLicenseModal
+          license={license?.license}
+          onClose={() => setShowMyLicense(false)}
+          onChangeLicense={() => { setShowMyLicense(false); license?.deactivate(); }}
+        />
+      )}
       {showLicenseManager && license?.hasFeature('license_manager') && (
         <LicenseManager onClose={() => setShowLicenseManager(false)} />
       )}
