@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
+import FixtureSymbol from '../fixtures/FixtureSymbol';
 
 // ── Paper sizes (mm) ──────────────────────────────────────────────────────────
 const PAPER = {
