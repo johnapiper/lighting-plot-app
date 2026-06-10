@@ -2,7 +2,7 @@ import React from 'react';
 
 const CAD_EDIT_TOOLS = [
   { id: 'line',      label: 'Line',      icon: '╱', key: 'L' },
-  { id: 'rect',      label: 'Rectangle', icon: '▭', key: 'R' },
+  { id: 'rect',      label: 'Rectangle', icon: '▭', key: 'E' },
   { id: 'pipe',      label: 'Pipe',      icon: '━', key: 'P' },
   { id: 'truss',     label: 'Truss',     icon: '⊞', key: null },
   { id: 'text',      label: 'Text',      icon: 'T', key: 'T' },
