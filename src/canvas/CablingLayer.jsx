@@ -231,12 +231,23 @@ export default function CablingLayer({
               );
             })()}
 
-            {/* Flow animation dots */}
-            {animating && waypoints.length >= 2 && [0, 0.4, 0.8].map((offset, i) => {
-              const duration = cable.cableType === 'network' ? 1.2 : cable.cableType === 'dmx' ? 1.8 : 2.5;
-              const totalLen = lengthMm / 1000; // approximate
-              return (
-                <circle key={i} r={(isHighlighted ? 4 : 2.5)/zoom} fill={strokeColor} opacity={isHighlighted ? 1.0 : 0.7}>
+            {/* Flow animation dots — size/speed/count reflect load utilisation */}
+            {animating && waypoints.length >= 2 && (() => {
+              // Base duration: faster = more load. Power cables scale with utilisation.
+              const baseDur = cable.cableType === 'network' ? 1.2 : cable.cableType === 'dmx' ? 1.8 : 2.5;
+              const loadFactor = cable.cableType === 'power' ? Math.max(0.3, 1 - utilizationPct / 200) : 1;
+              const duration = baseDur * loadFactor; // overloaded → faster
+              // More dots at higher load
+              const dotCount = cable.cableType === 'power' && utilizationPct > 60 ? 4 : 3;
+              const offsets = Array.from({ length: dotCount }, (_, i) => i / dotCount);
+              // Dot size: bigger at higher load; highlighted cables always bigger
+              const loadR = cable.cableType === 'power'
+                ? 2.5 + (utilizationPct / 100) * 2.5   // 2.5–5 based on utilisation
+                : 3;
+              const dotR = (isHighlighted ? Math.max(4, loadR) : loadR * 0.7) / zoom;
+              const dotOpacity = isHighlighted ? 1.0 : 0.7;
+              return offsets.map((offset, i) => (
+                <circle key={i} r={dotR} fill={strokeColor} opacity={dotOpacity}>
                   <animateMotion
                     dur={`${duration}s`}
                     begin={`${-offset * duration}s`}
@@ -244,8 +255,8 @@ export default function CablingLayer({
                     path={animPathD}
                   />
                 </circle>
-              );
-            })}
+              ));
+            })()}
           </g>
         );
       })}
