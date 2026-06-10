@@ -503,6 +503,24 @@ export default function App() {
     if (project.sheets?.length <= 1) return;
     commit(proj => { proj.sheets=proj.sheets.filter(s=>s.id!==id); if(proj.activeSheetId===id) proj.activeSheetId=proj.sheets[0]?.id; return proj; });
   }
+  function handleDuplicateSheet(id) {
+    commit(proj => {
+      const src = proj.sheets.find(s => s.id === id);
+      if (!src) return proj;
+      const copy = JSON.parse(JSON.stringify(src));
+      copy.id = generateId();
+      copy.name = src.name + ' Copy';
+      // Give each element a new id to avoid collisions
+      const remap = (arr) => (arr||[]).map(o => ({ ...o, id: generateId() }));
+      copy.viewports  = remap(copy.viewports);
+      copy.annotations = remap(copy.annotations);
+      copy.texts      = remap(copy.texts);
+      copy.keyBlocks  = remap(copy.keyBlocks);
+      proj.sheets.splice(proj.sheets.findIndex(s => s.id === id) + 1, 0, copy);
+      proj.activeSheetId = copy.id;
+      return proj;
+    });
+  }
 
   function handlePrint() { /* SheetEditor handles its own print popup */ }
 
