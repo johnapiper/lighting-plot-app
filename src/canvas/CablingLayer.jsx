@@ -225,7 +225,7 @@ export default function CablingLayer({
               const duration = cable.cableType === 'network' ? 1.2 : cable.cableType === 'dmx' ? 1.8 : 2.5;
               const totalLen = lengthMm / 1000; // approximate
               return (
-                <circle key={i} r={4/zoom} fill={strokeColor} opacity={1.0}>
+                <circle key={i} r={(isHighlighted ? 4 : 2.5)/zoom} fill={strokeColor} opacity={isHighlighted ? 1.0 : 0.7}>
                   <animateMotion
                     dur={`${duration}s`}
                     begin={`${-offset * duration}s`}
