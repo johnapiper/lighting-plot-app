@@ -17,6 +17,7 @@ import EOSImport from './components/EOSImport';
 import InfraInspector, { CableInspector } from './components/InfraInspector';
 import LicenseGate, { useLicense } from './components/LicenseGate';
 import LicenseManager from './components/LicenseManager';
+import UpdaterDialog from './components/UpdaterDialog';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
@@ -116,6 +117,7 @@ function App() {
   const [showCableReport, setShowCableReport]       = useState(false);
   const [showEOSImport, setShowEOSImport]           = useState(false);
   const [showLicenseManager, setShowLicenseManager] = useState(false);
+  const [showUpdater, setShowUpdater] = useState(false);
   const [animating, setAnimating]                   = useState(true);
   const license = useLicense();
   const [currentFile, setCurrentFile]   = useState(null);
@@ -159,6 +161,8 @@ function App() {
     if (!ipcRenderer) return;
     const handlers = {
       'menu-app-settings': () => setShowAppSettings(true),
+      'menu-check-updates': () => setShowUpdater(true),
+      'update-available': () => setShowUpdater(true),
       'menu-license-manager': () => license?.license?.rights === 'developer' && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
       'menu-new':    () => { resetProject(); setCurrentFile(null); setDirty(false); clearSelection(); },
@@ -745,6 +749,9 @@ function App() {
       )}
       {showLicenseManager && license?.license?.rights === 'developer' && (
         <LicenseManager onClose={() => setShowLicenseManager(false)} />
+      )}
+      {showUpdater && (
+        <UpdaterDialog onClose={() => setShowUpdater(false)} />
       )}
       {showEOSImport && (
         <EOSImport

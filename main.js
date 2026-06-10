@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 let store;
 try {
@@ -118,6 +119,13 @@ function buildMenu() {
         {
           label: 'App Settings…',
           click: () => mainWindow.webContents.send('menu-app-settings'),
+        },
+        {
+          label: 'Check for Updates…',
+          click: () => {
+            mainWindow.webContents.send('menu-check-updates');
+            autoUpdater.checkForUpdates();
+          },
         },
         { type: 'separator' },
         {
@@ -357,6 +365,52 @@ ipcMain.handle('print-sheet', async (event, { html }) => {
   });
 });
 
-app.whenReady().then(createWindow);
+// ── Auto-updater ──────────────────────────────────────────────────────────────
+autoUpdater.autoDownload = false; // ask user first
+
+autoUpdater.on('update-available', (info) => {
+  mainWindow.webContents.send('update-available', {
+    version: info.version,
+    releaseNotes: info.releaseNotes || '',
+  });
+});
+
+autoUpdater.on('update-not-available', () => {
+  mainWindow.webContents.send('update-not-available');
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  mainWindow.webContents.send('update-download-progress', {
+    percent: Math.round(progress.percent),
+    transferred: progress.transferred,
+    total: progress.total,
+  });
+});
+
+autoUpdater.on('update-downloaded', () => {
+  mainWindow.webContents.send('update-downloaded');
+});
+
+autoUpdater.on('error', (err) => {
+  mainWindow.webContents.send('update-error', err.message);
+});
+
+ipcMain.handle('check-for-updates', () => {
+  autoUpdater.checkForUpdates();
+});
+
+ipcMain.handle('download-update', () => {
+  autoUpdater.downloadUpdate();
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
+});
+
+app.whenReady().then(() => {
+  createWindow();
+  // Check for updates a few seconds after launch so the window is ready
+  setTimeout(() => autoUpdater.checkForUpdates(), 5000);
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
