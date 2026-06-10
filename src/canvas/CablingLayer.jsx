@@ -155,8 +155,8 @@ export default function CablingLayer({
       </defs>
 
       {routedCables.map(({ cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD, animPathD }) => {
-        const alpha = isHighlighted ? 1 : 0.4;
-        const sw1   = isHighlighted ? 2.5 / zoom : 1.2 / zoom;
+        const alpha = isHighlighted ? 1 : 0.65;
+        const sw1   = isHighlighted ? 3.5 / zoom : 2 / zoom;
         const strokeColor = overloaded ? '#ef4444' : color;
 
         return (
