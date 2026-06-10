@@ -104,6 +104,7 @@ export default function App() {
   const [showStudioSettings, setShowStudioSettings] = useState(false);
   const [showAppSettings, setShowAppSettings]       = useState(false);
   const [showCableReport, setShowCableReport]       = useState(false);
+  const [showEOSImport, setShowEOSImport]           = useState(false);
   const [animating, setAnimating]                   = useState(true);
   const [currentFile, setCurrentFile]   = useState(null);
   const [dirty, setDirty]               = useState(false);
