@@ -727,6 +727,26 @@ export default function App() {
       {showAppSettings && (
         <AppSettingsModal onClose={() => setShowAppSettings(false)} />
       )}
+      {showEOSImport && (
+        <EOSImport
+          drawing={activeDrawing}
+          fixtureTypes={allFixtureTypes}
+          onClose={() => setShowEOSImport(false)}
+          onApply={(channels, fieldMap) => {
+            commitToActiveDrawing(d => {
+              channels.forEach(ch => {
+                const fix = (d.fixtures||[]).find(f => String(f.channel||'').trim() === String(ch.num).trim());
+                if (!fix) return;
+                if (fieldMap.label   && ch.label)   fix.label   = ch.label;
+                if (fieldMap.channel && ch.num)      fix.channel = ch.num;
+                if (fieldMap.address && ch.address)  fix.address = ch.address;
+              });
+            });
+            setShowEOSImport(false);
+          }}
+        />
+      )}
+
       {showCableReport && (
         <CableReport
           drawing={activeDrawing}
