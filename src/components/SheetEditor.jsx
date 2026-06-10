@@ -186,10 +186,12 @@ function KeyBlockEl({ kb, drawings, fixtureTypes, ps, selected, onMouseDown, onC
           style={{ userSelect:'none', pointerEvents:'none' }}>No fixtures in plot</text>
       )}
       <rect x={x} y={y} width={w} height={h} fill="none"
-        stroke={selected?'#2a6090':'#bbb'} strokeWidth={selected?1.5:0.5} />
+        stroke={selected?'#2a6090':'#bbb'} strokeWidth={selected?1.5:0.5}
+        data-sel-outline="#bbb" />
       {selected && (
         <rect x={x+w-4} y={y+h-4} width={8} height={8}
           fill="white" stroke="#2a6090" strokeWidth={1} style={{ cursor:'se-resize' }}
+          data-print-hide="true"
           onMouseDown={e => { e.stopPropagation(); onMouseDown(e, kb, 'se'); }} />
       )}
     </g>
