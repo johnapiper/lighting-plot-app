@@ -20,7 +20,16 @@ export default function LicenseGate({ children }) {
   const [errMsg, setErrMsg]     = useState('');
   const [offlineOk, setOfflineOk] = useState(false);
 
-  useEffect(() => { bootCheck(); }, []);
+  useEffect(() => {
+    // Clear any pre-encryption cached data
+    try {
+      const cachedDb = JSON.parse(localStorage.getItem('lplot_license_db') || 'null');
+      if (cachedDb && !cachedDb._cacheVersion) localStorage.removeItem('lplot_license_db');
+      const cachedResult = JSON.parse(localStorage.getItem('lplot_license_result') || 'null');
+      if (cachedResult && !cachedResult._cacheVersion) localStorage.removeItem('lplot_license_result');
+    } catch {}
+    bootCheck();
+  }, []);
 
   async function bootCheck() {
     setStatus('loading');
@@ -48,7 +57,7 @@ export default function LicenseGate({ children }) {
 
       const result = await verifyKey(savedKey, db);
       if (result.valid) {
-        localStorage.setItem('lplot_license_result', JSON.stringify(result));
+        localStorage.setItem('lplot_license_result', JSON.stringify({ ...result, _cacheVersion: 2 }));
         setLicense(result);
         setStatus('valid');
         ipcRenderer.send('license-features', { features: result.features || [] });
@@ -71,7 +80,7 @@ export default function LicenseGate({ children }) {
       const result = await verifyKey(inputKey.trim(), db);
       if (!result.valid) { setErrMsg(result.reason); return; }
       await ipcRenderer.invoke('license-save-key', { key: inputKey.trim().toUpperCase() });
-      localStorage.setItem('lplot_license_result', JSON.stringify(result));
+      localStorage.setItem('lplot_license_result', JSON.stringify({ ...result, _cacheVersion: 2 }));
       setLicense(result);
       setStatus('valid');
       ipcRenderer.send('license-features', { features: result.features || [] });

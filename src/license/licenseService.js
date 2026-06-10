@@ -18,6 +18,8 @@ const DB_PATH     = 'licenses/database.json';
 const RAW_URL     = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/master/${DB_PATH}`;
 const API_URL     = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DB_PATH}`;
 const CACHE_TTL   = 24 * 60 * 60 * 1000; // 24 h
+// Bump this whenever the cache format changes to force all clients to re-fetch
+const CACHE_VERSION = 2;
 
 // ── Database encryption (AES-256-GCM) ─────────────────────────────────────
 // The key is embedded in the app binary. This keeps the GitHub file opaque to
@@ -81,7 +83,7 @@ export function generateLicenseKey() {
 export async function fetchDatabase() {
   try {
     const cached = JSON.parse(localStorage.getItem('lplot_license_db') || 'null');
-    if (cached && Date.now() - cached._fetchedAt < CACHE_TTL) return cached;
+    if (cached && cached._cacheVersion === CACHE_VERSION && Date.now() - cached._fetchedAt < CACHE_TTL) return cached;
   } catch {}
 
   const res = await fetch(RAW_URL, { cache: 'no-store' });
@@ -89,6 +91,7 @@ export async function fetchDatabase() {
   const blob = await res.json();
   const db = await decryptDb(blob);
   db._fetchedAt = Date.now();
+  db._cacheVersion = CACHE_VERSION;
   localStorage.setItem('lplot_license_db', JSON.stringify(db));
   return db;
 }
