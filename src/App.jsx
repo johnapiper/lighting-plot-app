@@ -627,6 +627,7 @@ export default function App() {
               activeSheetId={project.activeSheetId}
               onSwitch={handleSwitchSheet} onAdd={handleAddSheet}
               onRename={handleRenameSheet} onDelete={handleDeleteSheet}
+              onDuplicate={handleDuplicateSheet}
             />
           </div>
         )}
