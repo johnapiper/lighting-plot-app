@@ -436,8 +436,18 @@ export default function SheetEditor({
     setVpCtxMenu(null);
     const pt = svgPt(e);
 
-    if (tool === 'viewport' || tool === 'zoom-window') {
+    if (tool === 'viewport') {
       setDrawingVp({ x1:pt.x, y1:pt.y, x2:pt.x, y2:pt.y });
+      return;
+    }
+    if (tool === 'zoom-window') {
+      // Constrain start point to within the target viewport
+      const targetVp = zoomWindowVpId ? (activeSheet.viewports||[]).find(v => v.id === zoomWindowVpId) : null;
+      if (targetVp) {
+        const cx = Math.max(targetVp.x, Math.min(targetVp.x + targetVp.w, pt.x));
+        const cy = Math.max(targetVp.y, Math.min(targetVp.y + targetVp.h, pt.y));
+        setDrawingVp({ x1:cx, y1:cy, x2:cx, y2:cy, constrainVp: targetVp });
+      }
       return;
     }
     if (tool === 'text') {
