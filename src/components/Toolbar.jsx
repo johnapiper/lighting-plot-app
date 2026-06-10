@@ -1,8 +1,6 @@
 import React from 'react';
 
-// CAD model-space tools
-const CAD_TOOLS = [
-  { id: 'select',    label: 'Select',    icon: '↖', key: 'V' },
+const CAD_EDIT_TOOLS = [
   { id: 'line',      label: 'Line',      icon: '╱', key: 'L' },
   { id: 'rect',      label: 'Rectangle', icon: '▭', key: 'R' },
   { id: 'pipe',      label: 'Pipe',      icon: '━', key: 'P' },
@@ -18,9 +16,8 @@ const INFRA_TOOLS = [
   { id: 'infra-netport', label: 'NetPort', icon: '🔌', title: 'Place Network Port / Floor Box' },
 ];
 
-// Cable colours must match CablingLayer.jsx cableColor() defaults
 const CABLE_TOOLS = [
-  { id: 'cable-power',   label: 'Power',   color: '#f59e0b', title: 'Draw power cable (click from → to)' },
+  { id: 'cable-power',   label: 'Power',   color: '#f59e0b', title: 'Draw power cable' },
   { id: 'cable-dmx',     label: 'DMX',     color: '#a78bfa', title: 'Draw DMX cable / chain' },
   { id: 'cable-network', label: 'Net',     color: '#34d399', title: 'Draw network cable' },
 ];
@@ -40,37 +37,44 @@ export default function Toolbar({
   onShowEOSImport,
   onStudioSettings,
   onAppSettings,
+  features = [],
 }) {
+  const has = (f) => features.includes(f);
+
   return (
     <div style={styles.toolbar}>
-      {/* ── Mode switcher — always visible, never scrolls ── */}
+      {/* ── Mode switcher ── */}
       <div style={styles.modeSwitcher}>
-        <button
-          title="CAD — place fixtures, pipes, lines"
+        <button title="CAD — place fixtures, pipes, lines"
           style={{ ...styles.modeBtn, ...(activeMode === 'cad' ? styles.modeBtnActive : {}) }}
-          onClick={() => onSetMode('cad')}
-        >CAD</button>
-        <button
-          title="Cabling — place infrastructure and draw cables"
-          style={{ ...styles.modeBtn, ...(activeMode === 'cable' ? styles.modeBtnActiveCable : {}) }}
-          onClick={() => onSetMode('cable')}
-        >Cable</button>
-        <button
-          title="Drawing — compose viewports, annotations, title block"
-          style={{ ...styles.modeBtn, ...(activeMode === 'sheet' ? styles.modeBtnActiveSheet : {}) }}
-          onClick={() => onSetMode('sheet')}
-        >Drawing</button>
+          onClick={() => onSetMode('cad')}>CAD</button>
+        {has('cable_routing') && (
+          <button title="Cabling — place infrastructure and draw cables"
+            style={{ ...styles.modeBtn, ...(activeMode === 'cable' ? styles.modeBtnActiveCable : {}) }}
+            onClick={() => onSetMode('cable')}>Cable</button>
+        )}
+        {has('sheet_editor') && (
+          <button title="Drawing — compose viewports, annotations, title block"
+            style={{ ...styles.modeBtn, ...(activeMode === 'sheet' ? styles.modeBtnActiveSheet : {}) }}
+            onClick={() => onSetMode('sheet')}>Drawing</button>
+        )}
       </div>
 
-      {/* ── Scrollable tool area ── */}
       <div style={styles.toolScroll}>
 
         {activeMode === 'cad' && (
           <>
             <div style={styles.divider} />
-            {/* ── CAD tools ── */}
             <div style={styles.group}>
-              {CAD_TOOLS.map(t => (
+              {/* Select always available */}
+              <button title="Select (V)"
+                style={{ ...styles.btn, ...(activeTool === 'select' ? styles.active : {}) }}
+                onClick={() => onToolChange('select')}>
+                <span style={styles.icon}>↖</span>
+                <span style={styles.label}>Select</span>
+              </button>
+              {/* Drawing tools only when cad_edit is licensed */}
+              {has('cad_edit') && CAD_EDIT_TOOLS.map(t => (
                 <button key={t.id} title={t.key ? `${t.label} (${t.key})` : t.label}
                   style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
                   onClick={() => onToolChange(t.id)}>
@@ -80,18 +84,20 @@ export default function Toolbar({
               ))}
             </div>
 
+            {has('cad_edit') && (
+              <>
+                <div style={styles.divider} />
+                <div style={styles.group}>
+                  <button style={{ ...styles.btn, ...(pipeSnap ? styles.active : {}) }}
+                    title="Pipe Snap" onClick={onTogglePipeSnap}>
+                    <span style={styles.icon}>🧲</span>
+                    <span style={styles.label}>Snap</span>
+                  </button>
+                </div>
+              </>
+            )}
+
             <div style={styles.divider} />
-
-            <div style={styles.group}>
-              <button style={{ ...styles.btn, ...(pipeSnap ? styles.active : {}) }}
-                title="Pipe Snap" onClick={onTogglePipeSnap}>
-                <span style={styles.icon}>🧲</span>
-                <span style={styles.label}>Snap</span>
-              </button>
-            </div>
-
-            <div style={styles.divider} />
-
             <div style={styles.group}>
               {canUngroup ? (
                 <button style={styles.btn} title="Ungroup (Ctrl+G)" onClick={onUngroup}>
@@ -106,7 +112,6 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
               <button style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
                 <span style={styles.icon}>🗑</span><span style={styles.label}>Delete</span>
@@ -114,7 +119,6 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
               <button style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
               <span style={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
@@ -123,7 +127,6 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
               <button style={{ ...styles.btn, ...(showGrid ? styles.active : {}) }}
                 title="Toggle Grid" onClick={onToggleGrid}>
@@ -131,40 +134,44 @@ export default function Toolbar({
               </button>
             </div>
 
+            {(has('pdf_background') || has('patch_panel')) && (
+              <>
+                <div style={styles.divider} />
+                <div style={styles.group}>
+                  {has('pdf_background') && (
+                    <>
+                      <button style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
+                        <span style={styles.icon}>📄</span><span style={styles.label}>PDF Bg</span>
+                      </button>
+                      <button style={styles.btn} title="Place image" onClick={onImportImage}>
+                        <span style={styles.icon}>🖼</span><span style={styles.label}>Image</span>
+                      </button>
+                    </>
+                  )}
+                  {has('patch_panel') && (
+                    <button style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
+                      <span style={styles.icon}>⚡</span><span style={styles.label}>Patch</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
             <div style={styles.divider} />
-
             <div style={styles.group}>
-              <button style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
-                <span style={styles.icon}>📄</span><span style={styles.label}>PDF Bg</span>
+              <button title="Studio Settings" style={styles.btn} onClick={onStudioSettings}>
+                <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
               </button>
-              <button style={styles.btn} title="Place image" onClick={onImportImage}>
-                <span style={styles.icon}>🖼</span><span style={styles.label}>Image</span>
-              </button>
-              <button style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
-                <span style={styles.icon}>⚡</span><span style={styles.label}>Patch</span>
-              </button>
-            </div>
-
-            <div style={styles.divider} />
-
-            <div style={styles.group}>
-              <button title="Studio Settings (grid / rig height)" style={styles.btn} onClick={onStudioSettings}>
-                <span style={styles.icon}>⚙️</span>
-                <span style={styles.label}>Studio</span>
-              </button>
-              <button title="App Settings &amp; About" style={styles.btn} onClick={onAppSettings}>
-                <span style={styles.icon}>ℹ</span>
-                <span style={styles.label}>About</span>
+              <button title="App Settings" style={styles.btn} onClick={onAppSettings}>
+                <span style={styles.icon}>ℹ</span><span style={styles.label}>About</span>
               </button>
             </div>
           </>
         )}
 
-        {activeMode === 'cable' && (
+        {activeMode === 'cable' && has('cable_routing') && (
           <>
             <div style={styles.divider} />
-
-            {/* ── Infrastructure placement ── */}
             <div style={styles.group}>
               {INFRA_TOOLS.map(t => (
                 <button key={t.id} title={t.title}
@@ -177,26 +184,16 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
-            {/* ── Cable drawing ── */}
             <div style={styles.group}>
               {CABLE_TOOLS.map(t => {
                 const isActive = activeTool === t.id;
                 return (
                   <button key={t.id} title={t.title}
-                    style={{
-                      ...styles.btn,
-                      border: `1px solid ${isActive ? t.color : 'rgba(255,255,255,0.08)'}`,
-                      background: isActive ? `${t.color}22` : undefined,
-                      color: isActive ? t.color : undefined,
-                    }}
+                    style={{ ...styles.btn, border: `1px solid ${isActive ? t.color : 'rgba(255,255,255,0.08)'}`,
+                      background: isActive ? `${t.color}22` : undefined, color: isActive ? t.color : undefined }}
                     onClick={() => onToolChange(isActive ? 'select' : t.id)}>
-                    {/* Colour swatch — always visible, matches canvas cable colour */}
-                    <span style={{
-                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-                      background: t.color, flexShrink: 0,
-                      boxShadow: isActive ? `0 0 6px ${t.color}` : 'none',
-                    }} />
+                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                      background: t.color, flexShrink: 0, boxShadow: isActive ? `0 0 6px ${t.color}` : 'none' }} />
                     <span style={styles.label}>{t.label}</span>
                   </button>
                 );
@@ -204,26 +201,21 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
-              <button title="Toggle cable flow animation"
-                style={{ ...styles.btn, ...(animating ? styles.active : {}) }}
-                onClick={onToggleAnimation}>
-                <span style={styles.icon}>▶</span>
-                <span style={styles.label}>Anim</span>
+              <button title="Toggle animation" style={{ ...styles.btn, ...(animating ? styles.active : {}) }} onClick={onToggleAnimation}>
+                <span style={styles.icon}>▶</span><span style={styles.label}>Anim</span>
               </button>
               <button title="Cable Report" style={styles.btn} onClick={onShowCableReport}>
-                <span style={styles.icon}>📋</span>
-                <span style={styles.label}>Report</span>
+                <span style={styles.icon}>📋</span><span style={styles.label}>Report</span>
               </button>
-              <button title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
-                <span style={styles.icon}>🎛</span>
-                <span style={styles.label}>EOS Import</span>
-              </button>
+              {has('eos_import') && (
+                <button title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
+                  <span style={styles.icon}>🎛</span><span style={styles.label}>EOS Import</span>
+                </button>
+              )}
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
               <button style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
                 <span style={styles.icon}>🗑</span><span style={styles.label}>Delete</span>
@@ -231,7 +223,6 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
               <button style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
               <span style={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
@@ -240,15 +231,12 @@ export default function Toolbar({
             </div>
 
             <div style={styles.divider} />
-
             <div style={styles.group}>
               <button style={styles.btn} title="Studio Settings" onClick={onStudioSettings}>
-                <span style={styles.icon}>⚙️</span>
-                <span style={styles.label}>Studio</span>
+                <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
               </button>
-              <button title="App Settings &amp; About" style={styles.btn} onClick={onAppSettings}>
-                <span style={styles.icon}>ℹ</span>
-                <span style={styles.label}>About</span>
+              <button title="App Settings" style={styles.btn} onClick={onAppSettings}>
+                <span style={styles.icon}>ℹ</span><span style={styles.label}>About</span>
               </button>
             </div>
           </>
@@ -263,18 +251,15 @@ const styles = {
     display: 'flex', alignItems: 'center',
     background: '#16213e', borderBottom: '1px solid #0f3460',
     padding: '4px 8px', gap: 4, flexShrink: 0, height: 48,
-    overflow: 'hidden', // prevent the whole toolbar from scrolling
+    overflow: 'hidden',
   },
-  // Mode switcher is OUTSIDE the scroll area — always visible
   modeSwitcher: {
     display: 'flex', borderRadius: 5, overflow: 'hidden',
     border: '1px solid #0f3460', flexShrink: 0,
   },
-  // Scrollable tool area to the right of the mode switcher
   toolScroll: {
     display: 'flex', alignItems: 'center', gap: 4,
     overflowX: 'auto', flex: 1, height: '100%',
-    // Hide scrollbar visually but keep functionality
     scrollbarWidth: 'none', msOverflowStyle: 'none',
   },
   modeBtn: {
@@ -282,10 +267,10 @@ const styles = {
     cursor: 'pointer', padding: '5px 12px', fontSize: 11, fontWeight: 600,
     letterSpacing: '0.05em', transition: 'all 0.15s',
   },
-  modeBtnActive: { background: '#0f3460', color: '#00aaff', border: '1px solid #4a90d9' },
+  modeBtnActive:      { background: '#0f3460', color: '#00aaff', border: '1px solid #4a90d9' },
   modeBtnActiveCable: { background: '#1a2a0a', color: '#68d391', border: '1px solid #2d6a4f' },
   modeBtnActiveSheet: { background: '#0f2a4a', color: '#60b0ff', border: '1px solid #2a6090' },
-  group: { display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 },
+  group:   { display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 },
   divider: { width: 1, height: 32, background: '#0f3460', margin: '0 4px', flexShrink: 0 },
   btn: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -293,9 +278,9 @@ const styles = {
     color: '#a0aec0', cursor: 'pointer', padding: '2px 6px',
     minWidth: 40, height: 38, fontSize: 11, transition: 'all 0.1s',
   },
-  active: { background: '#0f3460', border: '1px solid #00aaff', color: '#00aaff' },
+  active:   { background: '#0f3460', border: '1px solid #00aaff', color: '#00aaff' },
   disabled: { opacity: 0.4, cursor: 'not-allowed' },
-  icon: { fontSize: 15, lineHeight: 1 },
-  label: { fontSize: 9, marginTop: 2, letterSpacing: '0.05em' },
-  zoomLabel: { color: '#a0aec0', fontSize: 11, minWidth: 38, textAlign: 'center' },
+  icon:     { fontSize: 15, lineHeight: 1 },
+  label:    { fontSize: 9, marginTop: 2, letterSpacing: '0.05em' },
+  zoomLabel:{ color: '#a0aec0', fontSize: 11, minWidth: 38, textAlign: 'center' },
 };
