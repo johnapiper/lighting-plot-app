@@ -161,8 +161,7 @@ function App() {
     if (!ipcRenderer) return;
     const handlers = {
       'menu-app-settings': () => setShowAppSettings(true),
-      'menu-check-updates': () => setShowUpdater(true),
-      'update-available': () => setShowUpdater(true),
+      'menu-check-updates': () => setShowAppSettings(true),
       'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
