@@ -769,9 +769,6 @@ function App() {
       {showLicenseManager && license?.hasFeature('license_manager') && (
         <LicenseManager onClose={() => setShowLicenseManager(false)} />
       )}
-      {showUpdater && (
-        <UpdaterDialog onClose={() => setShowUpdater(false)} />
-      )}
       {showEOSImport && license?.hasFeature('eos_import') && (
         <EOSImport
           drawing={activeDrawing}
