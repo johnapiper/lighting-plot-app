@@ -132,7 +132,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
         </text>
       )}
       {selected && !vp.locked && (
-        <>
+        <g data-print-hide="true">
           {[['tl',x,y],['tr',x+w,y],['br',x+w,y+h],['bl',x,y+h]].map(([hp,hx,hy]) => (
             <rect key={hp} x={hx-4} y={hy-4} width={8} height={8}
               fill="white" stroke="#2a6090" strokeWidth={1}
@@ -143,7 +143,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
             style={{ userSelect:'none', pointerEvents:'none' }}>
             Ctrl+drag to pan · scroll to zoom
           </text>
-        </>
+        </g>
       )}
     </g>
   );
