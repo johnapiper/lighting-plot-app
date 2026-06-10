@@ -13,6 +13,7 @@ import GDTFBrowserPanel from './components/GDTFBrowserPanel';
 import StudioSettingsModal from './components/StudioSettingsModal';
 import AppSettingsModal from './components/AppSettingsModal';
 import CableReport from './components/CableReport';
+import EOSImport from './components/EOSImport';
 import InfraInspector, { CableInspector } from './components/InfraInspector';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
