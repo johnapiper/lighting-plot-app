@@ -338,26 +338,15 @@ ipcMain.handle('license-clear-key', () => {
   try { fs.unlinkSync(keyFilePath()); } catch {}
 });
 
-// ── GitHub token storage (encrypted — this IS sensitive) ─────────────────
+// ── GitHub token storage (plain fs — same approach as license key) ────────
+function tokenFilePath() {
+  return path.join(app.getPath('userData'), 'lplot-gh.token');
+}
 ipcMain.handle('license-save-token', (event, { token }) => {
-  if (!store) return;
-  if (safeStorage.isEncryptionAvailable()) {
-    store.set('licenseGhToken', safeStorage.encryptString(token).toString('base64'));
-    store.set('licenseGhTokenPlain', ''); // clear any old plaintext fallback
-  } else {
-    store.set('licenseGhTokenPlain', token);
-  }
+  try { fs.writeFileSync(tokenFilePath(), token.trim(), 'utf8'); } catch {}
 });
 ipcMain.handle('license-load-token', () => {
-  if (!store) return '';
-  if (safeStorage.isEncryptionAvailable()) {
-    const enc = store.get('licenseGhToken', '');
-    if (enc) {
-      try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch {}
-    }
-  }
-  // Fallback to plaintext store (set when safeStorage unavailable)
-  return store.get('licenseGhTokenPlain', '');
+  try { return fs.readFileSync(tokenFilePath(), 'utf8').trim() || ''; } catch { return ''; }
 });
 
 ipcMain.handle('print-sheet', async (event, { html }) => {
