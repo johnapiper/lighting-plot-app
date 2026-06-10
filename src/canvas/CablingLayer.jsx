@@ -221,7 +221,7 @@ export default function CablingLayer({
             })()}
 
             {/* Flow animation dots */}
-            {animating && isHighlighted && waypoints.length >= 2 && [0, 0.4, 0.8].map((offset, i) => {
+            {animating && waypoints.length >= 2 && [0, 0.4, 0.8].map((offset, i) => {
               const duration = cable.cableType === 'network' ? 1.2 : cable.cableType === 'dmx' ? 1.8 : 2.5;
               const totalLen = lengthMm / 1000; // approximate
               return (
