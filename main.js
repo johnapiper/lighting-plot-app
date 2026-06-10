@@ -122,6 +122,10 @@ function buildMenu() {
           click: () => mainWindow.webContents.send('menu-app-settings'),
         },
         {
+          label: 'My License…',
+          click: () => mainWindow.webContents.send('menu-my-license'),
+        },
+        {
           label: 'Check for Updates…',
           click: () => {
             mainWindow.webContents.send('menu-check-updates');
