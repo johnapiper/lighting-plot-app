@@ -118,6 +118,7 @@ function App() {
   const [showCableReport, setShowCableReport]       = useState(false);
   const [showEOSImport, setShowEOSImport]           = useState(false);
   const [showLicenseManager, setShowLicenseManager] = useState(false);
+  const [showMyLicense, setShowMyLicense]           = useState(false);
   const [showUpdater, setShowUpdater] = useState(false);
   const [animating, setAnimating]                   = useState(true);
   const license = useLicense();
