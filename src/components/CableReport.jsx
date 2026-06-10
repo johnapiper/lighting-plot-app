@@ -188,7 +188,7 @@ function buildUnconnected(drawing, fixtureTypes) {
     const missingData  = !withData.has(f.id);
     if (!missingPower && !missingData) return null;
     const ftype = fixtureTypes.find(t => t.id === f.fixtureTypeId);
-    const name = `${ftype?.name || f.type || 'Fixture'} #${f.unit || f.channel || '—'}`;
+    const name = `${ftype?.name || f.type || 'Fixture'} #${f.channel || f.unit || '—'}`;
     return { id: f.id, name, missingPower, missingData };
   }).filter(Boolean);
 }
