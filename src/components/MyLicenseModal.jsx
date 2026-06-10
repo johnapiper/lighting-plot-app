@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ALL_FEATURES } from '../license/features.js';
+import { FEATURES as ALL_FEATURES } from '../license/features.js';
 
 const { ipcRenderer } = require('electron');
 
