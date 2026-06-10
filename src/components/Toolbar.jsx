@@ -202,6 +202,10 @@ export default function Toolbar({
                 <span style={styles.icon}>📋</span>
                 <span style={styles.label}>Report</span>
               </button>
+              <button title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
+                <span style={styles.icon}>🎛</span>
+                <span style={styles.label}>EOS Import</span>
+              </button>
             </div>
 
             <div style={styles.divider} />
