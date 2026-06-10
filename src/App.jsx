@@ -733,6 +733,12 @@ export default function App() {
           gridHeight={project.meta?.gridHeight || 6000}
           fixtureTypes={allFixtureTypes}
           onClose={() => setShowCableReport(false)}
+          onUpdateCable={(cableId, patch) => {
+            commitToActiveDrawing(d => {
+              const c = (d.cables||[]).find(c => c.id === cableId);
+              if (c) Object.assign(c, patch);
+            });
+          }}
         />
       )}
     </div>
