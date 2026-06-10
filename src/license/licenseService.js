@@ -19,6 +19,43 @@ const RAW_URL     = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME
 const API_URL     = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DB_PATH}`;
 const CACHE_TTL   = 24 * 60 * 60 * 1000; // 24 h
 
+// ── Database encryption (AES-256-GCM) ─────────────────────────────────────
+// The key is embedded in the app binary. This keeps the GitHub file opaque to
+// casual inspection. License keys are still SHA-256 hashed, so extracting this
+// key from the binary does not allow forging licenses.
+const DB_KEY_HEX = 'b4e7f23a19d08c654f2a91e3780bcd56a2f34e87c0195d6b8f72ae013c49d280';
+
+let _cryptoKey = null;
+async function getCryptoKey() {
+  if (_cryptoKey) return _cryptoKey;
+  const raw = new Uint8Array(DB_KEY_HEX.match(/.{2}/g).map(h => parseInt(h, 16)));
+  _cryptoKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+  return _cryptoKey;
+}
+
+async function encryptDb(plainObj) {
+  const key = await getCryptoKey();
+  const iv  = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder().encode(JSON.stringify(plainObj));
+  const ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+  return {
+    v:  1,
+    iv: btoa(String.fromCharCode(...iv)),
+    ct: btoa(String.fromCharCode(...new Uint8Array(ct))),
+  };
+}
+
+async function decryptDb(blob) {
+  // Legacy plaintext (before encryption was introduced)
+  if (blob.licenses || blob.rightsGroups) return blob;
+  if (blob.v !== 1) throw new Error('Unrecognised database format.');
+  const key = await getCryptoKey();
+  const iv  = new Uint8Array(atob(blob.iv).split('').map(c => c.charCodeAt(0)));
+  const ct  = new Uint8Array(atob(blob.ct).split('').map(c => c.charCodeAt(0)));
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
 // ── Key hashing (SHA-256 via SubtleCrypto) ─────────────────────────────────
 
 export async function hashKey(rawKey) {
@@ -49,7 +86,8 @@ export async function fetchDatabase() {
 
   const res = await fetch(RAW_URL, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Could not fetch license database (HTTP ${res.status})`);
-  const db = await res.json();
+  const blob = await res.json();
+  const db = await decryptDb(blob);
   db._fetchedAt = Date.now();
   localStorage.setItem('lplot_license_db', JSON.stringify(db));
   return db;
@@ -136,7 +174,8 @@ export async function writeDatabase(db, githubToken) {
   const toWrite = { ...db };
   delete toWrite._fetchedAt;
 
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(toWrite, null, 2))));
+  const encrypted = await encryptDb(toWrite);
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(encrypted))));
 
   const putRes = await fetch(API_URL, {
     method: 'PUT',
