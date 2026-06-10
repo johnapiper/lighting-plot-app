@@ -1,85 +1,57 @@
 import React, { useState, useEffect } from 'react';
 
-const REPO = 'johnapiper/lighting-plot-app';
-
-function semverGt(a, b) {
-  const pa = String(a).split('.').map(Number);
-  const pb = String(b).split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) > (pb[i] || 0)) return true;
-    if ((pa[i] || 0) < (pb[i] || 0)) return false;
-  }
-  return false;
-}
+const { ipcRenderer } = require('electron');
 
 export default function AppSettingsModal({ onClose }) {
   const [appVersion, setAppVersion] = useState('—');
-  const [updateStatus, setUpdateStatus] = useState('idle'); // idle | checking | uptodate | available | error
+  // idle | checking | uptodate | available | downloading | downloaded | error
+  const [updateStatus, setUpdateStatus]   = useState('idle');
   const [latestVersion, setLatestVersion] = useState(null);
-  const [releaseUrl, setReleaseUrl] = useState(null);
+  const [dlProgress, setDlProgress]       = useState(0);
+  const [errMsg, setErrMsg]               = useState('');
 
   useEffect(() => {
-    const ipc = window.require ? window.require('electron').ipcRenderer : null;
-    if (ipc) {
-      ipc.invoke('get-app-version').then(v => v && setAppVersion(v)).catch(() => {});
-    }
+    ipcRenderer.invoke('get-app-version').then(v => v && setAppVersion(v)).catch(() => {});
+
+    const onAvailable    = (_, info) => { setLatestVersion(info.version); setUpdateStatus('available'); };
+    const onNotAvailable = ()        => setUpdateStatus('uptodate');
+    const onProgress     = (_, p)   => { setUpdateStatus('downloading'); setDlProgress(p.percent); };
+    const onDownloaded   = ()        => setUpdateStatus('downloaded');
+    const onError        = (_, msg) => { setErrMsg(msg); setUpdateStatus('error'); };
+
+    ipcRenderer.on('update-available',        onAvailable);
+    ipcRenderer.on('update-not-available',    onNotAvailable);
+    ipcRenderer.on('update-download-progress',onProgress);
+    ipcRenderer.on('update-downloaded',       onDownloaded);
+    ipcRenderer.on('update-error',            onError);
+
+    return () => {
+      ipcRenderer.removeListener('update-available',         onAvailable);
+      ipcRenderer.removeListener('update-not-available',     onNotAvailable);
+      ipcRenderer.removeListener('update-download-progress', onProgress);
+      ipcRenderer.removeListener('update-downloaded',        onDownloaded);
+      ipcRenderer.removeListener('update-error',             onError);
+    };
   }, []);
 
-  async function checkForUpdates() {
+  function checkForUpdates() {
     setUpdateStatus('checking');
-    try {
-      const https = require('https');
-      const data = await new Promise((resolve, reject) => {
-        const req = https.get(
-          `https://api.github.com/repos/${REPO}/releases/latest`,
-          { headers: { 'User-Agent': 'lighting-plot-app' } },
-          res => {
-            let body = '';
-            res.on('data', c => { body += c; });
-            res.on('end', () => { try { resolve(JSON.parse(body)); } catch { reject(new Error('parse')); } });
-          }
-        );
-        req.on('error', reject);
-        req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
-      });
-
-      const latest = (data.tag_name || '').replace(/^v/, '');
-      if (!latest) { setUpdateStatus('error'); return; }
-      setLatestVersion(latest);
-      setReleaseUrl(data.html_url || `https://github.com/${REPO}/releases`);
-
-      if (semverGt(latest, appVersion)) {
-        setUpdateStatus('available');
-      } else {
-        setUpdateStatus('uptodate');
-      }
-    } catch {
-      setUpdateStatus('error');
-    }
+    setErrMsg('');
+    ipcRenderer.invoke('check-for-updates');
   }
 
-  function openRelease() {
-    const url = releaseUrl || `https://github.com/${REPO}/releases`;
-    if (window.require) {
-      window.require('electron').shell.openExternal(url);
-    } else {
-      window.open(url, '_blank');
-    }
+  function downloadUpdate() {
+    setUpdateStatus('downloading');
+    ipcRenderer.invoke('download-update');
+  }
+
+  function installUpdate() {
+    ipcRenderer.invoke('install-update');
   }
 
   function openGitHub() {
-    const url = `https://github.com/${REPO}`;
-    if (window.require) window.require('electron').shell.openExternal(url);
-    else window.open(url, '_blank');
+    require('electron').shell.openExternal('https://github.com/johnapiper/lighting-plot-app');
   }
-
-  const updateLabel = {
-    idle:       null,
-    checking:   <span style={{ color: '#a0aec0' }}>Checking…</span>,
-    uptodate:   <span style={{ color: '#68d391' }}>✓ Up to date (v{appVersion})</span>,
-    available:  <span style={{ color: '#fbbf24' }}>⬆ v{latestVersion} available — <a style={{ color: '#4a90d9', cursor: 'pointer' }} onClick={openRelease}>Download</a></span>,
-    error:      <span style={{ color: '#fc8181' }}>Could not reach GitHub. Check your connection.</span>,
-  }[updateStatus];
 
   return (
     <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -97,24 +69,46 @@ export default function AppSettingsModal({ onClose }) {
               <span style={S.rowLabel}>Current version</span>
               <span style={S.rowValue}>v{appVersion}</span>
             </div>
-            {latestVersion && updateStatus === 'available' && (
+            {latestVersion && (
               <div style={S.row}>
-                <span style={S.rowLabel}>Latest release</span>
+                <span style={S.rowLabel}>Latest version</span>
                 <span style={S.rowValue}>v{latestVersion}</span>
               </div>
             )}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-              <button style={S.primaryBtn} onClick={checkForUpdates} disabled={updateStatus === 'checking'}>
-                {updateStatus === 'checking' ? '⏳ Checking…' : '🔄 Check for Updates'}
-              </button>
-              {updateLabel && <span style={{ fontSize: 12 }}>{updateLabel}</span>}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+              {(updateStatus === 'idle' || updateStatus === 'uptodate' || updateStatus === 'error') && (
+                <button style={S.primaryBtn} onClick={checkForUpdates}>
+                  🔄 Check for Updates
+                </button>
+              )}
+              {updateStatus === 'checking' && (
+                <span style={{ color: '#a0aec0', fontSize: 12 }}>Checking…</span>
+              )}
+              {updateStatus === 'uptodate' && (
+                <span style={{ color: '#68d391', fontSize: 12 }}>✓ Up to date (v{appVersion})</span>
+              )}
+              {updateStatus === 'available' && (
+                <button style={{ ...S.primaryBtn, borderColor: '#fbbf24', color: '#fbbf24' }} onClick={downloadUpdate}>
+                  ⬇ Download v{latestVersion}
+                </button>
+              )}
+              {updateStatus === 'downloading' && (
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#a0aec0', fontSize: 12, marginBottom: 4 }}>Downloading… {dlProgress}%</div>
+                  <div style={{ background: '#0d1b2a', borderRadius: 3, height: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${dlProgress}%`, height: '100%', background: '#4a90d9', transition: 'width 0.2s' }} />
+                  </div>
+                </div>
+              )}
+              {updateStatus === 'downloaded' && (
+                <button style={{ ...S.primaryBtn, borderColor: '#68d391', color: '#68d391' }} onClick={installUpdate}>
+                  ↺ Restart & Install
+                </button>
+              )}
+              {updateStatus === 'error' && (
+                <span style={{ color: '#fc8181', fontSize: 12 }}>{errMsg || 'Update check failed.'}</span>
+              )}
             </div>
-            {updateStatus === 'available' && (
-              <button style={{ ...S.primaryBtn, marginTop: 8, background: '#0f3460', borderColor: '#fbbf24', color: '#fbbf24' }}
-                onClick={openRelease}>
-                ⬇ Download Latest Installer
-              </button>
-            )}
           </Section>
 
           {/* ── About ── */}
