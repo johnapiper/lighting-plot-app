@@ -141,7 +141,7 @@ export default function CablingLayer({
     const pathD    = waypointsToPath(waypoints);
     const animPathD = waypointsToPath(animWaypoints);
 
-    return { cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD, animPathD };
+    return { cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, utilizationPct, color, pathId, pointsStr, pathD, animPathD };
   }).filter(Boolean);
 
   const sw = (v) => v / zoom; // scale with zoom (for stroke widths etc.)
