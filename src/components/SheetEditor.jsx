@@ -766,14 +766,16 @@ export default function SheetEditor({
                   <rect x={t.x*ps} y={t.y*ps} width={tw*ps} height={th*ps}
                     fill="transparent"
                     stroke={sel?'#2a6090':'rgba(42,96,144,0.3)'}
-                    strokeWidth={sel?1:0.5} strokeDasharray={sel?'none':'3 2'} rx={1} />
+                    strokeWidth={sel?1:0.5} strokeDasharray={sel?'none':'3 2'} rx={1}
+                    data-print-hide="true" />
                   <text x={(t.x+1)*ps} y={(t.y+th*0.72)*ps}
                     fontSize={fs} fill={sel?'#2a6090':'#222'}
                     clipPath={`url(#txt-clip-${t.id})`}
-                    style={{userSelect:'none',pointerEvents:'none'}}>
+                    style={{userSelect:'none',pointerEvents:'none'}}
+                    data-print-text="true">
                     {editingAnnotId===t.id?'':t.label}
                   </text>
-                  {sel && <>
+                  {sel && <g data-print-hide="true">
                     <rect x={(t.x+tw)*ps-4} y={(t.y+th)*ps-4} width={7} height={7}
                       fill="white" stroke="#2a6090" strokeWidth={1} style={{cursor:'se-resize'}}
                       onMouseDown={e=>startResizeDrag(e,t,'text-resize')} />
@@ -784,7 +786,7 @@ export default function SheetEditor({
                         const pt=svgPt(e);
                         setDragging({id:t.id,kind:'text-resize',handle:'sw',startX:pt.x,startY:pt.y,origW:tw,origH:th,origX:t.x,origY:t.y});
                       }} />
-                  </>}
+                  </g>}
                 </g>
               );
             })}
