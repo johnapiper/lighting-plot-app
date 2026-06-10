@@ -96,7 +96,7 @@ export default function CablingLayer({
     return null;
   }
 
-  // For each cable, compute route
+  // For each cable, compute route and load
   const routedCables = cables.map(cable => {
     const fromObj = getPos(cable.fromId, cable.fromType);
     const toObj   = getPos(cable.toId,   cable.toType);
