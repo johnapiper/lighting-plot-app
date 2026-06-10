@@ -190,14 +190,15 @@ function App() {
       'menu-fit':      () => { fitViewRef.current?.() || (setZoom(1) || setPan({ x: 100, y: 100 })); },
       'menu-toggle-grid':   () => setShowGrid(v => !v),
       'menu-toggle-rulers': () => setShowRulers(v => !v),
-      'menu-export-png':    handleExportPNG,
-      'menu-export-svg':    handleExportSVG,
-      'menu-report-instrument': () => setReport({ type: 'instrument' }),
-      'menu-report-channel':    () => setReport({ type: 'channel' }),
-      'menu-report-dimmer':     () => setReport({ type: 'dimmer' }),
-      'pdf-opened':   (e, { dataUrl }) => handlePdfData(dataUrl),
-      'image-opened': (e, { dataUrl, fileName }) => handleImageData(dataUrl, fileName),
+      'menu-export-png':    () => license?.hasFeature('mvr_export') ? handleExportPNG() : alert('Your license does not include export features.'),
+      'menu-export-svg':    () => license?.hasFeature('mvr_export') ? handleExportSVG() : alert('Your license does not include export features.'),
+      'menu-report-instrument': () => license?.hasFeature('reports') ? setReport({ type: 'instrument' }) : alert('Your license does not include reports.'),
+      'menu-report-channel':    () => license?.hasFeature('reports') ? setReport({ type: 'channel' })     : alert('Your license does not include reports.'),
+      'menu-report-dimmer':     () => license?.hasFeature('reports') ? setReport({ type: 'dimmer' })      : alert('Your license does not include reports.'),
+      'pdf-opened':   (e, { dataUrl }) => license?.hasFeature('pdf_background') ? handlePdfData(dataUrl) : null,
+      'image-opened': (e, { dataUrl, fileName }) => license?.hasFeature('pdf_background') ? handleImageData(dataUrl, fileName) : null,
       'load-mvr-file': async (e, { filePath, buffer }) => {
+        if (!license?.hasFeature('mvr_import')) { alert('Your license does not include MVR import.'); return; }
         try {
           const proj = await importMVR(buffer);
           loadProject(proj);
@@ -207,6 +208,7 @@ function App() {
         } catch (err) { alert('Failed to import MVR: ' + err.message); }
       },
       'export-mvr-request': async (e, filePath) => {
+        if (!license?.hasFeature('mvr_export')) { alert('Your license does not include MVR export.'); return; }
         try {
           const buf = await exportMVR(project, allFixtureTypes);
           ipcRenderer.send('save-mvr-data', { filePath, buffer: Array.from(buf) });
@@ -223,12 +225,13 @@ function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const k = e.key.toLowerCase();
       if (!e.ctrlKey && !e.metaKey) {
+        const canEdit = license?.hasFeature('cad_edit');
         if (k === 'v') setActiveTool('select');
-        if (k === 'l') setActiveTool('line');
-        if (k === 'r') setActiveTool('rect');
-        if (k === 'p') setActiveTool('pipe');
-        if (k === 't') setActiveTool('text');
-        if (k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
+        if (canEdit && k === 'l') setActiveTool('line');
+        if (canEdit && k === 'r') setActiveTool('rect');
+        if (canEdit && k === 'p') setActiveTool('pipe');
+        if (canEdit && k === 't') setActiveTool('text');
+        if (canEdit && k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
         if (k === 'escape') setPendingFixture(null);
       }
       if ((e.ctrlKey||e.metaKey) && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
@@ -566,7 +569,10 @@ function App() {
       )}
       <Toolbar
         activeTool={activeTool}
-        onToolChange={t => { setActiveTool(t); setPendingFixture(null); }}
+        onToolChange={t => {
+          if (!license?.hasFeature('cad_edit') && t !== 'select') return;
+          setActiveTool(t); setPendingFixture(null);
+        }}
         onDelete={handleDelete}
         onZoomIn={() => setZoom(z => Math.min(20, z*1.2))}
         onZoomOut={() => setZoom(z => Math.max(0.02, z/1.2))}
@@ -627,14 +633,16 @@ function App() {
               activeMode={activeMode}
               fitRef={fitViewRef}
             />
-            <DrawingTabs
-              drawings={project.drawings||[]}
-              activeDrawingId={project.activeDrawingId}
-              onSwitch={handleSwitchDrawing} onAdd={handleAddDrawing}
-              onRename={handleRenameDrawing} onDelete={handleDeleteDrawing}
-            />
+            {license?.hasFeature('multi_drawing') && (
+              <DrawingTabs
+                drawings={project.drawings||[]}
+                activeDrawingId={project.activeDrawingId}
+                onSwitch={handleSwitchDrawing} onAdd={handleAddDrawing}
+                onRename={handleRenameDrawing} onDelete={handleDeleteDrawing}
+              />
+            )}
           </div>
-        ) : (
+        ) : license?.hasFeature('sheet_editor') ? (
           /* ── Sheet mode ───────────────────────────────────────── */
           <div style={styles.canvasColumn}>
             <SheetEditor
@@ -652,6 +660,9 @@ function App() {
               onDuplicate={handleDuplicateSheet}
             />
           </div>
+        ) : (
+          /* sheet_editor feature not licensed — fall back to CAD view */
+          <div style={styles.canvasColumn} />
         )}
 
         {/* Right panel — inspector + layers, always visible */}
@@ -729,12 +740,12 @@ function App() {
         </div>
       </div>
 
-      {report && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
-      {showPatch && (
+      {report && license?.hasFeature('reports') && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
+      {showPatch && license?.hasFeature('patch_panel') && (
         <PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
           onUpdateFixture={handleUpdateFixtureInstance} onClose={closePatch} />
       )}
-      {showGdtfBrowser && (
+      {showGdtfBrowser && license?.hasFeature('gdtf_browser') && (
         <GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} />
       )}
       {showStudioSettings && (
@@ -753,7 +764,7 @@ function App() {
       {showUpdater && (
         <UpdaterDialog onClose={() => setShowUpdater(false)} />
       )}
-      {showEOSImport && (
+      {showEOSImport && license?.hasFeature('eos_import') && (
         <EOSImport
           drawing={activeDrawing}
           fixtureTypes={allFixtureTypes}
@@ -773,7 +784,7 @@ function App() {
         />
       )}
 
-      {showCableReport && (
+      {showCableReport && license?.hasFeature('cable_routing') && (
         <CableReport
           drawing={activeDrawing}
           pipes={activeDrawing?.pipes || []}

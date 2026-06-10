@@ -314,42 +314,42 @@ ipcMain.handle('gdtf-clear-credentials', () => {
   store.delete('gdtfPassword');
 });
 
-// ── License key storage (encrypted via safeStorage) ──────────────────────
+// ── License key storage ───────────────────────────────────────────────────
+// Keys are stored plaintext in electron-store. The key itself is not a secret
+// (the licensee knows it); security comes from the encrypted GitHub database.
 ipcMain.handle('license-save-key', (event, { key }) => {
   if (!store) return;
-  if (safeStorage.isEncryptionAvailable()) {
-    store.set('licenseKey', safeStorage.encryptString(key).toString('base64'));
-  } else {
-    store.set('licenseKey', key);
-  }
+  store.set('licenseKey', key);
 });
 ipcMain.handle('license-load-key', () => {
   if (!store) return '';
-  const enc = store.get('licenseKey', '');
-  if (!enc) return '';
-  if (safeStorage.isEncryptionAvailable()) {
-    try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch {}
-  }
-  return enc;
+  return store.get('licenseKey', '');
 });
 ipcMain.handle('license-clear-key', () => {
   if (!store) return;
   store.delete('licenseKey');
 });
+
+// ── GitHub token storage (encrypted — this IS sensitive) ─────────────────
 ipcMain.handle('license-save-token', (event, { token }) => {
   if (!store) return;
   if (safeStorage.isEncryptionAvailable()) {
     store.set('licenseGhToken', safeStorage.encryptString(token).toString('base64'));
+    store.set('licenseGhTokenPlain', ''); // clear any old plaintext fallback
+  } else {
+    store.set('licenseGhTokenPlain', token);
   }
 });
 ipcMain.handle('license-load-token', () => {
   if (!store) return '';
-  const enc = store.get('licenseGhToken', '');
-  if (!enc) return '';
   if (safeStorage.isEncryptionAvailable()) {
-    try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch {}
+    const enc = store.get('licenseGhToken', '');
+    if (enc) {
+      try { return safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch {}
+    }
   }
-  return '';
+  // Fallback to plaintext store (set when safeStorage unavailable)
+  return store.get('licenseGhTokenPlain', '');
 });
 
 ipcMain.handle('print-sheet', async (event, { html }) => {
