@@ -563,6 +563,7 @@ export default function App() {
         activeMode={activeMode} onSetMode={handleSetMode}
         animating={animating} onToggleAnimation={() => setAnimating(v => !v)}
         onShowCableReport={() => setShowCableReport(true)}
+        onShowEOSImport={() => setShowEOSImport(true)}
         onStudioSettings={() => setShowStudioSettings(true)}
         onAppSettings={() => setShowAppSettings(true)}
       />
