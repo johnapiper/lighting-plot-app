@@ -391,7 +391,27 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                   No cables found.
                 </td></tr>
               )}
-              {displayRows.map((r, i) => (
+              {displayRows.map((r, i) => {
+                // Build subtype options for this cable's category
+                const subtypeOptions = Object.entries(CABLE_TYPES)
+                  .filter(([, v]) => v.category === r.cableType)
+                  .map(([k, v]) => ({ key: k, label: v.label }));
+                const pending = pendingSubtype[r.id];
+
+                function commitSubtypeChange() {
+                  if (!pending || !onUpdateCable) return;
+                  const newSpec = CABLE_TYPES[pending.subtype];
+                  const newLabel = newSpec?.label || pending.subtype;
+                  const confirmed = window.confirm(
+                    `Change cable type between ${r.from} and ${r.to}\nto: ${newLabel}\nfrom: ${r.subtype}?`
+                  );
+                  if (confirmed) {
+                    onUpdateCable(r.id, { cableType: pending.cableType, subtype: pending.subtype });
+                    setPendingSubtype(p => { const n = {...p}; delete n[r.id]; return n; });
+                  }
+                }
+
+                return (
                 <tr key={r.id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
                   {COLS.map(c => {
                     if (c.key === 'marginPct') {
