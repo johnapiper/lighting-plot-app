@@ -565,9 +565,13 @@ export default function Canvas({
           const nt = { id: generateId(), kind: 'pipe', type: 'truss', x1: cur.x1, y1: cur.y1, x2: ex, y2: ey, name: 'Truss', height: '5.5', layerId: activeLayerId || 'layer-lighting' };
           commitToDrawing(d => d.pipes.push(nt));
           onSelect({ kind: 'pipe', ...nt });
+          // Chain: start next section from this endpoint (Escape to stop)
+          setPipePlaceAngle(null);
+          setDrawingState({ kind: 'pipe', x1: ex, y1: ey, x2: ex, y2: ey });
+        } else {
+          setDrawingState(null);
+          setPipePlaceAngle(null);
         }
-        setDrawingState(null);
-        setPipePlaceAngle(null);
       }
       return;
     }
