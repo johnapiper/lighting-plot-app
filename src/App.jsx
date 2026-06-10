@@ -593,6 +593,7 @@ function App() {
         onShowEOSImport={() => setShowEOSImport(true)}
         onStudioSettings={() => setShowStudioSettings(true)}
         onAppSettings={() => setShowAppSettings(true)}
+        features={license?.license?.features || []}
       />
 
       <div style={styles.main}>
