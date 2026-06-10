@@ -129,7 +129,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
       <rect x={x} y={y} width={w} height={h} fill="white" stroke="#bbb" strokeWidth={0.5} />
       <g clipPath={`url(#${clipId})`}>
         <g transform={`translate(${tx},${ty}) scale(${worldScale})`}>
-          <CadContent drawing={drawing} fixtureTypes={fixtureTypes} layers={layers} />
+          <CadContent drawing={drawing} fixtureTypes={fixtureTypes} layers={layers} worldScale={worldScale} />
         </g>
       </g>
       <rect x={x} y={y} width={w} height={h} fill="none"
