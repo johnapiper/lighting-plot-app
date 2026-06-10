@@ -1778,7 +1778,7 @@ export default function Canvas({
         {activeTool === 'calibrate' && calibState?.p1 && !calibState?.p2 && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click second calibration point</text>}
         {(activeTool === 'pipe' || activeTool === 'truss') && drawingRef.current && (
           <text x={ro+8} y={28} fontSize={10} fill="#e0c060">
-            {pipePlaceAngle !== null ? `🔄 Angle: ${pipePlaceAngle}° (R=rotate, Esc=cancel)` : 'Click to place — R or right-click to rotate 90°'}
+            {pipePlaceAngle !== null ? `🔄 Angle: ${pipePlaceAngle}° (R=rotate 90°, Esc=stop)` : 'Click to place section — click again to chain next — R/right-click=rotate 90° — Esc=stop'}
           </text>
         )}
         {/* In-progress calibration line (screen coords) */}
