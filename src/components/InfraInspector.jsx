@@ -104,6 +104,15 @@ function NodeInspector({ item, onChange }) {
       <Field label="Network Connection" hint="ID of switch or netport this node is plugged into">
         <TextInput value={item.networkId || ''} onChange={v => onChange({ ...item, networkId: v || null })} placeholder="(none)" />
       </Field>
+      <Field label="IP Address">
+        <TextInput value={item.ipAddress || ''} onChange={v => onChange({ ...item, ipAddress: v || null })} placeholder="e.g. 192.168.1.10" />
+      </Field>
+      <Field label="Subnet Mask">
+        <TextInput value={item.subnet || ''} onChange={v => onChange({ ...item, subnet: v || null })} placeholder="e.g. 255.255.255.0" />
+      </Field>
+      <Field label="VLAN">
+        <NumInput value={item.vlan || ''} min={1} max={4094} onChange={v => onChange({ ...item, vlan: v || null })} />
+      </Field>
     </>
   );
 }
@@ -120,6 +129,15 @@ function SwitchInspector({ item, onChange }) {
       </Field>
       <Field label="Uplink (switch/netport ID)" hint="Leave blank if directly connected to venue network">
         <TextInput value={item.networkId || ''} onChange={v => onChange({ ...item, networkId: v || null })} placeholder="(none)" />
+      </Field>
+      <Field label="IP Address">
+        <TextInput value={item.ipAddress || ''} onChange={v => onChange({ ...item, ipAddress: v || null })} placeholder="e.g. 192.168.1.10" />
+      </Field>
+      <Field label="Subnet Mask">
+        <TextInput value={item.subnet || ''} onChange={v => onChange({ ...item, subnet: v || null })} placeholder="e.g. 255.255.255.0" />
+      </Field>
+      <Field label="VLAN">
+        <NumInput value={item.vlan || ''} min={1} max={4094} onChange={v => onChange({ ...item, vlan: v || null })} />
       </Field>
     </>
   );
