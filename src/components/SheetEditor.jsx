@@ -118,8 +118,10 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
         </g>
       </g>
       <rect x={x} y={y} width={w} height={h} fill="none"
-        stroke={selected ? '#2a6090' : '#888'} strokeWidth={selected ? 1.5 : 0.5} />
-      <text x={x+3} y={y+h-3} fontSize={7} fill="#888" style={{ userSelect:'none', pointerEvents:'none' }}>
+        stroke={selected ? '#2a6090' : '#888'} strokeWidth={selected ? 1.5 : 0.5}
+        data-sel-outline="#888" />
+      <text x={x+3} y={y+h-3} fontSize={7} fill="#888" style={{ userSelect:'none', pointerEvents:'none' }}
+        data-vp-label="true">
         1:{renderScale} · {drawing?.name||'—'}{vp.locked ? ' 🔒' : ''}
       </text>
       {isFalseScale && (
