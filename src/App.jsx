@@ -165,6 +165,7 @@ function App() {
       'menu-app-settings': () => setShowAppSettings(true),
       'menu-check-updates': () => setShowUpdater(true),
       'update-available': () => setShowUpdater(true),
+      'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
       'menu-new':    () => { resetProject(); setCurrentFile(null); setDirty(false); clearSelection(); },
