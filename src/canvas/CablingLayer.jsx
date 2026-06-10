@@ -113,7 +113,7 @@ export default function CablingLayer({
       || selectedIds.has(cable.toId);
 
     // Load warning for power cables — traverse full downstream chain
-    let overloaded = false;
+    let overloaded = false, utilizationPct = 0;
     if (cable.cableType === 'power' && cable.subtype) {
       const supplyTypes = ['distro', 'node', 'netport', 'switch'];
       const fromIsSupply = cable.fromType === 'infra' && supplyTypes.includes(fromObj?.type);
@@ -125,6 +125,7 @@ export default function CablingLayer({
       const chainFixtures = collectDownstream(loadId, loadType, cables, fixtureMap, infraMap, cable.id);
       const load = calcCircuitLoad(chainFixtures, cable.subtype, fixtureTypes);
       overloaded = load.overloaded;
+      utilizationPct = load.utilizationPct || 0;
     }
 
     // Animation direction: always source → load
