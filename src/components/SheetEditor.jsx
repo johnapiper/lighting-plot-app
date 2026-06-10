@@ -519,7 +519,17 @@ export default function SheetEditor({
   const onMouseMove = useCallback((e) => {
     const pt = svgPt(e);
     const dg = draggingRef.current;
-    if (drawingVp) { setDrawingVp(d => ({...d, x2:pt.x, y2:pt.y})); return; }
+    if (drawingVp) {
+      if (drawingVp.constrainVp) {
+        const cv = drawingVp.constrainVp;
+        const cx = Math.max(cv.x, Math.min(cv.x + cv.w, pt.x));
+        const cy = Math.max(cv.y, Math.min(cv.y + cv.h, pt.y));
+        setDrawingVp(d => ({...d, x2:cx, y2:cy}));
+      } else {
+        setDrawingVp(d => ({...d, x2:pt.x, y2:pt.y}));
+      }
+      return;
+    }
     if (!dg) return;
     const dx = pt.x - dg.startX, dy = pt.y - dg.startY;
 
