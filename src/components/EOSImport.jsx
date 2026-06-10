@@ -15,104 +15,292 @@ const { ipcRenderer } = window.require ? window.require('electron') : { ipcRende
 
 // ── XML channel parser ────────────────────────────────────────────────────────
 /**
- * Parse XML document and extract EOS channel list.
- * Tries multiple known EOS XML schemas (varies by firmware version).
+ * Parse a text string (XML or HTML-like) and extract EOS channel list.
+ * Parses as HTML to get case-insensitive querySelector, which handles
+ * EOS's mixed-case XML (Chan, chan, CHAN, Channel, etc.).
  */
-function parseEOSChannels(xmlDoc) {
+function parseEOSText(text) {
+  // Use HTML parser for case-insensitive element matching
+  const doc = new DOMParser().parseFromString(text, 'text/html');
   const channels = [];
 
-  // Schema A: <EosShowFile><ChanList><Chan Num="1" Label="..." ...>
-  const chanListA = xmlDoc.querySelectorAll('ChanList > Chan, ChannelList > Channel, Chan');
-  if (chanListA.length > 0) {
-    chanListA.forEach(el => {
-      const num     = el.getAttribute('Num') || el.getAttribute('num') || el.getAttribute('Number') || '';
-      const label   = el.getAttribute('Label') || el.getAttribute('label') || el.getAttribute('Name') || '';
-      const addr    = parseAddress(el);
-      if (num) channels.push({ num: num.trim(), label: label.trim(), address: addr });
-    });
-    return channels;
-  }
+  // Try every plausible element name EOS might use
+  const candidates = [
+    ...doc.querySelectorAll('chan'),
+    ...doc.querySelectorAll('channel'),
+  ];
 
-  // Schema B: flat <channel> elements with child elements
-  xmlDoc.querySelectorAll('channel').forEach(el => {
-    const num   = el.querySelector('number,num,chan_num')?.textContent || el.getAttribute('number') || '';
-    const label = el.querySelector('label,name')?.textContent || el.getAttribute('label') || '';
-    const addr  = el.querySelector('address,addr,dmx_addr')?.textContent || '';
-    if (num) channels.push({ num: num.trim(), label: label.trim(), address: addr.trim() });
+  // Deduplicate by element identity
+  const seen = new Set();
+  const elems = candidates.filter(el => {
+    if (seen.has(el)) return false;
+    seen.add(el);
+    return true;
+  });
+
+  elems.forEach(el => {
+    // Channel number — try attributes and child elements
+    const num = (
+      el.getAttribute('num') ||
+      el.getAttribute('number') ||
+      el.getAttribute('channelnum') ||
+      el.querySelector('num,number,channelnum,channum')?.textContent ||
+      ''
+    ).trim();
+    if (!num || isNaN(Number(num))) return;
+
+    // Label
+    const label = (
+      el.getAttribute('label') ||
+      el.getAttribute('name') ||
+      el.getAttribute('description') ||
+      el.querySelector('label,name,description')?.textContent ||
+      ''
+    ).trim();
+
+    // DMX address — EOS stores as "universe/address" e.g. "1/1" or "1/1/1"
+    const addr = extractAddress(el);
+
+    channels.push({ num, label, address: addr });
   });
 
   return channels;
 }
 
-function parseAddress(el) {
-  // Try attribute variants
-  const raw = el.getAttribute('Addr') || el.getAttribute('addr') || el.getAttribute('DMXAddr') || '';
-  if (raw) return raw.trim();
-  // Try child <IntAtAddr> or <Address>
-  const child = el.querySelector('IntAtAddr,Address,addr');
-  if (child) {
-    const a = child.getAttribute('Addr') || child.getAttribute('addr') || child.textContent || '';
-    return a.trim();
+function extractAddress(el) {
+  // Attribute variants
+  for (const attr of ['addr', 'address', 'dmxaddr', 'dmxaddress', 'patch']) {
+    const v = el.getAttribute(attr);
+    if (v) return v.trim();
+  }
+  // Child elements: <intataddr>, <address>, <addr>, <dmx>, <patch>
+  for (const sel of ['intataddr', 'address', 'addr', 'dmx', 'patch', 'chanpart']) {
+    const child = el.querySelector(sel);
+    if (child) {
+      // Try attributes on child first
+      for (const attr of ['addr', 'address', 'dmxaddr', 'at', 'universe']) {
+        const v = child.getAttribute(attr);
+        if (v) return v.trim();
+      }
+      const t = child.textContent?.trim();
+      if (t) return t;
+    }
   }
   return '';
+}
+
+// ── Diagnostic XML structure inspector ───────────────────────────────────────
+function inspectXmlStructure(text, fileName) {
+  // Parse both ways to compare
+  const htmlDoc = new DOMParser().parseFromString(text, 'text/html');
+  const xmlDoc  = new DOMParser().parseFromString(text, 'application/xml');
+
+  // Collect unique tag names from html-parsed doc (body only, skipping html/head/body wrappers)
+  const tagSet = new Set();
+  const walk = (node) => {
+    if (node.nodeType === 1) { tagSet.add(node.tagName.toLowerCase()); }
+    node.childNodes.forEach(walk);
+  };
+  walk(htmlDoc.body || htmlDoc.documentElement);
+
+  // Find the root element name from XML parse
+  const xmlRoot = xmlDoc.documentElement?.tagName || '(parse error)';
+
+  // Grab a 600-char snippet of raw XML
+  const snippet = text.slice(0, 600).replace(/\s+/g, ' ');
+
+  console.group(`[EOS Import] File: ${fileName}`);
+  console.log('Root element (XML parse):', xmlRoot);
+  console.log('All element names found (HTML parse):', [...tagSet].sort().join(', '));
+  console.log('Raw snippet:', snippet);
+  console.log('Total text length:', text.length);
+  console.groupEnd();
+
+  return { tags: tagSet, xmlRoot, snippet };
 }
 
 // ── Find XML files in the ZIP ─────────────────────────────────────────────────
 async function extractChannelsFromESF2(file) {
   const arrayBuffer = await file.arrayBuffer();
-  let zip;
-  try {
-    zip = await JSZip.loadAsync(arrayBuffer);
-  } catch {
-    throw new Error('Could not open file as a ZIP archive. Make sure you selected an .esf2 file.');
+  const diagLines = []; // human-readable diagnostics shown on failure
+
+  // ── First: try as a ZIP archive (ESF2 and some ESF files) ─────────────────
+  let zip = null;
+  try { zip = await JSZip.loadAsync(arrayBuffer); } catch (e) {
+    diagLines.push(`Not a ZIP archive (${e.message})`);
   }
 
-  // Collect all XML-like files
-  const xmlFiles = Object.values(zip.files).filter(f =>
-    !f.dir && /\.(xml|esf|eos)$/i.test(f.name)
-  );
+  if (zip) {
+    const allFiles = Object.values(zip.files).filter(f => !f.dir);
+    diagLines.push(`ZIP contains ${allFiles.length} file(s): ${allFiles.map(f => f.name).join(', ')}`);
 
-  if (xmlFiles.length === 0) {
-    throw new Error('No XML data found inside the showfile. Ensure this is an EOS ESF2 showfile.');
+    // Detect EOS ESF2 binary format — identified by showdat.dat presence
+    // ETC stores all show data as a proprietary binary blob; there is no XML inside
+    const hasShowdat = allFiles.some(f => /showdat\.dat$/i.test(f.name));
+    if (hasShowdat) {
+      throw new Error(
+        'EOS showfiles (.esf / .esf2) store patch data in a proprietary binary format ' +
+        'that cannot be parsed without ETC\'s closed format specification.\n\n' +
+        'Please export a Patch List CSV from EOS instead:\n' +
+        '  Show Control → Reports → Patch List → Export CSV\n\n' +
+        'Then import that .csv file here — all channels, labels and DMX addresses will be read correctly.'
+      );
+    }
+
+    // Sort: prioritise patch/chan/show/fixture in name
+    allFiles.sort((a, b) => {
+      const score = n => /patch|chan|show|fixture/i.test(n) ? -1 : 0;
+      return score(a.name) - score(b.name);
+    });
+
+    for (const zf of allFiles) {
+      let text;
+      try { text = await zf.async('string'); } catch { continue; }
+      if (!/^\s*</.test(text)) {
+        diagLines.push(`  ${zf.name}: skipped (not XML)`);
+        continue;
+      }
+      const { tags } = inspectXmlStructure(text, zf.name);
+      diagLines.push(`  ${zf.name}: XML found, elements: ${[...tags].sort().slice(0, 20).join(', ')}`);
+      const channels = parseEOSText(text);
+      if (channels.length > 0) return { channels, fileName: zf.name };
+      diagLines.push(`    → 0 channels extracted`);
+    }
   }
 
-  // Try each file until we find channels
-  const parser = new DOMParser();
-  for (const zf of xmlFiles) {
-    const text = await zf.async('string');
-    let doc;
+  // ── Fallback: try plain text with multiple encodings ─────────────────────
+  const bytes = new Uint8Array(arrayBuffer);
+  const hexHead = Array.from(bytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+  diagLines.push(`First bytes: ${hexHead}`);
+
+  // ── Detect ETC proprietary binary ESF format ──────────────────────────────
+  // Legacy .esf files start with the GUID {F2CC115C-666B-4719-...} in ASCII
+  const asciiHead = new TextDecoder('ascii', { fatal: false }).decode(bytes.slice(0, 40));
+  if (asciiHead.startsWith('{F2CC115C') || asciiHead.startsWith('{f2cc115c')) {
+    diagLines.push('Detected: ETC EOS legacy binary ESF format (GUID header)');
+    // Last-ditch: brute-force scan for any embedded XML fragment
+    const fullText = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    const xmlIdx = fullText.search(/<(?:ChanList|EosShowFile|ShowData|PatchData|Chan\s|Channel\s)/i);
+    if (xmlIdx >= 0) {
+      diagLines.push(`  Found XML-like content at byte ${xmlIdx} — attempting parse`);
+      const channels = parseEOSText(fullText.slice(xmlIdx));
+      if (channels.length > 0) return { channels, fileName: file.name };
+      diagLines.push('  → 0 channels in embedded XML fragment');
+    }
+    console.warn('[EOS Import] Failed. Diagnostics:\n' + diagLines.join('\n'));
+    throw new Error(
+      'This is the legacy EOS binary showfile format (.esf) which cannot be parsed directly.\n\n' +
+      'To import your patch, please use one of these methods from EOS:\n' +
+      '  • Export a CSV — Show Control → Reports → Patch List → Export CSV\n' +
+      '  • Save as ESF2 — File → Save As and choose ESF2 format (.esf2)\n\n' +
+      'Then re-import that file here.'
+    );
+  }
+
+  // Try several encodings — EOS ESF2/XML files are usually UTF-8 but can be UTF-16
+  const encodings = ['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'];
+  for (const enc of encodings) {
+    let text;
     try {
-      doc = parser.parseFromString(text, 'application/xml');
+      text = new TextDecoder(enc, { fatal: false }).decode(arrayBuffer);
+      text = text.replace(/^﻿/, ''); // strip BOM
     } catch { continue; }
-    const parseError = doc.querySelector('parsererror');
-    if (parseError) continue;
-    const channels = parseEOSChannels(doc);
-    if (channels.length > 0) return { channels, fileName: zf.name };
+
+    if (!/^\s*</.test(text)) {
+      diagLines.push(`  [${enc}]: doesn't start with < (first 40 chars: ${JSON.stringify(text.slice(0, 40))})`);
+      continue;
+    }
+    const { tags } = inspectXmlStructure(text, file.name + ` (${enc})`);
+    diagLines.push(`  [${enc}]: XML found, elements: ${[...tags].sort().slice(0, 20).join(', ')}`);
+    const channels = parseEOSText(text);
+    if (channels.length > 0) return { channels, fileName: file.name };
+    diagLines.push('    → 0 channels extracted');
   }
 
+
+  console.warn('[EOS Import] Failed. Diagnostics:\n' + diagLines.join('\n'));
   throw new Error(
-    'Could not find channel patch data in the showfile.\n' +
-    'Try exporting a Channel List report from EOS (Show Control → Reports → Patch List) and import the CSV instead.'
+    'Could not find channel patch data in the showfile.\n\n' +
+    'Diagnostics (see browser console for full detail):\n' +
+    diagLines.slice(0, 8).join('\n') + '\n\n' +
+    'Supported formats: EOS ESF2 showfile (.esf2), legacy ESF showfile (.esf), or a Channel List CSV export from EOS (Show Control → Reports → Patch List).'
   );
 }
 
-// ── CSV fallback parser ───────────────────────────────────────────────────────
+// ── CSV parser ────────────────────────────────────────────────────────────────
 function parseCSVChannels(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const allLines = text.split(/\r?\n/);
+
+  // ── EOS full-show export (multi-section) ─────────────────────────────────
+  // Detect by presence of section markers like START_CHANNELS
+  const startIdx = allLines.findIndex(l => l.trim() === 'START_CHANNELS');
+  if (startIdx !== -1) {
+    const endIdx = allLines.findIndex((l, i) => i > startIdx && l.trim() === 'END_CHANNELS');
+    const sectionLines = allLines.slice(startIdx + 1, endIdx === -1 ? undefined : endIdx)
+      .filter(l => l.trim());
+    return parseCSVSection(sectionLines, 'EOS full-show export (CHANNELS section)');
+  }
+
+  // ── Simple patch-list CSV (single section) ────────────────────────────────
+  const lines = allLines.filter(l => l.trim());
   if (lines.length < 2) throw new Error('CSV file appears empty.');
-  const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
-  const numIdx   = header.findIndex(h => ['chan','channel','channelnum','num','number'].includes(h));
-  const labelIdx = header.findIndex(h => ['label','name','description','fixture'].includes(h));
-  const addrIdx  = header.findIndex(h => ['address','addr','dmx','dmxaddress','patch'].includes(h));
-  if (numIdx === -1) throw new Error('Could not find a "Channel" column in the CSV.');
-  return lines.slice(1).map(l => {
-    const cols = l.split(',').map(c => c.replace(/^"|"$/g, '').trim());
-    return {
-      num:     cols[numIdx]  || '',
-      label:   labelIdx !== -1 ? (cols[labelIdx] || '') : '',
-      address: addrIdx  !== -1 ? (cols[addrIdx]  || '') : '',
-    };
-  }).filter(r => r.num);
+  return parseCSVSection(lines, 'simple patch list');
+}
+
+function parseCSVSection(lines, sourceDesc) {
+  if (lines.length < 2) throw new Error(`No data rows found in ${sourceDesc}.`);
+
+  // Split respecting quoted fields
+  function splitCSV(line) {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  }
+
+  const header = splitCSV(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+
+  // Channel number column
+  const numIdx = header.findIndex(h => ['channel','chan','channelnum','num','number'].includes(h));
+  if (numIdx === -1) throw new Error(`Could not find a Channel column in ${sourceDesc}.\nHeaders found: ${header.join(', ')}`);
+
+  // Label — prefer 'label' over 'fixture_type'
+  const labelIdx = (() => {
+    for (const name of ['label','name','description','fixture']) {
+      const i = header.indexOf(name); if (i !== -1) return i;
+    }
+    return -1;
+  })();
+
+  // Address — EOS uses 'address' column
+  const addrIdx = (() => {
+    for (const name of ['address','addr','dmx','dmxaddress','patch']) {
+      const i = header.indexOf(name); if (i !== -1) return i;
+    }
+    return -1;
+  })();
+
+  // Manufacturer (EOS full-show export has this)
+  const mfrIdx = header.findIndex(h => ['manufacturer','mfr','make'].includes(h));
+
+  return lines.slice(1)
+    .map(l => splitCSV(l))
+    .filter(cols => cols[numIdx]?.trim())
+    .map(cols => {
+      const num     = cols[numIdx]?.trim() || '';
+      const rawAddr = addrIdx  !== -1 ? (cols[addrIdx]?.trim()  || '') : '';
+      const label   = labelIdx !== -1 ? (cols[labelIdx]?.trim() || '') : '';
+      const mfr     = mfrIdx   !== -1 ? (cols[mfrIdx]?.trim()  || '') : '';
+      // Normalise EOS address: "1/49<60" → "1/49", "49<60" → "49", "1/43" → "1/43"
+      const address = rawAddr.replace(/<\d+$/, '');
+      return { num, label, address, manufacturer: mfr };
+    })
+    .filter(r => r.num && !isNaN(Number(r.num)));
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -174,18 +362,22 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
           <div style={S.title}>📂 Import Patch from ETC EOS Showfile</div>
           <div style={S.body}>
             <p style={S.para}>
-              Select an EOS <strong>.esf2</strong> showfile or a channel list <strong>.csv</strong> export
-              from EOS (Show Control → Reports → Patch List → Export CSV).
+              Import a <strong>Patch List CSV</strong> exported from EOS:
+            </p>
+            <p style={{ ...S.para, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)',
+              padding: '6px 10px', borderRadius: 3, marginBottom: 8 }}>
+              Show Control → Reports → Patch List → Export CSV
             </p>
             <p style={S.para}>
-              Channels are matched to existing fixtures by their <em>Channel Number</em> field.
-              Only matched fixtures will be updated.
+              EOS showfiles (.esf / .esf2) store data in a proprietary binary format — only the
+              CSV export can be parsed. Channels are matched to existing fixtures by their{' '}
+              <em>Channel Number</em> field.
             </p>
             <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
               <button style={S.btn} onClick={() => fileRef.current?.click()}>
-                📁 Choose File (.esf2 or .csv)
+                📁 Choose Patch List CSV
               </button>
-              <input ref={fileRef} type="file" accept=".esf2,.esf,.xml,.csv"
+              <input ref={fileRef} type="file" accept=".csv,.esf2,.esf,.xml"
                 style={{ display: 'none' }}
                 onChange={e => handleFile(e.target.files?.[0])} />
               <button style={S.cancelBtn} onClick={onClose}>Cancel</button>
@@ -246,6 +438,7 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
                 </th>
                 <th style={S.th}>Ch #</th>
                 <th style={S.th}>EOS Label</th>
+                <th style={S.th}>Type / Mfr</th>
                 <th style={S.th}>DMX Address</th>
                 <th style={S.th}>Matched Fixture</th>
                 <th style={S.th}>Status</th>
@@ -269,6 +462,7 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
                     </td>
                     <td style={{ ...S.td, color: '#60b0ff', fontWeight: 700 }}>{c.num}</td>
                     <td style={S.td}>{c.label || <em style={{ color: '#4a5568' }}>—</em>}</td>
+                    <td style={{ ...S.td, fontSize: 10, color: '#718096' }}>{c.manufacturer || '—'}</td>
                     <td style={{ ...S.td, fontFamily: 'monospace', color: '#a78bfa' }}>{c.address || '—'}</td>
                     <td style={S.td}>
                       {match

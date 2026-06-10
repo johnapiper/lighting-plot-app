@@ -102,6 +102,10 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
 
   const [importing, setImporting] = useState(null); // rid | 'done:rid'
 
+  // Preview state — { row, ft } or null
+  const [preview,   setPreview]   = useState(null);
+  const [prevBusy,  setPrevBusy]  = useState(null); // rid being previewed
+
   // Reset cookie jar when panel mounts (fresh session each open)
   useEffect(() => { cookieJar = ''; }, []);
 
@@ -181,6 +185,33 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
       alert(`Import failed: ${err.message}`);
       setImporting(null);
     }
+  }
+
+  // ── Preview ────────────────────────────────────────────────────────────────
+  async function handlePreview(row) {
+    const id = fRid(row);
+    if (id == null) return;
+    setPrevBusy(String(id));
+    try {
+      const { status, body } = await httpsGet(`/apis/public/downloadFile.php?rid=${id}`);
+      if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
+      const ab = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+      const filename = `${fMfr(row)} ${fName(row)} ${fRev(row) || id}.gdtf`.replace(/\s+/g, ' ').trim();
+      const ft = await parseGdtf(ab, filename);
+      setPreview({ row, ft });
+    } catch (err) {
+      alert(`Preview failed: ${err.message}`);
+    } finally {
+      setPrevBusy(null);
+    }
+  }
+
+  function confirmImportFromPreview() {
+    if (!preview) return;
+    onImportGdtf(preview.ft);
+    setPreview(null);
+    setImporting('done:' + String(fRid(preview.row)));
+    setTimeout(onClose, 900);
   }
 
   // ── Sign out ───────────────────────────────────────────────────────────────
@@ -276,52 +307,78 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
               </div>
             )}
 
-            {/* Table */}
-            <div style={S.tableWrap}>
-              {/* Header */}
-              <div style={S.headerRow}>
-                <span style={{ flex: '0 0 160px', color: '#4a90d9' }}>Manufacturer</span>
-                <span style={{ flex: 1, color: '#4a90d9' }}>Fixture</span>
-                <span style={{ flex: '0 0 70px', color: '#4a90d9' }}>Rev</span>
-                <span style={{ flex: '0 0 64px' }} />
+            {/* Table + optional preview pane */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              {/* ── Fixture list ── */}
+              <div style={{ ...S.tableWrap, flex: preview ? '0 0 55%' : 1 }}>
+                {/* Header */}
+                <div style={S.headerRow}>
+                  <span style={{ flex: '0 0 140px', color: '#4a90d9' }}>Manufacturer</span>
+                  <span style={{ flex: 1, color: '#4a90d9' }}>Fixture</span>
+                  <span style={{ flex: '0 0 56px', color: '#4a90d9' }}>Rev</span>
+                  <span style={{ flex: '0 0 108px' }} />
+                </div>
+
+                {!listBusy && !listErr && allRows !== null && pageRows.length === 0 && (
+                  <div style={S.empty}>
+                    {query ? 'No fixtures match your search.' : 'Library is empty.'}
+                  </div>
+                )}
+
+                {pageRows.map((row, i) => {
+                  const id       = String(fRid(row) ?? '');
+                  const done     = importing === 'done:' + id;
+                  const impBusy  = importing === id;
+                  const prevThis = prevBusy  === id;
+                  const isPreviewed = preview && String(fRid(preview.row) ?? '') === id;
+                  return (
+                    <div key={`${id}-${i}`} style={{
+                      ...S.row,
+                      background: isPreviewed ? 'rgba(74,144,217,0.1)' : (i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'),
+                      borderLeft: isPreviewed ? '2px solid #4a90d9' : '2px solid transparent',
+                    }}>
+                      <span style={{ ...S.cell, flex: '0 0 140px', color: '#a0aec0', fontSize: 11 }}>
+                        {fMfr(row)}
+                      </span>
+                      <span style={{ ...S.cell, flex: 1, color: '#e0e0e0' }}>
+                        {fName(row)}
+                      </span>
+                      <span style={{ ...S.cell, flex: '0 0 56px', color: '#4a6080', fontSize: 10 }}>
+                        {fRev(row)}
+                      </span>
+                      <span style={{ flex: '0 0 108px', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <button
+                          style={{ ...S.previewBtn, ...(isPreviewed ? S.previewBtnActive : {}) }}
+                          disabled={!!prevBusy || !!importing}
+                          onClick={() => isPreviewed ? setPreview(null) : handlePreview(row)}
+                          title="Preview fixture details"
+                        >
+                          {prevThis ? '…' : isPreviewed ? '◀ Hide' : '🔍 Preview'}
+                        </button>
+                        <button
+                          style={{ ...S.importBtn, ...(done ? S.importDone : {}) }}
+                          disabled={!!importing || !!prevBusy}
+                          onClick={() => handleImport(row)}
+                          title="Import directly without preview"
+                        >
+                          {done ? '✓' : impBusy ? '…' : 'Import'}
+                        </button>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
-              {!listBusy && !listErr && allRows !== null && pageRows.length === 0 && (
-                <div style={S.empty}>
-                  {query ? 'No fixtures match your search.' : 'Library is empty.'}
-                </div>
+              {/* ── Preview pane ── */}
+              {preview && (
+                <PreviewPane
+                  ft={preview.ft}
+                  row={preview.row}
+                  onClose={() => setPreview(null)}
+                  onImport={confirmImportFromPreview}
+                  importing={!!importing}
+                />
               )}
-
-              {pageRows.map((row, i) => {
-                const id   = String(fRid(row) ?? '');
-                const done = importing === 'done:' + id;
-                const busy = importing === id;
-                return (
-                  <div key={`${id}-${i}`} style={{
-                    ...S.row,
-                    background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
-                  }}>
-                    <span style={{ ...S.cell, flex: '0 0 160px', color: '#a0aec0', fontSize: 11 }}>
-                      {fMfr(row)}
-                    </span>
-                    <span style={{ ...S.cell, flex: 1, color: '#e0e0e0' }}>
-                      {fName(row)}
-                    </span>
-                    <span style={{ ...S.cell, flex: '0 0 70px', color: '#4a6080', fontSize: 10 }}>
-                      {fRev(row)}
-                    </span>
-                    <span style={{ flex: '0 0 64px', display: 'flex', justifyContent: 'flex-end' }}>
-                      <button
-                        style={{ ...S.importBtn, ...(done ? S.importDone : {}) }}
-                        disabled={!!importing}
-                        onClick={() => handleImport(row)}
-                      >
-                        {done ? '✓' : busy ? '…' : 'Import'}
-                      </button>
-                    </span>
-                  </div>
-                );
-              })}
             </div>
 
             {/* Pagination */}
@@ -339,6 +396,157 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
   );
 }
 
+// ── Preview pane component ────────────────────────────────────────────────────
+
+function PreviewPane({ ft, row, onClose, onImport, importing }) {
+  return (
+    <div style={{
+      flex: '0 0 45%', borderLeft: '1px solid #0f3460', display: 'flex',
+      flexDirection: 'column', overflow: 'hidden', background: '#0f1e35',
+    }}>
+      {/* Pane header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 12px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#e0e0e0' }}>Fixture Preview</span>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 14 }}
+        >✕</button>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
+        {/* Symbol + name header */}
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 14 }}>
+          <svg viewBox={ft.symbolViewBox} width="52" height="52"
+            style={{ color: '#4a90d9', background: '#0d1b2a', borderRadius: 6,
+              border: '1px solid #1a3a5c', flexShrink: 0 }}>
+            <g dangerouslySetInnerHTML={{ __html: ft.symbol }} />
+          </svg>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#e0e0e0', lineHeight: 1.3 }}>
+              {ft.name}
+            </div>
+            <div style={{ fontSize: 11, color: '#718096', marginTop: 2 }}>
+              {ft.manufacturer}
+            </div>
+            {ft.gdtfCategory && (
+              <div style={{
+                display: 'inline-block', marginTop: 5,
+                fontSize: 9, color: '#4a90d9', background: 'rgba(74,144,217,0.12)',
+                border: '1px solid rgba(74,144,217,0.25)', borderRadius: 3, padding: '1px 6px',
+                textTransform: 'uppercase', letterSpacing: '0.07em',
+              }}>
+                {ft.gdtfCategory}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Physical specs */}
+        <PrevSection title="Physical">
+          {ft.powerW   != null && <PrevRow label="Power"  value={`${ft.powerW} W`}  />}
+          {ft.weightKg != null && <PrevRow label="Weight" value={`${ft.weightKg} kg`} />}
+          {ft.powerW == null && ft.weightKg == null && (
+            <span style={{ fontSize: 11, color: '#4a5568', fontStyle: 'italic' }}>
+              Not specified in GDTF file
+            </span>
+          )}
+        </PrevSection>
+
+        {/* DMX modes */}
+        <PrevSection title="DMX Modes">
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={PS.th}>Mode</th>
+                <th style={{ ...PS.th, textAlign: 'right' }}>Channels</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ft.modes.map((m, i) => (
+                <tr key={i} style={{ background: i % 2 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                  <td style={PS.td}>{m.name}</td>
+                  <td style={{ ...PS.td, textAlign: 'right', color: '#a78bfa', fontFamily: 'monospace' }}>
+                    {m.channelCount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PrevSection>
+
+        {/* Rev / source */}
+        <PrevSection title="Source">
+          <PrevRow label="Revision" value={fRev(row) || '—'} />
+          <PrevRow label="GDTF Share ID" value={String(fRid(row) ?? '—')} />
+        </PrevSection>
+      </div>
+
+      {/* Footer — import button */}
+      <div style={{
+        padding: '10px 14px', borderTop: '1px solid #0f3460', flexShrink: 0,
+        display: 'flex', gap: 8,
+      }}>
+        <button
+          style={{
+            flex: 1, padding: '8px', background: '#0f3460', border: '1px solid #4a90d9',
+            borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+          }}
+          disabled={importing}
+          onClick={onImport}
+        >
+          ⬇ Import to Library
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            padding: '8px 12px', background: 'none', border: '1px solid #2a3a5a',
+            borderRadius: 4, color: '#718096', cursor: 'pointer', fontSize: 12,
+          }}
+        >
+          Back
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PrevSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{
+        fontSize: 9, color: '#4a90d9', fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.1em', marginBottom: 6, borderBottom: '1px solid #0f3460', paddingBottom: 3,
+      }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function PrevRow({ label, value }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11,
+      padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+      <span style={{ color: '#718096' }}>{label}</span>
+      <span style={{ color: '#e0e0e0', fontFamily: /^\d/.test(value) ? 'monospace' : 'inherit' }}>{value}</span>
+    </div>
+  );
+}
+
+const PS = {
+  th: {
+    padding: '4px 6px', fontSize: 10, fontWeight: 700, color: '#4a5568',
+    textAlign: 'left', borderBottom: '1px solid #0f3460',
+  },
+  td: {
+    padding: '4px 6px', fontSize: 11, color: '#e0e0e0',
+    borderBottom: '1px solid rgba(255,255,255,0.03)',
+  },
+};
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const S = {
@@ -348,7 +556,7 @@ const S = {
   },
   panel: {
     background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
-    width: 580, maxHeight: '84vh',
+    width: '90vw', maxWidth: 960, maxHeight: '84vh',
     display: 'flex', flexDirection: 'column',
     boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
   },
@@ -413,6 +621,13 @@ const S = {
   },
   importDone: {
     background: '#0f3a1a', borderColor: '#68d391', color: '#68d391', cursor: 'default',
+  },
+  previewBtn: {
+    padding: '3px 8px', background: 'transparent', border: '1px solid #2a3a5a',
+    borderRadius: 3, color: '#718096', cursor: 'pointer', fontSize: 11,
+  },
+  previewBtnActive: {
+    background: 'rgba(74,144,217,0.1)', borderColor: '#4a90d9', color: '#4a90d9',
   },
   pager: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,

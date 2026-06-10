@@ -27,7 +27,7 @@ export default function Canvas({
   selectedId, selectedIds, onSelect, onMultiSelect,
   showGrid, showRulers, fixtureTypes,
   zoom, pan, onZoomChange, onPanChange, pipeSnap,
-  onToolDone, dragTargetLayerRef,
+  onToolDone, onToolChange, dragTargetLayerRef,
   activeLayerId,
   animating,
   activeMode = 'cad',
@@ -55,9 +55,10 @@ export default function Canvas({
   const [hoveredPipe, setHoveredPipe] = useState(null);
   const [cursorPos, setCursorPos] = useState(null);
   const [rawCursorPos, setRawCursorPos] = useState(null); // unsnapped world coords for calibrate hover
-  const [fixtureClipboard, setFixtureClipboard] = useState(null); // copied fixture data
-  const fixtureClipboardRef = useRef(null);
-  useEffect(() => { fixtureClipboardRef.current = fixtureClipboard; }, [fixtureClipboard]);
+  const [clipboard, setClipboard] = useState(null); // [{...obj, _clipKind}]
+  const clipboardRef = useRef(null);
+  useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
+  const pasteGeneration = useRef(0); // increments per paste so repeated Ctrl+V staggers
   const [pipePlaceAngle, setPipePlaceAngle] = useState(null); // null=free, 0/90/180/270 = constrained
   // Cable waypoint editing: { cableId, wpIdx, baseWaypoints }
   const [wpDrag, setWpDrag] = useState(null);
@@ -838,29 +839,55 @@ export default function Canvas({
         setDrawingState(null); setFocusModeId(null); setFocusCursor(null);
         setCalibState(null); setCableFrom(null); setCableGhost(null);
         setPipePlaceAngle(null);
+        onSelect(null); onMultiSelect([]);
+        // Return to select tool so cable/draw tools don't stay active
+        onToolChange?.('select');
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') deleteSelected();
       // R key: rotate pipe/truss placement by 90°
       if ((e.key === 'r' || e.key === 'R') && drawingRef.current && document.activeElement.tagName !== 'INPUT') {
         setPipePlaceAngle(a => a === null ? 0 : (a + 90) % 360);
       }
-      // Ctrl+C: copy selected fixture(s)
+      // Ctrl+C: copy selection (fixtures, pipes, lines, rects, texts, annotations)
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && document.activeElement.tagName !== 'INPUT') {
-        const d = drawingRef.current;
-        if (!d) return;
-        const ids = new Set(selectedIds?.length ? selectedIds : selectedId ? [selectedId] : []);
-        const copied = d.fixtures.filter(f => ids.has(f.id));
-        if (copied.length) setFixtureClipboard(copied.map(f => ({ ...f })));
+        const ids = selectedIds?.length ? selectedIds : selectedId ? [selectedId] : [];
+        if (ids.length) {
+          const idSet = new Set(ids);
+          const copied = [
+            ...fixtures.filter(f => idSet.has(f.id)).map(f => ({ ...f, _clipKind: 'fixture' })),
+            ...pipes.filter(p => idSet.has(p.id)).map(p => ({ ...p, _clipKind: 'pipe' })),
+            ...lines.filter(l => idSet.has(l.id)).map(l => ({ ...l, _clipKind: 'line' })),
+            ...rectangles.filter(r => idSet.has(r.id)).map(r => ({ ...r, _clipKind: 'rect' })),
+            ...texts.filter(t => idSet.has(t.id)).map(t => ({ ...t, _clipKind: 'text' })),
+            ...annotations.filter(a => idSet.has(a.id)).map(a => ({ ...a, _clipKind: 'annotation' })),
+          ];
+          if (copied.length) { setClipboard(copied); pasteGeneration.current = 1; }
+        }
       }
-      // Ctrl+V: paste copied fixture(s)
+      // Ctrl+V: paste clipboard with staggered offset per consecutive paste
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && document.activeElement.tagName !== 'INPUT') {
-        const cb = fixtureClipboardRef.current;
+        const cb = clipboardRef.current;
         if (cb?.length) {
-          const offset = 50;
-          const newFixtures = cb.map(f => ({ ...f, id: Math.random().toString(36).slice(2), x: f.x + offset, y: f.y + offset, pipeId: null, position: '' }));
-          commitToDrawing(d => { d.fixtures.push(...newFixtures); });
-          onSelect(newFixtures.length === 1 ? newFixtures[0].id : null);
-          if (newFixtures.length > 1) onMultiSelect(newFixtures.map(f => f.id));
+          const off = 30 * pasteGeneration.current;
+          pasteGeneration.current += 1;
+          pasteObjects(cb, off, off);
+        }
+      }
+      // Ctrl+D: duplicate selection in place (+30,+30)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        const ids = selectedIds?.length ? selectedIds : selectedId ? [selectedId] : [];
+        if (ids.length) {
+          const idSet = new Set(ids);
+          const toDup = [
+            ...fixtures.filter(f => idSet.has(f.id)).map(f => ({ ...f, _clipKind: 'fixture' })),
+            ...pipes.filter(p => idSet.has(p.id)).map(p => ({ ...p, _clipKind: 'pipe' })),
+            ...lines.filter(l => idSet.has(l.id)).map(l => ({ ...l, _clipKind: 'line' })),
+            ...rectangles.filter(r => idSet.has(r.id)).map(r => ({ ...r, _clipKind: 'rect' })),
+            ...texts.filter(t => idSet.has(t.id)).map(t => ({ ...t, _clipKind: 'text' })),
+            ...annotations.filter(a => idSet.has(a.id)).map(a => ({ ...a, _clipKind: 'annotation' })),
+          ];
+          pasteObjects(toDup, 30, 30);
         }
       }
     };
@@ -917,6 +944,52 @@ export default function Canvas({
 
   // Expose fitView to parent via ref
   useEffect(() => { if (fitRef) fitRef.current = fitView; });
+
+  // ─── Copy / Paste / Duplicate ─────────────────────────────────────────
+  function copySelection(ids) {
+    const idSet = new Set(ids);
+    const copied = [
+      ...fixtures.filter(f => idSet.has(f.id)).map(f => ({ ...f, _clipKind: 'fixture' })),
+      ...pipes.filter(p => idSet.has(p.id)).map(p => ({ ...p, _clipKind: 'pipe' })),
+      ...lines.filter(l => idSet.has(l.id)).map(l => ({ ...l, _clipKind: 'line' })),
+      ...rectangles.filter(r => idSet.has(r.id)).map(r => ({ ...r, _clipKind: 'rect' })),
+      ...texts.filter(t => idSet.has(t.id)).map(t => ({ ...t, _clipKind: 'text' })),
+      ...annotations.filter(a => idSet.has(a.id)).map(a => ({ ...a, _clipKind: 'annotation' })),
+    ];
+    if (copied.length) {
+      setClipboard(copied);
+      pasteGeneration.current = 1;
+    }
+    return copied.length > 0;
+  }
+
+  function pasteObjects(items, dx, dy) {
+    if (!items?.length) return;
+    const newIds = [];
+    commitToDrawing(d => {
+      items.forEach(o => {
+        const { _clipKind: kind, ...obj } = o;
+        const newId = generateId();
+        newIds.push(newId);
+        if (kind === 'fixture') {
+          d.fixtures.push({ ...obj, id: newId, x: obj.x + dx, y: obj.y + dy, pipeId: null, position: '' });
+        } else if (kind === 'pipe') {
+          d.pipes.push({ ...obj, id: newId, x1: obj.x1 + dx, y1: obj.y1 + dy, x2: obj.x2 + dx, y2: obj.y2 + dy });
+        } else if (kind === 'line') {
+          d.lines.push({ ...obj, id: newId, x1: obj.x1 + dx, y1: obj.y1 + dy, x2: obj.x2 + dx, y2: obj.y2 + dy });
+        } else if (kind === 'rect') {
+          d.rectangles.push({ ...obj, id: newId, x: obj.x + dx, y: obj.y + dy });
+        } else if (kind === 'text') {
+          d.texts.push({ ...obj, id: newId, x: obj.x + dx, y: obj.y + dy });
+        } else if (kind === 'annotation') {
+          if (!d.annotations) d.annotations = [];
+          d.annotations.push({ ...obj, id: newId, x: obj.x + dx, y: obj.y + dy });
+        }
+      });
+    });
+    if (newIds.length === 1) onSelect({ id: newIds[0] });
+    else if (newIds.length > 1) onMultiSelect(newIds);
+  }
 
   function deleteSelected() {
     const toDelete = new Set(selectedIds?.length ? selectedIds : selectedId ? [selectedId] : []);
@@ -1684,6 +1757,41 @@ export default function Canvas({
                 </div>
               ))}
             </>
+          )}
+          <div style={ctxStyle.sep}>Edit</div>
+          <div style={ctxStyle.item} onClick={() => {
+            const hit = contextMenu.hit;
+            // If item is part of multi-select, copy all selected; otherwise just this one
+            const ids = (selectedIds?.length && selectedIds.includes(hit.id))
+              ? selectedIds
+              : [hit.id];
+            copySelection(ids);
+            setContextMenu(null);
+          }}>📋 Copy  <span style={{ color: '#4a5568', fontSize: 10, marginLeft: 4 }}>Ctrl+C</span></div>
+          <div style={ctxStyle.item} onClick={() => {
+            const hit = contextMenu.hit;
+            const ids = (selectedIds?.length && selectedIds.includes(hit.id))
+              ? selectedIds
+              : [hit.id];
+            const idSet = new Set(ids);
+            const toDup = [
+              ...fixtures.filter(f => idSet.has(f.id)).map(f => ({ ...f, _clipKind: 'fixture' })),
+              ...pipes.filter(p => idSet.has(p.id)).map(p => ({ ...p, _clipKind: 'pipe' })),
+              ...lines.filter(l => idSet.has(l.id)).map(l => ({ ...l, _clipKind: 'line' })),
+              ...rectangles.filter(r => idSet.has(r.id)).map(r => ({ ...r, _clipKind: 'rect' })),
+              ...texts.filter(t => idSet.has(t.id)).map(t => ({ ...t, _clipKind: 'text' })),
+              ...annotations.filter(a => idSet.has(a.id)).map(a => ({ ...a, _clipKind: 'annotation' })),
+            ];
+            pasteObjects(toDup, 30, 30);
+            setContextMenu(null);
+          }}>⧉ Duplicate  <span style={{ color: '#4a5568', fontSize: 10, marginLeft: 4 }}>Ctrl+D</span></div>
+          {clipboard?.length > 0 && (
+            <div style={ctxStyle.item} onClick={() => {
+              const off = 30 * pasteGeneration.current;
+              pasteGeneration.current += 1;
+              pasteObjects(clipboardRef.current, off, off);
+              setContextMenu(null);
+            }}>📌 Paste  <span style={{ color: '#4a5568', fontSize: 10, marginLeft: 4 }}>Ctrl+V</span></div>
           )}
           <div style={{ ...ctxStyle.item, borderTop: '1px solid #0f3460', color: '#fc8181' }} onClick={() => {
             commitToDrawing(d => {

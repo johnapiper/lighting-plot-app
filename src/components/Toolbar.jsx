@@ -18,10 +18,11 @@ const INFRA_TOOLS = [
   { id: 'infra-netport', label: 'NetPort', icon: '🔌', title: 'Place Network Port / Floor Box' },
 ];
 
+// Cable colours must match CablingLayer.jsx cableColor() defaults
 const CABLE_TOOLS = [
-  { id: 'cable-power',   label: 'Power',   icon: '🔴', title: 'Draw power cable (click from → to)' },
-  { id: 'cable-dmx',     label: 'DMX',     icon: '🟡', title: 'Draw DMX cable / chain' },
-  { id: 'cable-network', label: 'Net',     icon: '🟢', title: 'Draw network cable' },
+  { id: 'cable-power',   label: 'Power',   color: '#f59e0b', title: 'Draw power cable (click from → to)' },
+  { id: 'cable-dmx',     label: 'DMX',     color: '#a78bfa', title: 'Draw DMX cable / chain' },
+  { id: 'cable-network', label: 'Net',     color: '#34d399', title: 'Draw network cable' },
 ];
 
 export default function Toolbar({
@@ -179,14 +180,27 @@ export default function Toolbar({
 
             {/* ── Cable drawing ── */}
             <div style={styles.group}>
-              {CABLE_TOOLS.map(t => (
-                <button key={t.id} title={t.title}
-                  style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
-                  onClick={() => onToolChange(t.id)}>
-                  <span style={styles.icon}>{t.icon}</span>
-                  <span style={styles.label}>{t.label}</span>
-                </button>
-              ))}
+              {CABLE_TOOLS.map(t => {
+                const isActive = activeTool === t.id;
+                return (
+                  <button key={t.id} title={t.title}
+                    style={{
+                      ...styles.btn,
+                      border: `1px solid ${isActive ? t.color : 'rgba(255,255,255,0.08)'}`,
+                      background: isActive ? `${t.color}22` : undefined,
+                      color: isActive ? t.color : undefined,
+                    }}
+                    onClick={() => onToolChange(isActive ? 'select' : t.id)}>
+                    {/* Colour swatch — always visible, matches canvas cable colour */}
+                    <span style={{
+                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                      background: t.color, flexShrink: 0,
+                      boxShadow: isActive ? `0 0 6px ${t.color}` : 'none',
+                    }} />
+                    <span style={styles.label}>{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <div style={styles.divider} />

@@ -3,7 +3,8 @@ import React from 'react';
 export default function FixtureSymbol({ fixtureType, unit, channel, selected, rotation = 0, scale = 1, colourHex, symbolOverride, symbolColor }) {
   if (!fixtureType) return null;
 
-  const color = selected ? '#00aaff' : (symbolColor || '#e0e0e0');
+  // symbolColor prop overrides fixtureType.symbolColour, both override default white
+  const color = selected ? '#00aaff' : (symbolColor || fixtureType?.symbolColour || '#e0e0e0');
   const labelColor = selected ? '#00aaff' : '#ffffff';
   const subColor = selected ? '#80ccff' : '#a0aec0';
   const sc = scale || 1;

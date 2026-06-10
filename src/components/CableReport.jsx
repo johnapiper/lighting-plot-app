@@ -127,9 +127,20 @@ function buildRows(drawing, pipes, rigHeight, gridHeight = 6000, fixtureTypes = 
       const fromIsSupply = isPowerSupply(c.fromId, c.fromType, infraMap);
       const toIsSupply   = isPowerSupply(c.toId,   c.toType,   infraMap);
       let loadId, loadType;
-      if (fromIsSupply && !toIsSupply) { loadId = c.toId;   loadType = c.toType; }
-      else if (toIsSupply)             { loadId = c.fromId; loadType = c.fromType; }
-      else                             { loadId = c.toId;   loadType = c.toType; } // default: "to" is load
+      if (fromIsSupply && !toIsSupply) {
+        // Supply→Load (normal): load is the "to" end
+        loadId = c.toId;   loadType = c.toType;
+      } else if (!fromIsSupply && toIsSupply) {
+        // Load→Supply (cable drawn backwards): load is the "from" end
+        loadId = c.fromId; loadType = c.fromType;
+      } else if (fromIsSupply && toIsSupply) {
+        // Supply→Supply (e.g. PDU 1 → PDU 2): the downstream/child distro ("to") carries
+        // everything it feeds, so traverse from it
+        loadId = c.toId;   loadType = c.toType;
+      } else {
+        // Neither end is a supply — treat "to" as load
+        loadId = c.toId;   loadType = c.toType;
+      }
       // Collect all fixtures reachable from the load end (full downstream subtree)
       const chainItems = collectDownstreamFixtures(loadId, loadType, cables, fixtureMap, infraMap, c.id);
       const load = calcCircuitLoad(chainItems, c.subtype, fixtureTypes);

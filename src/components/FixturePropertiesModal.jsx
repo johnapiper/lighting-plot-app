@@ -5,6 +5,7 @@
  * colour type, DMX modes (name + channel count), IP rating, notes, and more.
  */
 import React, { useState } from 'react';
+import { SYMBOL_CATALOGUE } from '../library/GdtfImporter';
 
 const COLOUR_TYPES = [
   'RGB', 'RGBW', 'RGBWW', 'RGBWA', 'CMY', 'Fixed White', 'Fixed Colour',
@@ -30,6 +31,11 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
     notes:           fixture.notes       || '',
     dmxModes:        fixture.dmxModes    ? JSON.parse(JSON.stringify(fixture.dmxModes))
                                          : [{ name: 'Default', channels: fixture.defaultChannelCount || 1 }],
+    // Symbol
+    symbolId:        fixture.symbolId    || 'Generic',
+    symbol:          fixture.symbol      || '',
+    symbolViewBox:   fixture.symbolViewBox || '-20 -22 40 44',
+    symbolColour:    fixture.symbolColour || '',
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -51,6 +57,8 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
   }
 
   function handleSave() {
+    // Resolve chosen symbol entry
+    const symEntry = SYMBOL_CATALOGUE.find(s => s.id === form.symbolId);
     const updated = {
       ...fixture,
       name:          form.name.trim()         || fixture.name,
@@ -66,6 +74,11 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
       notes:         form.notes.trim(),
       dmxModes:      form.dmxModes,
       defaultChannelCount: form.dmxModes[0]?.channels || 1,
+      // Symbol
+      symbolId:      form.symbolId,
+      symbol:        symEntry ? symEntry.symbol        : (form.symbol || fixture.symbol),
+      symbolViewBox: symEntry ? symEntry.symbolViewBox : (form.symbolViewBox || fixture.symbolViewBox),
+      symbolColour:  form.symbolColour || undefined,
     };
     // Strip undefined fields for clean storage
     Object.keys(updated).forEach(k => updated[k] === undefined && delete updated[k]);
@@ -141,6 +154,75 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
               <Field label="Lens">
                 <Input value={form.lensDesc} onChange={v => set('lensDesc', v)} placeholder="e.g. PC / Fresnel / Zoom 15–35°" />
               </Field>
+            </Section>
+
+            <Section title="Symbol">
+              {/* Symbol picker — grid of SVG thumbnails */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                {SYMBOL_CATALOGUE.map(s => {
+                  const active = form.symbolId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      title={s.label}
+                      onClick={() => set('symbolId', s.id)}
+                      style={{
+                        background: active ? '#0f3460' : '#0d1b2a',
+                        border: `1px solid ${active ? '#4a90d9' : '#1a3a5c'}`,
+                        borderRadius: 4, padding: 4, cursor: 'pointer',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                      }}
+                    >
+                      <svg
+                        viewBox={s.symbolViewBox} width="34" height="34"
+                        style={{ color: active ? '#4a90d9' : '#a0aec0', display: 'block' }}
+                      >
+                        <g dangerouslySetInnerHTML={{ __html: s.symbol }} />
+                      </svg>
+                      <span style={{ fontSize: 8, color: active ? '#4a90d9' : '#718096', whiteSpace: 'nowrap' }}>
+                        {s.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Symbol colour */}
+              <Field label="Symbol Colour">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="color"
+                    value={form.symbolColour || '#e0e0e0'}
+                    onChange={e => set('symbolColour', e.target.value)}
+                    style={{ width: 36, height: 28, padding: 2, background: 'none',
+                      border: '1px solid #1a3a5c', borderRadius: 3, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 11, color: '#a0aec0', flex: 1 }}>
+                    {form.symbolColour || 'Default (white)'}
+                  </span>
+                  {form.symbolColour && (
+                    <button
+                      onClick={() => set('symbolColour', '')}
+                      style={{ background: 'none', border: 'none', color: '#718096',
+                        cursor: 'pointer', fontSize: 11, padding: 0 }}
+                      title="Reset to default colour"
+                    >Reset</button>
+                  )}
+                </div>
+              </Field>
+              {/* Live preview */}
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 10, color: '#4a5568' }}>Preview:</span>
+                {(() => {
+                  const sym = SYMBOL_CATALOGUE.find(s => s.id === form.symbolId);
+                  return sym ? (
+                    <svg viewBox={sym.symbolViewBox} width="44" height="44"
+                      style={{ color: form.symbolColour || '#e0e0e0', background: '#0d1b2a',
+                        borderRadius: 4, border: '1px solid #1a3a5c' }}>
+                      <g dangerouslySetInnerHTML={{ __html: sym.symbol }} />
+                    </svg>
+                  ) : null;
+                })()}
+              </div>
             </Section>
 
             <Section title="DMX Modes">

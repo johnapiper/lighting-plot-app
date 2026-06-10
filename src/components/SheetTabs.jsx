@@ -20,7 +20,11 @@ export default function SheetTabs({ sheets, activeSheetId, onSwitch, onAdd, onRe
   function openCtx(e, sheet) {
     e.preventDefault();
     e.stopPropagation();
-    setCtxMenu({ x: e.clientX, y: e.clientY, sheet });
+    // Menu is ~110px tall, ~160px wide — flip up/left if it would overflow
+    const menuH = 115, menuW = 160;
+    const x = e.clientX + menuW > window.innerWidth  ? e.clientX - menuW : e.clientX;
+    const y = e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY;
+    setCtxMenu({ x, y, sheet });
   }
 
   // Close context menu on outside click

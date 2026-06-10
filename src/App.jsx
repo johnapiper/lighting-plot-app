@@ -602,6 +602,7 @@ export default function App() {
               onZoomChange={setZoom} onPanChange={setPan}
               pipeSnap={pipeSnap}
               onToolDone={() => setActiveTool('select')}
+              onToolChange={t => { setActiveTool(t); setPendingFixture(null); }}
               dragTargetLayerRef={dragTargetLayerRef}
               activeLayerId={activeLayerId}
               animating={animating}

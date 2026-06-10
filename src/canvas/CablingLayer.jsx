@@ -119,9 +119,16 @@ export default function CablingLayer({
       const fromIsSupply = cable.fromType === 'infra' && supplyTypes.includes(fromObj?.type);
       const toIsSupply   = cable.toType   === 'infra' && supplyTypes.includes(toObj?.type);
       let loadId, loadType;
-      if (fromIsSupply && !toIsSupply) { loadId = cable.toId;   loadType = cable.toType; }
-      else if (toIsSupply)             { loadId = cable.fromId; loadType = cable.fromType; }
-      else                             { loadId = cable.toId;   loadType = cable.toType; }
+      if (fromIsSupply && !toIsSupply) {
+        loadId = cable.toId;   loadType = cable.toType;
+      } else if (!fromIsSupply && toIsSupply) {
+        loadId = cable.fromId; loadType = cable.fromType;
+      } else if (fromIsSupply && toIsSupply) {
+        // Supply→Supply (PDU feeds PDU): downstream distro ("to") is the load end
+        loadId = cable.toId;   loadType = cable.toType;
+      } else {
+        loadId = cable.toId;   loadType = cable.toType;
+      }
       const chainFixtures = collectDownstream(loadId, loadType, cables, fixtureMap, infraMap, cable.id);
       const load = calcCircuitLoad(chainFixtures, cable.subtype, fixtureTypes);
       overloaded = load.overloaded;
