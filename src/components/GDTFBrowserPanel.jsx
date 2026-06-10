@@ -12,6 +12,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { parseGdtf } from '../library/GdtfImporter';
 
+const { ipcRenderer } = require('electron');
+
 // Node modules available because nodeIntegration:true
 const https  = window.require('https');
 const HOST   = 'gdtf-share.com';
@@ -106,8 +108,25 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
   const [preview,   setPreview]   = useState(null);
   const [prevBusy,  setPrevBusy]  = useState(null); // rid being previewed
 
-  // Reset cookie jar when panel mounts (fresh session each open)
-  useEffect(() => { cookieJar = ''; }, []);
+  // Reset cookie jar and load saved credentials on mount
+  useEffect(() => {
+    cookieJar = '';
+    ipcRenderer.invoke('gdtf-load-credentials').then(({ email: e, password: p }) => {
+      if (e) setEmail(e);
+      if (p) setPassword(p);
+      if (e && p) {
+        // Auto-login with saved credentials
+        setLoginBusy(true);
+        httpsPost('/apis/public/login.php', { user: e, password: p })
+          .then(({ status, body }) => {
+            const data = parseJSON(body);
+            if (data && data.result) { setLoggedIn(true); fetchList(); }
+            else setLoginBusy(false);
+          })
+          .catch(() => setLoginBusy(false));
+      }
+    });
+  }, []);
 
   // ── Login ──────────────────────────────────────────────────────────────────
   async function handleLogin(e) {
@@ -119,6 +138,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
       const data = parseJSON(body);
       if (!data) throw new Error(`Unexpected server response (HTTP ${status})`);
       if (!data.result) throw new Error(data.error || data.notice || `Login failed (${status})`);
+      ipcRenderer.invoke('gdtf-save-credentials', { email, password });
       setLoggedIn(true);
       fetchList();
     } catch (err) {
@@ -217,6 +237,9 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
   // ── Sign out ───────────────────────────────────────────────────────────────
   function handleSignOut() {
     cookieJar = '';
+    ipcRenderer.invoke('gdtf-clear-credentials');
+    setEmail('');
+    setPassword('');
     setLoggedIn(false);
     setAllRows(null);
     setQuery('');

@@ -15,6 +15,8 @@ import AppSettingsModal from './components/AppSettingsModal';
 import CableReport from './components/CableReport';
 import EOSImport from './components/EOSImport';
 import InfraInspector, { CableInspector } from './components/InfraInspector';
+import LicenseGate, { useLicense } from './components/LicenseGate';
+import LicenseManager from './components/LicenseManager';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
@@ -85,7 +87,15 @@ function setGroupIdInDrawing(d, ids, groupId) {
   });
 }
 
-export default function App() {
+export default function AppWithLicense() {
+  return (
+    <LicenseGate>
+      <App />
+    </LicenseGate>
+  );
+}
+
+function App() {
   const { project, commit, softUpdate, undo, redo, loadProject, resetProject } = useProjectStore();
 
   const [activeTool, setActiveTool]     = useState('select');
@@ -105,7 +115,9 @@ export default function App() {
   const [showAppSettings, setShowAppSettings]       = useState(false);
   const [showCableReport, setShowCableReport]       = useState(false);
   const [showEOSImport, setShowEOSImport]           = useState(false);
+  const [showLicenseManager, setShowLicenseManager] = useState(false);
   const [animating, setAnimating]                   = useState(true);
+  const license = useLicense();
   const [currentFile, setCurrentFile]   = useState(null);
   const [dirty, setDirty]               = useState(false);
   const [updateBanner, setUpdateBanner] = useState(null); // { version, url }
@@ -147,6 +159,8 @@ export default function App() {
     if (!ipcRenderer) return;
     const handlers = {
       'menu-app-settings': () => setShowAppSettings(true),
+      'menu-license-manager': () => license?.license?.rights === 'developer' && setShowLicenseManager(true),
+      'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
       'menu-new':    () => { resetProject(); setCurrentFile(null); setDirty(false); clearSelection(); },
       'menu-save':   handleSave,
       'save-file-as': (e, fp) => saveToFile(fp),
@@ -728,6 +742,9 @@ export default function App() {
       )}
       {showAppSettings && (
         <AppSettingsModal onClose={() => setShowAppSettings(false)} />
+      )}
+      {showLicenseManager && license?.license?.rights === 'developer' && (
+        <LicenseManager onClose={() => setShowLicenseManager(false)} />
       )}
       {showEOSImport && (
         <EOSImport

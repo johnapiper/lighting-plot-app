@@ -1,0 +1,16 @@
+{
+  "_comment": "Lighting Plot App — License Database. Managed via the in-app License Manager (developer rights required).",
+  "licenses": [
+    {
+      "key": "LPLOT-DEV0-0000-0000-0001",
+      "keyHash": "d0ad1cd044334b846b59b30dd5102644d7436fa3ee4084966233e674ca7b0891",
+      "name": "Developer Account",
+      "email": "dev@lightingplot.app",
+      "rights": "developer",
+      "expiresAt": "2099-12-31",
+      "createdAt": "2026-06-10",
+      "active": true,
+      "notes": "Master developer key"
+    }
+  ]
+}

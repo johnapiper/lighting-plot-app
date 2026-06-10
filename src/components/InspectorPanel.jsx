@@ -137,6 +137,8 @@ export default function InspectorPanel({
         <Field label="Gobo" value={f.gobo} onChange={v => onUpdateFixture(f.id, { gobo: v })} />
         <Field label="Purpose" value={f.purpose} onChange={v => onUpdateFixture(f.id, { purpose: v })} />
         <Field label="Rotation°" value={f.rotation ?? 0} type="number" onChange={v => onUpdateFixture(f.id, { rotation: Number(v) })} />
+        <Field label="Tilt°" value={f.tiltAngle ?? 0} type="number" onChange={v => onUpdateFixture(f.id, { tiltAngle: Math.max(-89, Math.min(89, Number(v))) })}
+          title="Degrees from vertical (0 = straight down). Affects beam footprint on plan." />
         <Field label="Scale" value={(f.scale || 1).toFixed(2)} type="number" onChange={v => onUpdateFixture(f.id, { scale: Math.max(0.1, Number(v)) })} />
         <LayerField layerId={f.layerId} layers={layers} onChange={layerId => onUpdateFixture(f.id, { layerId })} />
         {/* Symbol override */}

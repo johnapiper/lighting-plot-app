@@ -72,6 +72,13 @@ export default function Canvas({
   const [calibDist, setCalibDist] = useState('');
   const [calibUnit, setCalibUnit] = useState('m');
 
+  // Fixture scale handle: null = hidden; { id, scope } = active
+  // scope: 'one' | 'type' | 'all'
+  const [scaleMode, setScaleMode] = useState(null);
+
+  // Beam footprint visibility
+  const [showBeams, setShowBeams] = useState(true);
+
   // Extract objects from active drawing
   const pipes = drawing?.pipes || [];
   const fixtures = drawing?.fixtures || [];
@@ -314,10 +321,17 @@ export default function Canvas({
       const dist = distance(world.x, world.y, dg.centerX, dg.centerY);
       const origDist = distance(dg.startX, dg.startY, dg.centerX, dg.centerY);
       const factor = origDist > 1 ? dist / origDist : 1;
-      const newScale = Math.max(0.05, dg.origScale * factor); // no upper limit
+      const newScale = Math.max(0.05, dg.origScale * factor);
       softUpdateDrawing(d => {
-        const f = d.fixtures.find(f => f.id === dg.id);
-        if (f) f.scale = newScale;
+        const scope = scaleMode?.scope || 'one';
+        const anchor = d.fixtures.find(f => f.id === dg.id);
+        if (anchor) {
+          d.fixtures.forEach(f => {
+            if (scope === 'all') f.scale = newScale;
+            else if (scope === 'type' && f.fixtureTypeId === anchor.fixtureTypeId) f.scale = newScale;
+            else if (f.id === dg.id) f.scale = newScale;
+          });
+        }
         const t = d.texts.find(t => t.id === dg.id);
         if (t) t.fontSize = Math.max(2, Math.round((dg.origScale || 14) * factor));
       });
@@ -838,9 +852,8 @@ export default function Canvas({
       if (e.key === 'Escape') {
         setDrawingState(null); setFocusModeId(null); setFocusCursor(null);
         setCalibState(null); setCableFrom(null); setCableGhost(null);
-        setPipePlaceAngle(null);
+        setPipePlaceAngle(null); setScaleMode(null);
         onSelect(null); onMultiSelect([]);
-        // Return to select tool so cable/draw tools don't stay active
         onToolChange?.('select');
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') deleteSelected();
@@ -989,6 +1002,57 @@ export default function Canvas({
     });
     if (newIds.length === 1) onSelect({ id: newIds[0] });
     else if (newIds.length > 1) onMultiSelect(newIds);
+  }
+
+  // Distribute fixtures evenly along a pipe/truss
+  function distributeOnPipe(pipeId) {
+    const pipe = pipes.find(p => p.id === pipeId);
+    if (!pipe) return;
+    const onPipe = fixtures.filter(f => f.pipeId === pipeId);
+    if (onPipe.length < 2) return;
+    const dx = pipe.x2 - pipe.x1, dy = pipe.y2 - pipe.y1;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len < 1) return;
+    const ux = dx/len, uy = dy/len;
+    // project each fixture onto pipe axis, sort by position
+    const withT = onPipe.map(f => {
+      const t = (f.x - pipe.x1)*ux + (f.y - pipe.y1)*uy;
+      return { f, t };
+    }).sort((a,b) => a.t - b.t);
+    const tMin = withT[0].t, tMax = withT[withT.length-1].t;
+    const step = (tMax - tMin) / (withT.length - 1);
+    commitToDrawing(d => {
+      withT.forEach(({ f: orig }, i) => {
+        const fix = d.fixtures.find(fx => fx.id === orig.id);
+        if (!fix) return;
+        const t = tMin + i * step;
+        const perp = (orig.x - pipe.x1)*(-uy) + (orig.y - pipe.y1)*ux; // preserve offset from pipe
+        fix.x = pipe.x1 + t*ux + perp*(-uy);
+        fix.y = pipe.y1 + t*uy + perp*ux;
+      });
+    });
+  }
+
+  // Distribute selected fixtures evenly between their own bounding-box endpoints
+  function distributeSelected() {
+    const ids = selectedIds?.length ? selectedIds : selectedId ? [selectedId] : [];
+    const sel = fixtures.filter(f => ids.includes(f.id));
+    if (sel.length < 3) return; // need at least 3 to have anything to distribute
+    // Determine primary axis: wider spread = that axis
+    const xs = sel.map(f => f.x), ys = sel.map(f => f.y);
+    const spanX = Math.max(...xs) - Math.min(...xs);
+    const spanY = Math.max(...ys) - Math.min(...ys);
+    const axis = spanX >= spanY ? 'x' : 'y';
+    const sorted = [...sel].sort((a,b) => a[axis] - b[axis]);
+    const vMin = sorted[0][axis], vMax = sorted[sorted.length-1][axis];
+    const step = (vMax - vMin) / (sorted.length - 1);
+    commitToDrawing(d => {
+      sorted.forEach((orig, i) => {
+        const fix = d.fixtures.find(fx => fx.id === orig.id);
+        if (!fix) return;
+        fix[axis] = vMin + i * step;
+      });
+    });
   }
 
   function deleteSelected() {
@@ -1158,12 +1222,15 @@ export default function Canvas({
         {/* Annotation resize handle */}
         {kind === 'annotation' && cornerHandle(x+w, y+h, 'br', 'se-resize')}
 
-        {/* Fixture scale handle */}
-        {kind === 'fixture' && (<>
-          <circle cx={x+w} cy={y+h} r={hr}
+        {/* Fixture scale handle — only visible when scale mode active for this fixture */}
+        {kind === 'fixture' && scaleMode?.id === obj.id && (<>
+          <circle cx={x+w} cy={y+h} r={hr*1.3}
             fill="#7b61ff" stroke="white" strokeWidth={1/zoom}
             style={{ cursor: 'se-resize' }}
             onMouseDown={e => startHandleDrag(e, 'scale', 'fixture', obj, cx, cy)} />
+          <text x={x+w+hr*2} y={y+h+hr} fontSize={8/zoom} fill="#7b61ff" style={{ userSelect: 'none', pointerEvents: 'none' }}>
+            {scaleMode.scope === 'all' ? 'ALL' : scaleMode.scope === 'type' ? 'TYPE' : '1'}
+          </text>
         </>)}
 
         {/* Text scale handle */}
@@ -1293,8 +1360,62 @@ export default function Canvas({
         {fixtures.filter(o => getLayerId(o,'fixture') === layerId).map(f => {
           const ftype = ftypes[f.fixtureTypeId];
           const sel = allSelected.has(f.id);
+
+          // ── Beam footprint ─────────────────────────────────────────────
+          // The fixture hangs at rigHeight mm above the floor. tiltAngle (0=straight down,
+          // positive = tilting toward the front of the symbol) controls the horizontal throw.
+          // We project the cone edge onto the floor plan.
+          const beamEl = (() => {
+            if (!showBeams) return null;
+            const halfBeamDeg = (ftype?.beamAngle || 0) / 2;
+            if (halfBeamDeg <= 0) return null;
+            const tilt = f.tiltAngle ?? 0;         // degrees from vertical (0 = straight down)
+            const h = rigHeight || 5500;             // mm from floor
+            const halfBeamRad = halfBeamDeg * Math.PI / 180;
+            const tiltRad = tilt * Math.PI / 180;
+            // Centre of cone projected on floor (tilt pushes centre forward)
+            const centreDist = h * Math.tan(tiltRad);
+            // Near and far edge distances along the tilt axis
+            const nearDist = h * Math.tan(Math.max(0, tiltRad - halfBeamRad));
+            const farDist  = h * Math.tan(tiltRad + halfBeamRad);
+            // Width of the ellipse at the mid-throw distance
+            const midDist  = (nearDist + farDist) / 2;
+            const beamW    = h / Math.cos(tiltRad) * Math.tan(halfBeamRad) * 2; // cone width (approx)
+            // Rotation: fixture rotation + 180 (symbol points up, beam shoots "below" the fixture)
+            const rotRad = ((f.rotation || 0) + 180) * Math.PI / 180;
+            const cx = centreDist * Math.sin(rotRad);
+            const cy = centreDist * Math.cos(rotRad);
+            // Scale: 1 world unit = 1 mm if the project uses mm (typical for lighting CAD)
+            const scale = 1;
+            const rX = beamW / 2 * scale;
+            const rY = (farDist - nearDist) / 2 * scale;
+            const colour = f.colourHex || '#ffee88';
+            return (
+              <g style={{ pointerEvents: 'none' }}>
+                {/* Cone lines */}
+                <line x1={0} y1={0}
+                  x2={cx + (beamW/2)*Math.cos(rotRad)*scale}
+                  y2={cy - (beamW/2)*Math.sin(rotRad)*scale}
+                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.5} strokeDasharray={`${4/zoom} ${3/zoom}`} />
+                <line x1={0} y1={0}
+                  x2={cx - (beamW/2)*Math.cos(rotRad)*scale}
+                  y2={cy + (beamW/2)*Math.sin(rotRad)*scale}
+                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.5} strokeDasharray={`${4/zoom} ${3/zoom}`} />
+                {/* Footprint ellipse */}
+                <ellipse
+                  cx={cx} cy={cy}
+                  rx={rX} ry={rY}
+                  transform={`rotate(${f.rotation||0} ${cx} ${cy})`}
+                  fill={colour} fillOpacity={0.07}
+                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.4}
+                />
+              </g>
+            );
+          })();
+
           return (
             <g key={f.id} transform={`translate(${f.x},${f.y})`} style={{ cursor: f.locked ? 'not-allowed' : 'pointer', opacity: f.locked ? 0.6 : 1 }}>
+              {beamEl}
               <g transform={`scale(${1/zoom})`}>
                 <FixtureSymbol fixtureType={ftype} unit={f.channel?.trim() ? `Ch.${f.channel.trim()}` : (f.unit?.trim()||null)} channel={null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} symbolOverride={f.symbolOverride||null} symbolColor={f.symbolColor||null} />
               </g>
@@ -1725,12 +1846,51 @@ export default function Canvas({
       {contextMenu && (
         <div style={{ position: 'fixed', left: contextMenu.sx, top: contextMenu.sy, background: '#16213e', border: '1px solid #0f3460', borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.6)', zIndex: 999, minWidth: 170 }}
           onMouseLeave={() => setContextMenu(null)}>
-          {contextMenu.hit.kind === 'fixture' && (
+          {contextMenu.hit.kind === 'fixture' && (<>
             <div style={ctxStyle.item} onClick={() => {
               setFocusModeId(contextMenu.hit.id);
               onSelect(contextMenu.hit);
               setContextMenu(null);
             }}>🎯 Set Focus Direction…</div>
+            <div style={ctxStyle.sep}>Scale Fixture</div>
+            {[
+              { scope: 'one',  label: 'Scale This Fixture' },
+              { scope: 'type', label: 'Scale All of Same Type' },
+              { scope: 'all',  label: 'Scale All Fixtures' },
+            ].map(({ scope, label }) => (
+              <div key={scope} style={{ ...ctxStyle.item, paddingLeft: 20, color: scaleMode?.id === contextMenu.hit.id && scaleMode?.scope === scope ? '#7b61ff' : '#e0e0e0' }}
+                onClick={() => {
+                  setScaleMode({ id: contextMenu.hit.id, scope });
+                  onSelect(contextMenu.hit);
+                  setContextMenu(null);
+                }}>{label}</div>
+            ))}
+            {(() => {
+              const onPipeFixes = fixtures.filter(f => f.pipeId === contextMenu.hit.pipeId && contextMenu.hit.pipeId);
+              const pipeObj = pipes.find(p => p.id === contextMenu.hit.pipeId);
+              return onPipeFixes.length >= 2 && pipeObj ? (
+                <div style={{ ...ctxStyle.item }} onClick={() => {
+                  distributeOnPipe(contextMenu.hit.pipeId);
+                  setContextMenu(null);
+                }}>↔ Distribute on {pipeObj.name || 'Pipe'}</div>
+              ) : null;
+            })()}
+            {(selectedIds?.length >= 3 && selectedIds.includes(contextMenu.hit.id)) && (
+              <div style={ctxStyle.item} onClick={() => {
+                distributeSelected();
+                setContextMenu(null);
+              }}>↔ Distribute Selected Evenly</div>
+            )}
+            <div style={ctxStyle.item} onClick={() => {
+              setShowBeams(v => !v);
+              setContextMenu(null);
+            }}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</div>
+          </>)}
+          {contextMenu.hit.kind === 'pipe' && (
+            <div style={ctxStyle.item} onClick={() => {
+              distributeOnPipe(contextMenu.hit.id);
+              setContextMenu(null);
+            }}>↔ Distribute Fixtures Evenly</div>
           )}
           <div style={ctxStyle.item} onClick={() => {
             toggleLock(contextMenu.hit.id, contextMenu.hit.kind);
