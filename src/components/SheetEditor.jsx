@@ -37,12 +37,15 @@ function layerVisible(obj, kind, layers) {
   return layer ? layer.visible !== false : true;
 }
 
-function CadContent({ drawing, fixtureTypes, layers }) {
+function CadContent({ drawing, fixtureTypes, layers, worldScale = 1 }) {
   if (!drawing) return null;
   const { pipes=[], fixtures=[], lines=[], rectangles=[], texts=[], images=[], pdfBackground } = drawing;
   const ftypes = {};
   fixtureTypes.forEach(f => { ftypes[f.id] = f; });
   const vis = (obj, kind) => layerVisible(obj, kind, layers);
+  // Symbols are designed for ~30px; counter-scale so they appear readable in the viewport
+  // regardless of drawing scale. worldScale = ps / renderScale (screen pixels per world unit).
+  const symBase = worldScale > 0 ? 1 / worldScale : 1;
   return (
     <g>
       {pdfBackground && layerVisible({layerId:'layer-bg'}, 'image', layers) && (
@@ -69,23 +72,34 @@ function CadContent({ drawing, fixtureTypes, layers }) {
             stroke="#c0a030" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
           <line x1={p.x1} y1={p.y1-5} x2={p.x1} y2={p.y1+5} stroke="#c0a030" strokeWidth={1} vectorEffect="non-scaling-stroke" />
           <line x1={p.x2} y1={p.y2-5} x2={p.x2} y2={p.y2+5} stroke="#c0a030" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-          <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2-8} textAnchor="middle" fontSize={10} fill="#c0a030">{p.name}</text>
+          <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2-8*symBase} textAnchor="middle"
+            fontSize={10*symBase} fill="#c0a030">{p.name}</text>
         </g>
       ))}
       {fixtures.filter(f => vis(f, 'fixture')).map(f => {
         const ftype = ftypes[f.fixtureTypeId];
         if (!ftype) return null;
-        const s = f.scale || 1;
-        // Use per-fixture symbol override if set, else type default
-        const sym = f.symbolOverride || ftype.symbol;
-        const symColor = f.symbolColor || f.colourHex || '#222';
+        // Each fixture symbol is counter-scaled so it appears at ~30 screen pixels
+        // regardless of the viewport's drawing scale.
+        const symScale = symBase * (f.scale || 1);
+        const unitLabel = f.channel?.trim()
+          ? `Ch.${f.channel.trim()}`
+          : (f.unit?.trim() || null);
         return (
           <g key={f.id} transform={`translate(${f.x},${f.y})`}>
-            <g transform={`rotate(${f.rotation||0}) scale(${s})`}
-              style={{ color: symColor, stroke: 'currentColor', strokeWidth: 1.5, fill: 'none' }}
-              dangerouslySetInnerHTML={{ __html: sym }} />
-            {f.colourHex && <circle cx={0} cy={-14*s} r={4*s} fill={f.colourHex} />}
-            {f.unit?.trim() && <text x={0} y={20*s} textAnchor="middle" fontSize={10} fill="#333">{f.unit}</text>}
+            <g transform={`scale(${symScale})`}>
+              <FixtureSymbol
+                fixtureType={ftype}
+                unit={unitLabel}
+                channel={null}
+                selected={false}
+                rotation={f.rotation || 0}
+                scale={1}
+                colourHex={f.colourHex || null}
+                symbolOverride={f.symbolOverride || null}
+                symbolColor={f.symbolColor || '#222'}
+              />
+            </g>
           </g>
         );
       })}
