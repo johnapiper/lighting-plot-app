@@ -231,7 +231,7 @@ function App() {
         const canEdit = license?.hasFeature('cad_edit');
         if (k === 'v') setActiveTool('select');
         if (canEdit && k === 'l') setActiveTool('line');
-        if (canEdit && k === 'r') setActiveTool('rect');
+        if (canEdit && k === 'e') setActiveTool('rect');
         if (canEdit && k === 'p') setActiveTool('pipe');
         if (canEdit && k === 't') setActiveTool('text');
         if (canEdit && k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
