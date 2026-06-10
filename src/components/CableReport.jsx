@@ -81,8 +81,9 @@ function buildRows(drawing, pipes, rigHeight, gridHeight = 6000, fixtureTypes = 
       // Look up current type name from fixtureTypes (may have changed since fixture was placed)
       const ftype = fixtureTypes.find(t => t.id === f.fixtureTypeId);
       const typeName = ftype?.name || f.type || 'Fixture';
-      const num = f.channel || f.unit || '—';
-      return `${typeName} #${num}`;
+      return f.channel
+        ? `Ch.${f.channel} (${typeName})`
+        : `${typeName} #${f.unit || '—'}`;
     }
     if (type === 'infra') {
       const i = infraMap[id];
