@@ -11,6 +11,17 @@
       "createdAt": "2026-06-10",
       "active": true,
       "notes": "Master developer key"
+    },
+    {
+      "key": "LPLOT-2F2A-A1C2-95FC-A2A5",
+      "keyHash": "1d596e85a71fa1f85cab3ed55c42a6076444a8359603016a5eb60b0af6e92ddf",
+      "name": "John Piper",
+      "email": "john@jplighting.net",
+      "rights": "developer",
+      "expiresAt": "2027-06-10",
+      "createdAt": "2026-06-10",
+      "active": true,
+      "notes": "Super Admin"
     }
   ]
 }
