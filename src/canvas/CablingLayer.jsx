@@ -155,10 +155,13 @@ export default function CablingLayer({
         ))}
       </defs>
 
-      {routedCables.map(({ cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, color, pathId, pointsStr, pathD, animPathD }) => {
+      {routedCables.map(({ cable, waypoints, dropPoints, lengthMm, isHighlighted, overloaded, utilizationPct, color, pathId, pointsStr, pathD, animPathD }) => {
         const alpha = isHighlighted ? 1 : 0.65;
         const sw1   = isHighlighted ? 3.5 / zoom : 2 / zoom;
         const strokeColor = overloaded ? '#ef4444' : color;
+        const dashArray = cable.cableType === 'dmx'     ? `${4/zoom} ${2/zoom}` :
+                          cable.cableType === 'network' ? `${6/zoom} ${2/zoom} ${1/zoom} ${2/zoom}` :
+                          'none';
 
         return (
           <g key={cable.id} style={{ cursor: 'pointer' }}
@@ -173,6 +176,17 @@ export default function CablingLayer({
               style={{ pointerEvents: 'stroke' }}
             />
 
+            {/* Dark halo behind cable for contrast over pipes/truss */}
+            <polyline
+              points={pointsStr}
+              fill="none"
+              stroke="rgba(0,0,0,0.55)"
+              strokeWidth={(sw1 + 2.5 / zoom)}
+              strokeOpacity={alpha * 0.9}
+              style={{ pointerEvents: 'none' }}
+              strokeDasharray={dashArray}
+            />
+
             {/* Cable line */}
             <polyline
               points={pointsStr}
@@ -181,11 +195,7 @@ export default function CablingLayer({
               strokeWidth={sw1}
               strokeOpacity={alpha}
               style={{ pointerEvents: 'none' }}
-              strokeDasharray={
-                cable.cableType === 'dmx'     ? `${4/zoom} ${2/zoom}` :
-                cable.cableType === 'network' ? `${6/zoom} ${2/zoom} ${1/zoom} ${2/zoom}` :
-                'none'
-              }
+              strokeDasharray={dashArray}
             />
 
             {/* Overload warning flash */}
