@@ -1,6 +1,6 @@
 {
   "name": "lighting-plot-app",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -33,7 +33,12 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "Lighting-Plot-Setup.exe"
     },
@@ -46,8 +51,18 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["universal"] },
-        { "target": "zip", "arch": ["universal"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
       "artifactName": "Lighting-Plot.${ext}",
       "category": "public.app-category.graphics-design",
@@ -59,10 +74,22 @@
     "dmg": {
       "title": "Lighting Plot ${version}",
       "contents": [
-        { "x": 130, "y": 220, "type": "file" },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
       ],
-      "window": { "width": 540, "height": 380 }
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "linux": {
       "target": "AppImage",
