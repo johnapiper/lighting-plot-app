@@ -735,14 +735,14 @@ export default function SheetEditor({
                       {editingAnnotId===a.id?'':a.label}
                     </text>
                   </g>
-                  {sel && <>
+                  {sel && <g data-print-hide="true">
                     <rect x={(a.x+aw)*ps-4} y={(a.y+ah2)*ps-4} width={7} height={7}
                       fill="#ffd032" stroke="white" strokeWidth={0.5} style={{cursor:'se-resize'}}
                       onMouseDown={e=>startResizeDrag(e,a,'annot-resize')} />
                     <circle cx={arrowX} cy={arrowY} r={5}
                       fill="rgba(255,208,50,0.5)" stroke="#ffd032" strokeWidth={1}
                       style={{cursor:'crosshair'}} onMouseDown={e=>startArrowDrag(e,a)} />
-                  </>}
+                  </g>}
                 </g>
               );
             })}
