@@ -267,12 +267,14 @@ function OrderLengthSettings({ orderLengths, onChange, onClose }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fixtureTypes = [], onClose }) {
+export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fixtureTypes = [], onClose, onUpdateCable }) {
   const [filterType, setFilterType]   = useState('all');
   const [marginOverrides, setMarginOverrides] = useState({});
   const [globalMargin, setGlobalMargin] = useState(DEFAULT_MARGIN_PCT);
   const [orderLengths, setOrderLengths] = useState(DEFAULT_ORDER_LENGTHS);
   const [showSettings, setShowSettings] = useState(false);
+  // Pending cable subtype edits: { [cableId]: { cableType, subtype } }
+  const [pendingSubtype, setPendingSubtype] = useState({});
 
   const rows = buildRows(drawing, pipes, rigHeight, gridHeight || 6000, fixtureTypes, {}, orderLengths);
   const filtered = filterType === 'all' ? rows : rows.filter(r => r.cableType === filterType);
