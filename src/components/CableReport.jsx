@@ -443,6 +443,38 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                         </td>
                       );
                     }
+                    if (c.key === 'subtype' && subtypeOptions.length > 0 && onUpdateCable) {
+                      const currentKey = Object.entries(CABLE_TYPES).find(([,v]) => v.label === r.subtype)?.[0] || '';
+                      const selKey = pending ? pending.subtype : currentKey;
+                      const hasPending = !!pending;
+                      return (
+                        <td key={c.key} style={{ ...sty.td, padding: '2px 6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <select
+                              value={selKey}
+                              style={{ ...sty.sel, fontSize: 11, padding: '2px 4px', flex: 1, minWidth: 0 }}
+                              onChange={e => {
+                                const newKey = e.target.value;
+                                const newCat = CABLE_TYPES[newKey]?.category || r.cableType;
+                                setPendingSubtype(p => ({ ...p, [r.id]: { cableType: newCat, subtype: newKey } }));
+                              }}
+                            >
+                              {subtypeOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                            {hasPending && (
+                              <button
+                                title="Confirm change"
+                                onClick={commitSubtypeChange}
+                                style={{ background: '#064e3b', border: '1px solid #34d399', borderRadius: 3,
+                                  color: '#34d399', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                                  padding: '1px 6px', lineHeight: 1.2, flexShrink: 0 }}>
+                                ✓
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    }
                     return (
                       <td key={c.key} style={{
                         ...sty.td,
@@ -455,7 +487,8 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
