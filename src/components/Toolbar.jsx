@@ -36,6 +36,7 @@ export default function Toolbar({
   activeMode, onSetMode,
   animating, onToggleAnimation,
   onShowCableReport,
+  onShowEOSImport,
   onStudioSettings,
   onAppSettings,
 }) {
