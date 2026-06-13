@@ -322,7 +322,7 @@ export default function LicenseManager({ onClose }) {
                     </tr>
                     {editingLicense === l.key && (
                       <tr>
-                        <td colSpan={5} style={{ ...S.td, background: '#0d1b2a', padding: 16 }}>
+                        <td colSpan={6} style={{ ...S.td, background: '#0d1b2a', padding: 16 }}>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                             <LabelField label="Name">
                               <input style={S.inp} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
