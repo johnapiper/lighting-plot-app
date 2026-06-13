@@ -694,6 +694,9 @@ function App() {
               animating={animating}
               activeMode={activeMode}
               fitRef={fitViewRef}
+              dmxConflicts={[...dmxConflicts]}
+              onSwapFixture={ids => setSwapFixtureIds(ids)}
+              onDuplicateAlongPath={handleDuplicateAlongPath}
             />
             {license?.hasFeature('multi_drawing') && (
               <DrawingTabs
