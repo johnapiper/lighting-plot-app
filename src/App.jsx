@@ -198,10 +198,12 @@ function App() {
       'menu-save':   handleSave,
       'save-file-as': (e, fp) => saveToFile(fp),
       'load-file':   (e, { filePath, data }) => {
+        if (blockIfTrial()) return;
         try { loadProject(JSON.parse(data)); setCurrentFile(filePath); setDirty(false); clearSelection(); }
         catch (err) { alert('Failed to load: ' + err.message); }
       },
       'open-recent': async (e, fp) => {
+        if (blockIfTrial()) return;
         try {
           if (fp.toLowerCase().endsWith('.mvr')) {
             const buf = require('fs').readFileSync(fp);
