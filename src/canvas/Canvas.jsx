@@ -1361,13 +1361,7 @@ export default function Canvas({
           const dlen = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
           const nx = -ddy/dlen, ny = ddx/dlen;
           const tick = 8/zoom;
-          const calib = drawing?.calibration;
-          let dlbl;
-          if (calib) {
-            const cf = calib.realDist*(calib.unit==='m'?1000:calib.unit==='cm'?10:calib.unit==='ft'?304.8:calib.unit==='in'?25.4:1);
-            const dmm = dlen*cf/calib.worldDist;
-            dlbl = dmm>=1000?`${(dmm/1000).toFixed(2)}m`:`${Math.round(dmm)}mm`;
-          } else { dlbl = `${Math.round(dlen)}u`; }
+          const dlbl = formatLength(dlen, meta?.units || 'mm');
           const stroke = sel ? '#00aaff' : '#a0c0e0';
           return (
             <g key={d.id} style={{ cursor: 'pointer' }} onClick={() => onSelect({ kind: 'dimension', ...d })}>
