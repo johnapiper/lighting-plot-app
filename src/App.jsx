@@ -29,6 +29,7 @@ import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
 import { findDmxConflicts } from './components/PatchPanel';
+import { compareVersions } from './license/licenseService';
 import fixtureTypesData from '../data/fixtures.json';
 import { generateId } from './canvas/geometry';
 import { exportMVR } from './mvr/mvrExport';
