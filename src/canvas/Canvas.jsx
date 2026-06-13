@@ -1826,6 +1826,7 @@ export default function Canvas({
         {renderRulers(3000, 1500)}
         {cursorPos && !focusModeId && !calibState && <text x={ro+8} y={28} fontSize={9} fill="#4a6080">{cursorPos.x}, {cursorPos.y}</text>}
         {focusModeId && <text x={ro+8} y={28} fontSize={10} fill="#ffaa00">Click to set focus direction — Esc to cancel</text>}
+        {activeTool === 'dimension' && <text x={ro+8} y={28} fontSize={10} fill="#a0c0ff">{drawingState?.kind==='dimension' ? '⟷ Click to finish dimension line' : '⟷ Click first point of dimension — Esc to cancel'}</text>}
         {activeTool === 'calibrate' && !calibState && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click first calibration point — Esc to cancel</text>}
         {activeTool === 'calibrate' && calibState?.p1 && !calibState?.p2 && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click second calibration point</text>}
         {(activeTool === 'pipe' || activeTool === 'truss') && drawingRef.current && (
