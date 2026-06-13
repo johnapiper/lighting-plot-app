@@ -724,7 +724,7 @@ function App() {
               activeMode={activeMode}
               fitRef={fitViewRef}
               dmxConflicts={[...dmxConflicts]}
-              onSwapFixture={ids => setSwapFixtureIds(ids)}
+              onSwapFixture={license?.hasFeature('fixture_swap') ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
             />
             {license?.hasFeature('multi_drawing') && (
