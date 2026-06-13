@@ -518,7 +518,7 @@ function App() {
   // ── CAD Plots (called "Drawings" internally in store, "Plots" in UI) ────────
   function handleAddDrawing() {
     const d = makeDrawing(generateId(), `Plot ${(project.drawings?.length||0)+1}`);
-    commit(proj => { proj.drawings.push(d); proj.activeDrawingId = d.id; return proj; });
+    commit(proj => { proj.drawings.push(d); proj.activeDrawingId = d.id; return proj; }, 'Add plot');
     clearSelection();
   }
   function handleSwitchDrawing(id) { commit(proj => { proj.activeDrawingId = id; return proj; }); clearSelection(); }
