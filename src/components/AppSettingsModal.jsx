@@ -6,7 +6,7 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
   const [appVersion, setAppVersion] = useState('—');
   // idle | checking | uptodate | available | downloading | downloaded | error
   const [updateStatus, setUpdateStatus]   = useState(pendingUpdateVersion ? 'available' : 'idle');
-  const [latestVersion, setLatestVersion] = useState(null);
+  const [latestVersion, setLatestVersion] = useState(pendingUpdateVersion);
   const [dlProgress, setDlProgress]       = useState(0);
   const [errMsg, setErrMsg]               = useState('');
 
