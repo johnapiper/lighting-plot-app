@@ -589,7 +589,7 @@ export default function Canvas({
         }
         if (distance(cur.x1, cur.y1, ex, ey) > 2) {
           const nt = { id: generateId(), kind: 'pipe', type: 'truss', x1: cur.x1, y1: cur.y1, x2: ex, y2: ey, name: 'Truss', height: '5.5', layerId: activeLayerId || 'layer-lighting' };
-          commitToDrawing(d => d.pipes.push(nt));
+          commitToDrawing(d => d.pipes.push(nt), 'Add truss');
           onSelect({ kind: 'pipe', ...nt });
           // Chain: start next section from this endpoint (Escape to stop)
           setPipePlaceAngle(null);
