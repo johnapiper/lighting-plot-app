@@ -545,14 +545,14 @@ function App() {
       {/* Update available banner */}
       {updateBanner && (
         <div style={styles.updateBanner}>
-          <span>🚀 Update available: <strong>v{updateBanner.version}</strong></span>
-          <a href={updateBanner.url} target="_blank" rel="noreferrer"
-            style={{ color: '#90cdf4', marginLeft: 10, textDecoration: 'underline', cursor: 'pointer' }}
-            onClick={e => { e.preventDefault(); require('electron').shell.openExternal(updateBanner.url); }}>
-            Download
-          </a>
+          <span>Update available: <strong>v{updateBanner.version}</strong></span>
+          <button
+            style={{ marginLeft: 10, padding: '2px 12px', background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 3, color: '#90cdf4', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            onClick={() => { setShowAppSettings(true); setUpdateBanner(null); }}>
+            Update Now
+          </button>
           <button onClick={() => setUpdateBanner(null)}
-            style={{ marginLeft: 12, background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: 13 }}>
+            style={{ marginLeft: 8, background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: 13 }}>
             ✕
           </button>
         </div>
