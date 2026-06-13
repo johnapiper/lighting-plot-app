@@ -848,7 +848,18 @@ function App() {
               </>
             )}
             <span style={styles.statusSep}>|</span>
-            <span style={styles.statusItem}>Units: <strong>{project.meta?.units || 'mm'}</strong></span>
+            <span style={styles.statusItem}>Units:</span>
+            <select
+              style={styles.statusSelect}
+              value={project.meta?.units || 'mm'}
+              onChange={e => commit(proj => { proj.meta = { ...proj.meta, units: e.target.value }; return proj; })}
+              title="Display units (geometry is always stored in mm)">
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+              <option value="ft">ft</option>
+              <option value="in">in</option>
+            </select>
             <span style={{ flex:1 }} />
             <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>
             <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>
