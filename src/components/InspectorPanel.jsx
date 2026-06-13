@@ -79,7 +79,7 @@ function ColourField({ colourHex, gelCode, onChangeHex, onChangeGel }) {
 export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
   allFixtureTypes, dmxConflicts, selectedCount, layers,
-  groupInfo, onGroup, onUngroup,
+  groupInfo, onGroup, onUngroup, onBulkUpdate,
 }) {
   if (!selected) {
     if (selectedCount > 1) {
@@ -87,16 +87,38 @@ export default function InspectorPanel({
         <div style={styles.panel}>
           <div style={styles.header}>Inspector</div>
           <div style={styles.multi}>
-            {selectedCount} items selected
+            <div style={{ marginBottom: 8 }}>{selectedCount} items selected</div>
             {groupInfo ? (
-              <>
-                <br /><span style={{ fontSize: 10, color: '#a0aec0' }}>Group ({groupInfo.memberCount} members)</span>
-                <br /><button style={styles.btn} onClick={onUngroup}>Ungroup</button>
-              </>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontSize: 10, color: '#a0aec0' }}>Group ({groupInfo.memberCount} members)</span>
+                <br /><button style={{ ...styles.btn, marginTop: 4 }} onClick={onUngroup}>Ungroup</button>
+              </div>
             ) : (
-              <><br /><button style={styles.btn} onClick={onGroup}>Group (Ctrl+G)</button></>
+              <div style={{ marginBottom: 8 }}>
+                <button style={styles.btn} onClick={onGroup}>Group (Ctrl+G)</button>
+              </div>
             )}
-            <br /><span style={{ fontSize: 10 }}>Del to remove</span>
+            {onBulkUpdate && (
+              <div style={{ borderTop: '1px solid #0f3460', paddingTop: 8 }}>
+                <div style={{ fontSize: 10, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Bulk Edit</div>
+                <div style={styles.field}>
+                  <label style={styles.label}>Colour</label>
+                  <input type="color" defaultValue="#ffffff"
+                    style={{ width: 32, height: 24, padding: 0, border: '1px solid #0f3460', borderRadius: 3, cursor: 'pointer', background: 'none' }}
+                    onChange={e => onBulkUpdate({ colourHex: e.target.value })} />
+                </div>
+                {layers?.length > 0 && (
+                  <div style={styles.field}>
+                    <label style={styles.label}>Layer</label>
+                    <select style={styles.input} defaultValue="" onChange={e => { if (e.target.value) onBulkUpdate({ layerId: e.target.value }); }}>
+                      <option value="">— apply layer —</option>
+                      {layers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ fontSize: 10, color: '#718096', marginTop: 4 }}>Del to remove</div>
           </div>
         </div>
       );
