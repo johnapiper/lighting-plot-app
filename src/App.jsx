@@ -768,6 +768,29 @@ function App() {
         </div>
       </div>
 
+      {/* ── Status bar ──────────────────────────────────────────────────── */}
+      {activeMode === 'cad' && (() => {
+        const fixtures = activeDrawing?.fixtures || [];
+        const typeCount = new Set(fixtures.map(f => f.fixtureTypeId || f.type)).size;
+        const channelsUsed = new Set(fixtures.map(f => f.channel).filter(Boolean)).size;
+        const conflictCount = dmxConflicts.length;
+        return (
+          <div style={styles.statusBar}>
+            <span style={styles.statusItem}>Fixtures: <strong>{fixtures.length}</strong></span>
+            <span style={styles.statusSep}>|</span>
+            <span style={styles.statusItem}>Types: <strong>{typeCount}</strong></span>
+            <span style={styles.statusSep}>|</span>
+            <span style={styles.statusItem}>Channels used: <strong>{channelsUsed}</strong></span>
+            {conflictCount > 0 && (
+              <>
+                <span style={styles.statusSep}>|</span>
+                <span style={{ ...styles.statusItem, color: '#fc8181' }}>DMX conflicts: <strong>{conflictCount}</strong></span>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       {report && license?.hasFeature('reports') && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
       {showPatch && license?.hasFeature('patch_panel') && (
         <PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
