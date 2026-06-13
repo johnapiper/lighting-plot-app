@@ -175,10 +175,12 @@ export default function LicenseManager({ onClose }) {
         id: addGroupForm.id.toLowerCase().replace(/\s+/g, '_'),
         name: addGroupForm.name,
         features: addGroupForm.features,
+        minVersion: addGroupForm.minVersion,
+        maxVersion: addGroupForm.maxVersion,
       });
       await writeDatabase(newDb, token);
       setDb(newDb);
-      setAddGroupForm({ id: '', name: '', features: [] });
+      setAddGroupForm({ id: '', name: '', features: [], minVersion: '', maxVersion: '' });
       setShowAddGroup(false);
       flash('Group created.');
     } catch (e) { setErrMsg(e.message); }
