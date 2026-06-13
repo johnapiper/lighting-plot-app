@@ -650,7 +650,7 @@ export default function Canvas({
             toId: toItem.id, toType: hitInfra ? 'infra' : 'fixture',
             label: '',
           };
-          commitToDrawing(d => { if (!d.cables) d.cables = []; d.cables.push(nc); });
+          commitToDrawing(d => { if (!d.cables) d.cables = []; d.cables.push(nc); }, `Add ${cableType} cable`);
           onSelect({ kind: 'cable', ...nc });
         }
         setCableFrom(null);
