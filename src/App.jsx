@@ -595,6 +595,24 @@ function App() {
 
   return (
     <div style={styles.app}>
+      {/* License expiry warning */}
+      {(() => {
+        const exp = license?.license?.expiresAt;
+        if (!exp) return null;
+        const daysLeft = Math.ceil((new Date(exp) - new Date()) / 86400000);
+        if (daysLeft > 30) return null;
+        return (
+          <div style={{ ...styles.updateBanner, background: daysLeft <= 7 ? '#4a1a1a' : '#2a2a0a', borderBottomColor: daysLeft <= 7 ? '#fc8181' : '#f6e05e' }}>
+            <span style={{ color: daysLeft <= 7 ? '#fc8181' : '#f6e05e' }}>
+              {daysLeft <= 0 ? '⚠ License expired.' : `⚠ License expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`}
+            </span>
+            <button onClick={() => setShowMyLicense(true)}
+              style={{ marginLeft:10, padding:'2px 12px', background:'transparent', border:`1px solid ${daysLeft<=7?'#fc8181':'#f6e05e'}`, borderRadius:3, color: daysLeft<=7?'#fc8181':'#f6e05e', cursor:'pointer', fontSize:11 }}>
+              Manage License
+            </button>
+          </div>
+        );
+      })()}
       {/* Update available banner */}
       {updateBanner && (
         <div style={styles.updateBanner}>
