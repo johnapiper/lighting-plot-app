@@ -101,9 +101,8 @@ function buildMenu() {
     {
       label: 'Reports',
       submenu: [
-        { label: 'Instrument Schedule', click: () => mainWindow.webContents.send('menu-report-instrument') },
-        { label: 'Channel Hookup', click: () => mainWindow.webContents.send('menu-report-channel') },
-        { label: 'Dimmer Schedule', click: () => mainWindow.webContents.send('menu-report-dimmer') },
+        { label: 'Fixture Schedule', click: () => mainWindow.webContents.send('menu-report-instrument') },
+        { label: 'Channel List', click: () => mainWindow.webContents.send('menu-report-channel') },
       ],
     },
     {
