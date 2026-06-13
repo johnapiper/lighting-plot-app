@@ -9,13 +9,18 @@ export default function LibraryPanel({
   onRenameFixture, onUpdateFixture, onOpenGdtfBrowser,
 }) {
   const fileRef = useRef(null);
-  const [ctxMenu, setCtxMenu] = useState(null);   // { x, y, fixture }
+  const [ctxMenu, setCtxMenu] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState('');
   const [propertiesFixture, setPropertiesFixture] = useState(null);
+  const [search, setSearch] = useState('');
 
   const allFixtures = [...builtinFixtures, ...customFixtures];
-  const categories = [...new Set(allFixtures.map(f => f.category))];
+  const searchLow = search.toLowerCase();
+  const filtered = search
+    ? allFixtures.filter(f => f.name?.toLowerCase().includes(searchLow) || f.category?.toLowerCase().includes(searchLow))
+    : allFixtures;
+  const categories = [...new Set(filtered.map(f => f.category))];
   const isCustom = (f) => f.source === 'gdtf' || customFixtures.some(c => c.id === f.id);
 
   async function handleFileChange(e) {
