@@ -1090,6 +1090,7 @@ export default function Canvas({
       d.texts = d.texts.filter(t => !toDelete.has(t.id));
       d.images = (d.images||[]).filter(i => !toDelete.has(i.id));
       d.annotations = (d.annotations||[]).filter(a => !toDelete.has(a.id));
+      if (d.dimensions) d.dimensions = d.dimensions.filter(dim => !toDelete.has(dim.id));
       if (d.infrastructure) d.infrastructure = d.infrastructure.filter(i => !toDelete.has(i.id));
       // Also remove cables connected to deleted items
       if (d.cables) d.cables = d.cables.filter(c => !toDelete.has(c.fromId) && !toDelete.has(c.toId) && !toDelete.has(c.id));
