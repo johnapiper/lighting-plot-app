@@ -132,11 +132,14 @@ export async function verifyKey(rawKey, db) {
 
   const rights = toRightsArray(entry.rights);
   const features = resolveFeatures(rights, db.rightsGroups || []);
+  const { minVersion, maxVersion } = resolveVersionBounds(rights, db.rightsGroups || []);
 
   return {
     valid:    true,
     rights,
     features,
+    minVersion,
+    maxVersion,
     name:     entry.name,
     email:    entry.email,
     expiresAt: entry.expiresAt,
