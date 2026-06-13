@@ -589,7 +589,14 @@ function App() {
   }
 
   function handleApplyTemplate(template) {
-    commit(proj => { proj.meta = { ...proj.meta, ...template.meta }; return proj; });
+    if (template.snapshot) {
+      loadProject(template.snapshot);
+      setCurrentFile(null);
+      setDirty(true);
+      clearSelection();
+    } else if (template.meta) {
+      commit(proj => { proj.meta = { ...proj.meta, ...template.meta }; return proj; });
+    }
   }
 
   function handlePrint() { /* SheetEditor handles its own print popup */ }
