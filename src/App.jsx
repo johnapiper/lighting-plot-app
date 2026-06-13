@@ -1008,4 +1008,5 @@ const styles = {
   statusItem: { color: '#a0aec0' },
   statusSep: { color: '#2d3748' },
   statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px' },
+  statusSelect: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
 };
