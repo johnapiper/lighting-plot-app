@@ -22,7 +22,8 @@ export default function UndoHistoryPanel({ historyStack, historyIdx, historyLabe
                 onClick={() => !isCurrent && onJump(i)}>
                 <span style={S.dot}>{isCurrent ? '●' : '○'}</span>
                 <span style={S.label}>
-                  {i === 0 ? 'Initial state' : `State ${i}`}
+                  <span style={S.num}>{i}.</span>
+                  <span style={S.desc}>{labels[i] || (i === 0 ? 'Initial state' : 'Edit')}</span>
                   {isCurrent && <span style={S.tag}>current</span>}
                   {i > cur && <span style={{ ...S.tag, background: '#2d3748', color: '#718096' }}>redo</span>}
                 </span>
