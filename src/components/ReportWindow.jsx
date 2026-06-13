@@ -24,14 +24,12 @@ function ReportTable({ rows, columns }) {
 
 export default function ReportWindow({ type, fixtures, onClose }) {
   const titles = {
-    instrument: 'Instrument Schedule',
-    channel: 'Channel Hookup',
-    dimmer: 'Dimmer Schedule',
+    instrument: 'Fixture Schedule',
+    channel: 'Channel List',
   };
 
   const sorted = type === 'instrument' ? buildInstrumentSchedule(fixtures)
-    : type === 'channel' ? buildChannelHookup(fixtures)
-    : buildDimmerSchedule(fixtures);
+    : buildChannelHookup(fixtures);
 
   const title = titles[type] || 'Report';
 
