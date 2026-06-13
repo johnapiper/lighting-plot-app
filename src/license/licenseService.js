@@ -171,6 +171,56 @@ export function resolveFeatures(rights, rightsGroups) {
   return [...granted];
 }
 
+// ── Version constraints ─────────────────────────────────────────────────────
+
+/** Compare dotted numeric versions. Returns -1 (a<b), 0 (equal), 1 (a>b). */
+export function compareVersions(a, b) {
+  const pa = String(a ?? '0').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b ?? '0').split('.').map(n => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x < y) return -1;
+    if (x > y) return 1;
+  }
+  return 0;
+}
+
+/**
+ * Resolve the min/max app-version bounds across a license holder's groups.
+ * - minVersion = the HIGHEST minimum required by any group (strictest floor).
+ * - maxVersion = the HIGHEST maximum allowed by any group (most generous ceiling).
+ * Developer/admin groups are unbounded (no version restrictions).
+ */
+export function resolveVersionBounds(rights, rightsGroups) {
+  let minVersion = null, maxVersion = null;
+  for (const groupId of rights) {
+    if (groupId === 'developer' || groupId === 'admin') return { minVersion: null, maxVersion: null };
+    const g = (rightsGroups || []).find(x => x.id === groupId);
+    if (!g) continue;
+    if (g.minVersion) minVersion = (!minVersion || compareVersions(g.minVersion, minVersion) > 0) ? g.minVersion : minVersion;
+    if (g.maxVersion) maxVersion = (!maxVersion || compareVersions(g.maxVersion, maxVersion) > 0) ? g.maxVersion : maxVersion;
+  }
+  return { minVersion: minVersion || null, maxVersion: maxVersion || null };
+}
+
+// ── Trial-mode configuration (admin-defined, stored in the DB) ───────────────
+
+/** Read the trial config from the DB, with sane defaults. */
+export function getTrialConfig(db) {
+  const t = db?.trialConfig || {};
+  return {
+    enabled:  t.enabled !== false,                       // default: trial enabled
+    days:     Number.isFinite(t.days) ? t.days : 14,     // default: 14-day trial
+    features: Array.isArray(t.features) ? t.features : [],
+  };
+}
+
+/** Return a new DB with the trial config merged. */
+export function updateTrialConfig(db, patch) {
+  return { ...db, trialConfig: { ...getTrialConfig(db), ...patch } };
+}
+
 /**
  * Check if a verified license result grants a specific feature.
  */
