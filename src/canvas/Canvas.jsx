@@ -555,7 +555,7 @@ export default function Canvas({
 
     if (activeTool === 'text') {
       const nt = { id: generateId(), kind: 'text', x: snapped.x, y: snapped.y, label: 'Label', fontSize: 14, layerId: activeLayerId || 'layer-arch' };
-      commitToDrawing(d => d.texts.push(nt));
+      commitToDrawing(d => d.texts.push(nt), 'Add text');
       onSelect({ kind: 'text', ...nt });
       if (onToolDone) onToolDone();
       setEditingText({ ...nt });
