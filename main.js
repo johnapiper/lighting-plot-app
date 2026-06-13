@@ -394,7 +394,8 @@ function decryptToken(hex) {
   return dec.update(enc) + dec.final('utf8');
 }
 ipcMain.handle('license-save-token', (event, { token }) => {
-  try { fs.writeFileSync(tokenFilePath(), encryptToken(token.trim()), 'utf8'); } catch {}
+  try { fs.writeFileSync(tokenFilePath(), encryptToken(token.trim()), 'utf8'); return { ok: true }; }
+  catch (e) { return { error: e.message }; }
 });
 ipcMain.handle('license-load-token', () => {
   try {
