@@ -299,7 +299,7 @@ export default function Canvas({
     });
   }
 
-  function applyHandleDrag(dg, snapped, world) {
+  function applyHandleDrag(dg, snapped, world, shiftKey = false) {
     const hp = dg.handlePoint;
     const { origX, origY, origX2, origY2 } = dg;
 
