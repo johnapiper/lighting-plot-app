@@ -50,7 +50,9 @@ const S = {
   current: { background:'#0f3460', color:'#e0e0e0' },
   future: { opacity:0.5 },
   dot: { fontSize:10, color:'#4a90d9', flexShrink:0 },
-  label: { flex:1, display:'flex', alignItems:'center', gap:6 },
-  tag: { fontSize:9, background:'#4a90d9', color:'#fff', borderRadius:3, padding:'1px 5px' },
+  label: { flex:1, display:'flex', alignItems:'center', gap:6, minWidth:0 },
+  num: { fontSize:10, color:'#4a5568', flexShrink:0, minWidth:18 },
+  desc: { flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' },
+  tag: { fontSize:9, background:'#4a90d9', color:'#fff', borderRadius:3, padding:'1px 5px', flexShrink:0 },
   footer: { padding:'8px 16px', borderTop:'1px solid #0f3460' },
 };
