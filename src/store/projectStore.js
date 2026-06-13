@@ -20,6 +20,7 @@ export function makeDrawing(id, name) {
     texts: [], images: [],
     pdfBackground: null,
     calibration: null,   // {p1,p2,worldDist,realDist,unit}
+    dimensions: [],      // dimension line annotations {id,x1,y1,x2,y2,layerId}
     infrastructure: [],  // power distros, DMX nodes, network switches/ports
     cables: [],          // cable connections between fixtures and/or infra
   };
