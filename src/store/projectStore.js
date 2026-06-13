@@ -194,6 +194,7 @@ export function useProjectStore() {
     idx.current--;
     setProject(clone(history.current[idx.current]));
     setCanUndo(idx.current > 0); setCanRedo(true);
+    setHistoryVersion(v => v + 1);
   }, []);
 
   const redo = useCallback(() => {
@@ -201,18 +202,21 @@ export function useProjectStore() {
     idx.current++;
     setProject(clone(history.current[idx.current]));
     setCanUndo(true); setCanRedo(idx.current < history.current.length - 1);
+    setHistoryVersion(v => v + 1);
   }, []);
 
   const loadProject = useCallback((p) => {
     const loaded = migrateProject({ ...clone(initialProject), ...clone(p) });
-    history.current = [loaded]; idx.current = 0;
+    history.current = [loaded]; labels.current = ['Opened project']; idx.current = 0;
     setProject(loaded); setCanUndo(false); setCanRedo(false);
+    setHistoryVersion(v => v + 1);
   }, []);
 
   const resetProject = useCallback(() => {
     const fresh = clone(initialProject);
-    history.current = [fresh]; idx.current = 0;
+    history.current = [fresh]; labels.current = ['New project']; idx.current = 0;
     setProject(fresh); setCanUndo(false); setCanRedo(false);
+    setHistoryVersion(v => v + 1);
   }, []);
 
   const saveRevision = useCallback((name) => {
@@ -221,7 +225,7 @@ export function useProjectStore() {
       revs.push({ id: generateId(), name: name || `Rev ${revs.length + 1}`, timestamp: new Date().toISOString(), snapshot: clone(p) });
       if (revs.length > 20) revs.shift();
       return { ...p, revisions: revs };
-    });
+    }, `Saved revision "${name || 'untitled'}"`);
   }, [commit]);
 
   const restoreRevision = useCallback((revisionId) => {
@@ -230,17 +234,20 @@ export function useProjectStore() {
       if (!rev) return prev;
       const restored = { ...clone(rev.snapshot), revisions: clone(prev.revisions) };
       history.current = history.current.slice(0, idx.current + 1);
+      labels.current  = labels.current.slice(0, idx.current + 1);
       history.current.push(clone(restored));
-      if (history.current.length > MAX_HISTORY) history.current.shift();
+      labels.current.push(`Restored revision "${rev.name}"`);
+      if (history.current.length > MAX_HISTORY) { history.current.shift(); labels.current.shift(); }
       idx.current = history.current.length - 1;
       setCanUndo(true); setCanRedo(false);
       return restored;
     });
+    setHistoryVersion(v => v + 1);
   }, []);
 
   return {
     project, commit, softUpdate, undo, redo, canUndo, canRedo,
     loadProject, resetProject, saveRevision, restoreRevision,
-    historyStack: history, historyIdx: idx,
+    historyStack: history, historyIdx: idx, historyLabels: labels,
   };
 }
