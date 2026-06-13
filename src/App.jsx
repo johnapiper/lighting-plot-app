@@ -308,7 +308,8 @@ function App() {
       d.rectangles  = d.rectangles.filter(r => !toDelete.has(r.id));
       d.texts       = d.texts.filter(t => !toDelete.has(t.id));
       d.images      = (d.images||[]).filter(i => !toDelete.has(i.id));
-    });
+      if (d.dimensions) d.dimensions = d.dimensions.filter(dim => !toDelete.has(dim.id));
+    }, `Delete ${toDelete.size} object${toDelete.size !== 1 ? 's' : ''}`);
     clearSelection();
   }
 
