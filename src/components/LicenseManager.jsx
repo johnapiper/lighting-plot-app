@@ -43,7 +43,12 @@ export default function LicenseManager({ onClose }) {
 
   async function loadDb() {
     setBusy(true); setErrMsg('');
-    try { invalidateCache(); setDb(await fetchDatabase()); }
+    try {
+      invalidateCache();
+      const fresh = await fetchDatabase();
+      setDb(fresh);
+      setTrialForm(getTrialConfig(fresh));
+    }
     catch (e) { setErrMsg(e.message); }
     finally { setBusy(false); }
   }
