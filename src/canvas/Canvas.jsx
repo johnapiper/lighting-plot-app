@@ -194,6 +194,7 @@ export default function Canvas({
   function hitTestAll(wx, wy, includeLocked = false) {
     const allObjs = [
       ...images.map(o => ({ ...o, _kind: 'image' })),
+      ...(drawing?.dimensions||[]).map(o => ({ ...o, _kind: 'dimension' })),
       ...fixtures.map(o => ({ ...o, _kind: 'fixture' })),
       ...pipes.map(o => ({ ...o, _kind: 'pipe' })),
       ...lines.map(o => ({ ...o, _kind: 'line' })),
