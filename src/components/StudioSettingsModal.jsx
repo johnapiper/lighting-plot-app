@@ -30,7 +30,8 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
           <Section title="Project">
             <Field label="Project Title" value={title} onChange={setTitle} />
             <Field label="Drawing Scale (1:N)" value={scale} onChange={setScale} type="number" />
-            <Field label="Grid Size (world units)" value={gridSize} onChange={setGridSize} type="number" />
+            <Field label="Grid Size (mm)" value={gridSize} onChange={setGridSize} type="number"
+              hint={`≈ ${(parseFloat(gridSize) / 304.8).toFixed(2)} ft`} />
           </Section>
 
           <Section title="Venue / Studio">
