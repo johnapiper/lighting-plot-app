@@ -310,8 +310,8 @@ function App() {
 
 
   function clearSelection() { setSelectedId(null); setSelectedObj(null); setSelectedIds([]); }
-  function handleSave() { if (currentFile) saveToFile(currentFile); else if (ipcRenderer) ipcRenderer.send('save-as-request'); }
-  function saveToFile(fp) { if (!fp || !ipcRenderer) return; ipcRenderer.send('save-data', { filePath: fp, data: JSON.stringify(project, null, 2) }); setCurrentFile(fp); setDirty(false); }
+  function handleSave() { if (blockIfTrial()) return; if (currentFile) saveToFile(currentFile); else if (ipcRenderer) ipcRenderer.send('save-as-request'); }
+  function saveToFile(fp) { if (blockIfTrial()) return; if (!fp || !ipcRenderer) return; ipcRenderer.send('save-data', { filePath: fp, data: JSON.stringify(project, null, 2) }); setCurrentFile(fp); setDirty(false); }
   function handleSelect(obj) { setSelectedId(obj?.id||null); setSelectedObj(obj||null); if (obj) setSelectedIds([]); }
   function handleMultiSelect(ids) { setSelectedIds(ids); setSelectedId(null); setSelectedObj(null); }
 
