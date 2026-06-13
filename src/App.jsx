@@ -312,12 +312,12 @@ function App() {
     clearSelection();
   }
 
-  function commitToActiveDrawing(updater) {
+  function commitToActiveDrawing(updater, label) {
     commit(proj => {
       const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
       if (d) updater(d);
       return proj;
-    });
+    }, label);
   }
 
   // ── Mode ─────────────────────────────────────────────────────────────────
