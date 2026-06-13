@@ -793,6 +793,9 @@ function App() {
           onChangeLicense={() => { setShowMyLicense(false); license?.deactivate(); }}
         />
       )}
+      {showShortcuts && (
+        <ShortcutsModal onClose={() => setShowShortcuts(false)} />
+      )}
       {showLicenseManager && license?.hasFeature('license_manager') && (
         <LicenseManager onClose={() => setShowLicenseManager(false)} />
       )}
