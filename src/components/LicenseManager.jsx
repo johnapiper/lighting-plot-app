@@ -291,7 +291,7 @@ export default function LicenseManager({ onClose }) {
 
         {/* Tabs */}
         <div style={S.tabs}>
-          {[['list', `Licenses (${licenses.length})`], ['add', '+ New License'], ['groups', `Rights Groups (${groups.length})`], ['token', '⚙ Token']].map(([id, label]) => (
+          {[['list', `Licenses (${licenses.length})`], ['add', '+ New License'], ['groups', `Rights Groups (${groups.length})`], ['trial', '⏳ Trial'], ['token', '⚙ Token']].map(([id, label]) => (
             <button key={id} style={{ ...S.tab, ...(tab === id ? S.tabActive : {}) }}
               onClick={() => { setTab(id); setErrMsg(''); setEditingLicense(null); setEditingGroup(null); }}>
               {label}
