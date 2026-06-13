@@ -1,43 +1,6 @@
 import React, { useState } from 'react';
 import { generateId } from '../canvas/geometry';
-
-const BUILT_IN_TEMPLATES = [
-  {
-    id: 'blank',
-    name: 'Blank Project',
-    description: 'Start from scratch with default layers.',
-    icon: '📄',
-    meta: { title: 'Untitled', scale: 50, gridSize: 1372, gridHeight: 6000, rigHeight: 5500, units: 'mm' },
-  },
-  {
-    id: 'theatre',
-    name: 'Theatre (Proscenium)',
-    description: 'Standard proscenium theatre setup — FOH, flies, cyc, side positions.',
-    icon: '🎭',
-    meta: { title: 'Theatre Plot', scale: 50, gridSize: 500, gridHeight: 8000, rigHeight: 7000, units: 'mm' },
-  },
-  {
-    id: 'concert',
-    name: 'Concert / Live Event',
-    description: 'Large grid for touring & concert rigs with truss positions.',
-    icon: '🎵',
-    meta: { title: 'Concert Rig', scale: 100, gridSize: 1000, gridHeight: 12000, rigHeight: 11000, units: 'mm' },
-  },
-  {
-    id: 'tv-studio',
-    name: 'TV Studio',
-    description: 'TV studio ceiling grid with practical working heights.',
-    icon: '📺',
-    meta: { title: 'TV Studio', scale: 50, gridSize: 500, gridHeight: 5000, rigHeight: 4000, units: 'mm' },
-  },
-  {
-    id: 'corporate',
-    name: 'Corporate / Conference',
-    description: 'Smaller-scale event space or conference room.',
-    icon: '🏢',
-    meta: { title: 'Corporate Event', scale: 25, gridSize: 250, gridHeight: 4000, rigHeight: 3500, units: 'mm' },
-  },
-];
+import { BUILT_IN_TEMPLATES } from '../templates/builtinTemplates';
 
 function getUserTemplates() {
   try { return JSON.parse(localStorage.getItem('lplot-user-templates') || '[]'); } catch { return []; }
