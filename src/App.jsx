@@ -353,30 +353,36 @@ function App() {
         const f = d.fixtures?.find(f => f.id === id);
         if (f) Object.assign(f, fields);
       });
-    });
+    }, `Edit ${allSelectedIds.length} fixtures`);
+  }
+
+  // Build a short "Edit X" label from the changed field names.
+  function editLabel(noun, fields) {
+    const keys = Object.keys(fields || {});
+    return keys.length ? `Edit ${noun} ${keys[0]}` : `Edit ${noun}`;
   }
 
   // ── Object updates ───────────────────────────────────────────────────────
   function handleUpdateFixtureInstance(id, rawFields) {
     const cur = activeDrawing?.fixtures?.find(f => f.id === id);
     const fields = syncFields(rawFields, cur);
-    commitToActiveDrawing(d => { const f = d.fixtures.find(f => f.id === id); if (f) Object.assign(f, fields); });
+    commitToActiveDrawing(d => { const f = d.fixtures.find(f => f.id === id); if (f) Object.assign(f, fields); }, editLabel('fixture', rawFields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdatePipe(id, fields) {
-    commitToActiveDrawing(d => { const p = d.pipes.find(p => p.id === id); if (p) Object.assign(p, fields); });
+    commitToActiveDrawing(d => { const p = d.pipes.find(p => p.id === id); if (p) Object.assign(p, fields); }, editLabel('pipe', fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateText(id, fields) {
     commitToActiveDrawing(d => {
       const t = d.texts.find(t => t.id === id); if (t) Object.assign(t, fields);
-    });
+    }, editLabel('text', fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateObject(id, kind, fields) {
     const arrMap = { line:'lines', rect:'rectangles', image:'images' };
     const arr = arrMap[kind]; if (!arr) return;
-    commitToActiveDrawing(d => { const obj = (d[arr]||[]).find(o => o.id === id); if (obj) Object.assign(obj, fields); });
+    commitToActiveDrawing(d => { const obj = (d[arr]||[]).find(o => o.id === id); if (obj) Object.assign(obj, fields); }, editLabel(kind, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
 
@@ -384,14 +390,14 @@ function App() {
     commitToActiveDrawing(d => {
       const item = (d.infrastructure||[]).find(i => i.id === id);
       if (item) Object.assign(item, fields);
-    });
+    }, editLabel('infrastructure', fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateCable(id, fields) {
     commitToActiveDrawing(d => {
       const cable = (d.cables||[]).find(c => c.id === id);
       if (cable) Object.assign(cable, fields);
-    });
+    }, editLabel('cable', fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleDeleteCable(id) {
