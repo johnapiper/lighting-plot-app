@@ -1875,19 +1875,18 @@ export default function Canvas({
           const c = drawing.calibration;
           const x1s = c.p1.x * zoom + pan.x + ro, y1s = c.p1.y * zoom + pan.y + ro;
           const x2s = c.p2.x * zoom + pan.x + ro, y2s = c.p2.y * zoom + pan.y + ro;
-          const mmPerUnit = (c.realDist * (c.unit==='m'?1000:c.unit==='cm'?10:c.unit==='ft'?304.8:c.unit==='in'?25.4:1)) / c.worldDist;
           return (
             <g style={{ pointerEvents: 'none' }}>
               <line x1={x1s} y1={y1s} x2={x2s} y2={y2s} stroke="#68d39188" strokeWidth={1.5} strokeDasharray="4 4" />
               <circle cx={x1s} cy={y1s} r={4} fill="#68d391" />
               <circle cx={x2s} cy={y2s} r={4} fill="#68d391" />
               <text x={(x1s+x2s)/2} y={Math.min(y1s,y2s)-7} textAnchor="middle" fontSize={10} fill="#68d391">
-                ↔ {c.realDist}{c.unit} = {Math.round(c.worldDist)}wu · 1wu={mmPerUnit.toFixed(1)}mm
+                ✓ Calibrated · ref {c.realDist}{c.unit}
               </text>
             </g>
           );
         })()}
-        <text x={ro+8} y={1000-8} fontSize={9} fill="#4a6080">1:{meta?.scale||25} · Grid {gridSize}px</text>
+        <text x={ro+8} y={1000-8} fontSize={9} fill="#4a6080">1:{meta?.scale||25} · Grid {formatLength(gridSize, meta?.units || 'mm')}</text>
       </svg>
 
       {editOverlay}
