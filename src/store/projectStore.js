@@ -130,13 +130,16 @@ function migrateProject(loaded) {
   if (loaded.sheets) {
     loaded.sheets.forEach(s => { if (!s.keyBlocks) s.keyBlocks = []; });
   }
-  // Ensure infrastructure + cables arrays exist on all drawings
+  // Ensure infrastructure + cables + dimensions arrays exist on all drawings
   if (loaded.drawings) {
     loaded.drawings.forEach(d => {
       if (!d.infrastructure) d.infrastructure = [];
       if (!d.cables)         d.cables = [];
+      if (!d.dimensions)     d.dimensions = [];
     });
   }
+  if (!loaded.revisions) loaded.revisions = [];
+  if (!loaded.meta?.units) { if (loaded.meta) loaded.meta.units = 'mm'; }
   // Ensure meta has studio height settings
   if (!loaded.meta) loaded.meta = {};
   if (loaded.meta.gridHeight === undefined) loaded.meta.gridHeight = 6000;
