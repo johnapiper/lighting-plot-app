@@ -239,4 +239,13 @@ const styles = {
     background: 'transparent', border: 'none', color: '#4a5568',
     cursor: 'pointer', fontSize: 11, padding: '0 3px',
   },
+  searchInput: {
+    width: '100%', boxSizing: 'border-box',
+    background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 4,
+    color: '#e0e0e0', fontSize: 11, padding: '4px 22px 4px 7px', outline: 'none',
+  },
+  searchClear: {
+    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+    background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 11, padding: 0,
+  },
 };
