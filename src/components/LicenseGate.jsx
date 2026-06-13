@@ -12,13 +12,17 @@ export const LicenseContext = createContext(null);
 export function useLicense() { return useContext(LicenseContext); }
 
 // ── Main gate ──────────────────────────────────────────────────────────────
+const TRIAL_DAYS = 14;
+const TRIAL_FEATURES = ['cad_edit', 'pdf_background', 'patch_panel', 'reports'];
+
 export default function LicenseGate({ children }) {
-  const [status, setStatus]     = useState('loading'); // loading | activating | valid | error
+  const [status, setStatus]     = useState('loading'); // loading | activating | valid | trial | error
   const [license, setLicense]   = useState(null);
   const [inputKey, setInputKey] = useState('');
   const [busy, setBusy]         = useState(false);
   const [errMsg, setErrMsg]     = useState('');
   const [offlineOk, setOfflineOk] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
 
   useEffect(() => {
     // Clear any pre-encryption cached data
