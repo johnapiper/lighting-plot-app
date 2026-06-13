@@ -467,6 +467,11 @@ export default function LicenseManager({ onClose }) {
                           })}
                           {(g.features || []).length === 0 && <span style={{ color: '#4a5568', fontSize: 12 }}>No features</span>}
                         </div>
+                        {(g.minVersion || g.maxVersion) && (
+                          <div style={{ fontSize: 10, color: '#718096', marginTop: 6 }}>
+                            Version: {g.minVersion ? `min v${g.minVersion}` : 'any'} → {g.maxVersion ? `max v${g.maxVersion}` : 'any'}
+                          </div>
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                         <button style={S.iconBtn} title="Edit group" onClick={() => startEditGroup(g)}>✎</button>
