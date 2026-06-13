@@ -203,6 +203,22 @@ export default function LicenseManager({ onClose }) {
     finally { setBusy(false); }
   }
 
+  async function saveTrialConfig() {
+    if (!token) { setErrMsg('Save a GitHub token first (Token tab).'); return; }
+    setBusy(true); setErrMsg('');
+    try {
+      const newDb = updateTrialConfig(db, {
+        enabled: !!trialForm.enabled,
+        days: parseInt(trialForm.days, 10) || 0,
+        features: trialForm.features || [],
+      });
+      await writeDatabase(newDb, token);
+      setDb(newDb);
+      flash('Trial settings saved.');
+    } catch (e) { setErrMsg(e.message); }
+    finally { setBusy(false); }
+  }
+
   function flash(msg) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 4000); }
 
   const licenses = db?.licenses || [];
