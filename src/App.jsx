@@ -239,6 +239,7 @@ function App() {
         } catch (err) { alert('Failed to import MVR: ' + err.message); }
       },
       'export-mvr-request': async (e, filePath) => {
+        if (blockIfTrial()) return;
         if (!license?.hasFeature('mvr_export')) { alert('Your license does not include MVR export.'); return; }
         try {
           const buf = await exportMVR(project, allFixtureTypes);
