@@ -952,6 +952,13 @@ function App() {
           onClose={() => setShowTemplates(false)}
         />
       )}
+      {showDrawingTemplates && (
+        <DrawingTemplatesModal
+          currentDrawing={activeDrawing}
+          onLoad={handleLoadDrawingTemplate}
+          onClose={() => setShowDrawingTemplates(false)}
+        />
+      )}
       {showCableReport && license?.hasFeature('cable_routing') && (
         <CableReport
           drawing={activeDrawing}
