@@ -113,6 +113,27 @@ export default function AppSettingsModal({ onClose }) {
             </div>
           </Section>
 
+          {/* ── Auto-save ── */}
+          <Section title="Auto-Save">
+            <div style={S.row}>
+              <span style={S.rowLabel}>Auto-save project every 2 minutes</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={autoSaveEnabled}
+                  onChange={e => {
+                    const v = e.target.checked;
+                    setAutoSaveEnabled(v);
+                    ipcRenderer.invoke('set-pref', 'autoSaveEnabled', v);
+                  }} />
+                <span style={{ fontSize: 12, color: autoSaveEnabled ? '#68d391' : '#718096' }}>
+                  {autoSaveEnabled ? 'On' : 'Off'}
+                </span>
+              </label>
+            </div>
+            <div style={{ fontSize: 10, color: '#718096', marginTop: 4 }}>
+              If the app closes unexpectedly, you will be offered to restore the last auto-saved session on next launch.
+            </div>
+          </Section>
+
           {/* ── About ── */}
           <Section title="About Lighting Plot">
             <div style={S.aboutBox}>
