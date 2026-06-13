@@ -323,7 +323,7 @@ function App() {
 
   // ── Mode ─────────────────────────────────────────────────────────────────
   function handleSetMode(mode) {
-    commit(proj => { proj.activeMode = mode; return proj; });
+    commit(proj => { proj.activeMode = mode; return proj; }, `Switch to ${mode} mode`);
     // Clear selection so cable/infra inspectors don't bleed into the new mode
     clearSelection();
     // Reset any cable/infra tool when leaving cable mode
@@ -332,18 +332,18 @@ function App() {
 
   // ── Active layer ─────────────────────────────────────────────────────────
   function handleSetActiveLayer(id) {
-    commit(proj => { proj.activeLayerId = id; return proj; });
+    commit(proj => { proj.activeLayerId = id; return proj; }, 'Change active layer');
   }
 
   // ── Groups ───────────────────────────────────────────────────────────────
   function handleGroup() {
     if (allSelectedIds.length < 2) return;
     const gid = generateId();
-    commitToActiveDrawing(d => setGroupIdInDrawing(d, allSelectedIds, gid));
+    commitToActiveDrawing(d => setGroupIdInDrawing(d, allSelectedIds, gid), `Group ${allSelectedIds.length} objects`);
   }
   function handleUngroup() {
     if (!groupInfo) return;
-    commitToActiveDrawing(d => setGroupIdInDrawing(d, allSelectedIds, null));
+    commitToActiveDrawing(d => setGroupIdInDrawing(d, allSelectedIds, null), 'Ungroup');
   }
   function handleGroupToggle() { if (groupInfo) handleUngroup(); else if (canGroup) handleGroup(); }
 
