@@ -39,7 +39,25 @@ export default function LicenseGate({ children }) {
     setStatus('loading');
     try {
       const savedKey = await ipcRenderer.invoke('license-load-key');
-      if (!savedKey) { setStatus('activating'); return; }
+      if (!savedKey) {
+        // Check trial
+        let trial = await ipcRenderer.invoke('trial-read');
+        if (!trial) {
+          trial = { startDate: new Date().toISOString() };
+          await ipcRenderer.invoke('trial-write', trial);
+        }
+        const daysUsed = Math.floor((Date.now() - new Date(trial.startDate)) / 86400000);
+        const left = TRIAL_DAYS - daysUsed;
+        if (left > 0) {
+          setTrialDaysLeft(left);
+          setLicense({ valid: true, features: TRIAL_FEATURES, trial: true });
+          setStatus('trial');
+          ipcRenderer.send('license-features', { features: TRIAL_FEATURES });
+          return;
+        }
+        setStatus('activating');
+        return;
+      }
 
       // Try online verify first
       let db;
