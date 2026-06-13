@@ -546,6 +546,48 @@ function App() {
     });
   }
 
+  function handleHistoryJump(i) {
+    // Jump undo/redo history to index i
+    const cur = historyIdx.current;
+    if (i === cur) return;
+    if (i < cur) { for (let j = 0; j < cur - i; j++) undo(); }
+    else          { for (let j = 0; j < i - cur; j++) redo(); }
+  }
+
+  function handleSwapFixture(ids, newTypeId) {
+    const allTypes = [...fixtureTypesData, ...(project.customFixtureTypes || [])];
+    const newType = allTypes.find(t => (t.id || t.name) === newTypeId);
+    if (!newType) return;
+    commitToActiveDrawing(d => {
+      const idSet = new Set(ids);
+      (d.fixtures || []).forEach(f => {
+        if (!idSet.has(f.id)) return;
+        f.fixtureTypeId = newType.id || newType.name;
+        f.type = newType.name;
+        if (newType.channels) f.channels = newType.channels;
+        if (newType.powerW)   f.powerW   = newType.powerW;
+      });
+    });
+  }
+
+  function handleDuplicateAlongPath(id) {
+    const f = activeDrawing?.fixtures?.find(fx => fx.id === id);
+    if (!f) return;
+    const count = parseInt(window.prompt('Number of copies:', '4'), 10);
+    if (!count || count < 1) return;
+    const dx = parseInt(window.prompt('Spacing X (mm):', '500'), 10) || 500;
+    const dy = parseInt(window.prompt('Spacing Y (mm):', '0'), 10) || 0;
+    commitToActiveDrawing(d => {
+      for (let i = 1; i <= count; i++) {
+        d.fixtures.push({ ...JSON.parse(JSON.stringify(f)), id: generateId(), x: f.x + dx * i, y: f.y + dy * i, dmxAddress: null, channel: null });
+      }
+    });
+  }
+
+  function handleApplyTemplate(template) {
+    commit(proj => { proj.meta = { ...proj.meta, ...template.meta }; return proj; });
+  }
+
   function handlePrint() { /* SheetEditor handles its own print popup */ }
 
   const titleStr = `Lighting Plot${currentFile ? ` — ${currentFile.split(/[\\/]/).pop()}` : ''}${dirty ? ' •' : ''}`;
