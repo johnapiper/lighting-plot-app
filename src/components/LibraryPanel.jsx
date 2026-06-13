@@ -114,7 +114,7 @@ export default function LibraryPanel({
       {categories.map(cat => (
         <div key={cat}>
           <div style={styles.category}>{cat}</div>
-          {allFixtures.filter(f => f.category === cat).map(f => (
+          {filtered.filter(f => f.category === cat).map(f => (
             <div key={f.id} style={styles.itemWrap}>
               {renamingId === f.id ? (
                 <div style={{ flex: 1, padding: '4px 6px', display: 'flex', gap: 4, alignItems: 'center' }}>
