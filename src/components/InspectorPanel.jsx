@@ -168,6 +168,16 @@ export default function InspectorPanel({
             )}
           </div>
         </Field>
+        {/* Notes */}
+        <div style={styles.field}>
+          <label style={styles.label}>Notes</label>
+          <textarea
+            style={{ ...styles.input, resize: 'vertical', minHeight: 54, fontFamily: 'inherit' }}
+            value={f.notes ?? ''}
+            placeholder="Add a note…"
+            onChange={e => onUpdateFixture(f.id, { notes: e.target.value })}
+          />
+        </div>
       </div>
     );
   }
