@@ -1,7 +1,8 @@
 import React from 'react';
 
-export default function UndoHistoryPanel({ historyStack, historyIdx, onJump, onClose }) {
+export default function UndoHistoryPanel({ historyStack, historyIdx, historyLabels, onJump, onClose }) {
   const stack = historyStack?.current || [];
+  const labels = historyLabels?.current || [];
   const cur   = historyIdx?.current ?? stack.length - 1;
 
   return (
