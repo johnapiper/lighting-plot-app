@@ -370,15 +370,42 @@ ipcMain.handle('autosave-clear', () => { try { fs.unlinkSync(autoSavePath()); } 
 ipcMain.handle('get-pref', (e, key)        => store?.get(key) ?? null);
 ipcMain.handle('set-pref', (e, key, value) => { store?.set(key, value); });
 
-// ── GitHub token storage (plain fs — same approach as license key) ────────
+// ── GitHub token storage (AES-256-GCM encrypted) ─────────────────────────
+const TOKEN_KEY = Buffer.from('b4e7f23a19d08c654f2a91e3780bcd56a2f34e87c0195d6b8f72ae013c49d280', 'hex');
 function tokenFilePath() {
   return path.join(app.getPath('userData'), 'lplot-gh.token');
 }
+function encryptToken(plaintext) {
+  const { createCipheriv, randomBytes } = require('crypto');
+  const iv  = randomBytes(12);
+  const cip = createCipheriv('aes-256-gcm', TOKEN_KEY, iv);
+  const enc = Buffer.concat([cip.update(plaintext, 'utf8'), cip.final()]);
+  const tag = cip.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString('hex');
+}
+function decryptToken(hex) {
+  const { createDecipheriv } = require('crypto');
+  const buf = Buffer.from(hex, 'hex');
+  const iv  = buf.slice(0, 12);
+  const tag = buf.slice(12, 28);
+  const enc = buf.slice(28);
+  const dec = createDecipheriv('aes-256-gcm', TOKEN_KEY, iv);
+  dec.setAuthTag(tag);
+  return dec.update(enc) + dec.final('utf8');
+}
 ipcMain.handle('license-save-token', (event, { token }) => {
-  try { fs.writeFileSync(tokenFilePath(), token.trim(), 'utf8'); } catch {}
+  try { fs.writeFileSync(tokenFilePath(), encryptToken(token.trim()), 'utf8'); } catch {}
 });
 ipcMain.handle('license-load-token', () => {
-  try { return fs.readFileSync(tokenFilePath(), 'utf8').trim() || ''; } catch { return ''; }
+  try {
+    const raw = fs.readFileSync(tokenFilePath(), 'utf8').trim();
+    if (!raw) return '';
+    // If it looks like hex (old encrypted or new format), try decrypt first
+    if (/^[0-9a-f]+$/i.test(raw) && raw.length > 56) return decryptToken(raw);
+    // Plain-text legacy value — re-encrypt it now
+    try { fs.writeFileSync(tokenFilePath(), encryptToken(raw), 'utf8'); } catch {}
+    return raw;
+  } catch { return ''; }
 });
 
 ipcMain.handle('print-sheet', async (event, { html }) => {
