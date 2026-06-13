@@ -249,7 +249,7 @@ function App() {
     };
     Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.on(ch, fn));
     return () => Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.removeListener(ch, fn));
-  }, [project, currentFile, undo, redo]);
+  }, [project, currentFile, undo, redo, license]);
 
   useEffect(() => {
     const handler = (e) => {
