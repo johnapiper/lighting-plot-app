@@ -131,6 +131,7 @@ function App() {
   const [showRevisions, setShowRevisions]           = useState(false);
   const [swapFixtureIds, setSwapFixtureIds]         = useState(null); // array of ids or null
   const [showTemplates, setShowTemplates]           = useState(false);
+  const [showDrawingTemplates, setShowDrawingTemplates] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled]       = useState(true);
   const [animating, setAnimating]                   = useState(true);
   const license = useLicense();
