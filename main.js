@@ -293,6 +293,8 @@ ipcMain.on('license-features', (event, { features }) => {
   buildMenu();
 });
 
+ipcMain.on('toggle-dev-tools', () => { mainWindow?.webContents.toggleDevTools(); });
+
 // ── GDTF Share credential storage (safeStorage = OS keychain encryption) ─────
 const { safeStorage } = require('electron');
 ipcMain.handle('gdtf-save-credentials', (event, { email, password }) => {
