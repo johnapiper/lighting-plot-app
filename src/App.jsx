@@ -236,6 +236,7 @@ function App() {
         if (canEdit && k === 't') setActiveTool('text');
         if (canEdit && k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
         if (k === 'escape') setPendingFixture(null);
+        if (k === '?' || (e.shiftKey && k === '/')) { e.preventDefault(); setShowShortcuts(true); }
       }
       if ((e.ctrlKey||e.metaKey) && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       if ((e.ctrlKey||e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
