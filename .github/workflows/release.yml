@@ -100,14 +100,19 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Verify dist artifacts match latest-mac.yml
+        run: npm run verify-dist
+
       - name: Upload macOS DMGs and zips to release
         uses: softprops/action-gh-release@v2
         with:
+          # latest-mac.yml + the .zip files are required for macOS auto-update.
           files: |
             dist/Lighting-Plot-x64.dmg
             dist/Lighting-Plot-arm64.dmg
             dist/Lighting-Plot-x64.zip
             dist/Lighting-Plot-arm64.zip
+            dist/latest-mac.yml
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
