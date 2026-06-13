@@ -1574,7 +1574,7 @@ export default function Canvas({
       // Calibration is now an annotation only — measurement uses 1wu=1mm.
       const p2s = valid ? { x: sc(calibState.p2.x, p1.x), y: sc(calibState.p2.y, p1.y) } : calibState.p2;
       d.calibration = { p1, p2: p2s, realDist, unit: calibUnit };
-    });
+    }, 'Calibrate scale');
     setCalibState(null);
     setCalibDist('');
     if (onToolDone) onToolDone();
