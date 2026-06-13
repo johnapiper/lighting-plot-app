@@ -117,11 +117,7 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
               <span style={S.rowLabel}>Auto-save project every 2 minutes</span>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input type="checkbox" checked={autoSaveEnabled}
-                  onChange={e => {
-                    const v = e.target.checked;
-                    setAutoSaveEnabled(v);
-                    ipcRenderer.invoke('set-pref', 'autoSaveEnabled', v);
-                  }} />
+                  onChange={e => onChangeAutoSave?.(e.target.checked)} />
                 <span style={{ fontSize: 12, color: autoSaveEnabled ? '#68d391' : '#718096' }}>
                   {autoSaveEnabled ? 'On' : 'Off'}
                 </span>
