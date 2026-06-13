@@ -410,7 +410,7 @@ function App() {
   }
 
   function handleImportGdtf(ft) {
-    commit(proj => { proj.customFixtureTypes = [...(proj.customFixtureTypes||[]), ft]; return proj; });
+    commit(proj => { proj.customFixtureTypes = [...(proj.customFixtureTypes||[]), ft]; return proj; }, `Import fixture ${ft?.name || ''}`.trim());
   }
   function handleDeleteCustomFixture(id) {
     commit(proj => { proj.customFixtureTypes = (proj.customFixtureTypes||[]).filter(f => f.id !== id); return proj; });
