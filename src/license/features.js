@@ -18,6 +18,7 @@ export const FEATURES = [
   { id: 'multi_drawing',   label: 'Multiple drawings & tabs',            group: 'Advanced' },
   { id: 'sheet_editor',    label: 'Sheet editor',                        group: 'Advanced' },
   { id: 'license_manager', label: 'License Manager (write access)',      group: 'Developer' },
+  { id: 'dev_tools',       label: 'Toggle Developer Tools',              group: 'Developer' },
 ];
 
 /** All feature IDs — shorthand for "grant everything" */
