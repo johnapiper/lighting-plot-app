@@ -872,4 +872,11 @@ const styles = {
   main: { display:'flex', flex:1, overflow:'hidden' },
   canvasColumn: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden' },
   rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid #0f3460', overflow:'hidden', flexShrink:0 },
+  statusBar: {
+    display: 'flex', alignItems: 'center', padding: '3px 14px',
+    background: '#0d1b2a', borderTop: '1px solid #0f3460',
+    fontSize: 11, color: '#718096', gap: 6, flexShrink: 0,
+  },
+  statusItem: { color: '#a0aec0' },
+  statusSep: { color: '#2d3748' },
 };
