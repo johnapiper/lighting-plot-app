@@ -159,20 +159,26 @@ function migrateProject(loaded) {
 export function useProjectStore() {
   const [project, setProject] = useState(clone(initialProject));
   const history = useRef([clone(initialProject)]);
+  const labels  = useRef(['Initial state']);   // parallel to history: one summary per state
   const idx = useRef(0);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  // Bump on every history mutation so panels reading the refs re-render.
+  const [, setHistoryVersion] = useState(0);
 
-  const commit = useCallback((updater) => {
+  const commit = useCallback((updater, label) => {
     setProject(prev => {
       const next = typeof updater === 'function' ? updater(clone(prev)) : clone(updater);
       history.current = history.current.slice(0, idx.current + 1);
+      labels.current  = labels.current.slice(0, idx.current + 1);
       history.current.push(clone(next));
-      if (history.current.length > MAX_HISTORY) history.current.shift();
+      labels.current.push(label || 'Edit');
+      if (history.current.length > MAX_HISTORY) { history.current.shift(); labels.current.shift(); }
       idx.current = history.current.length - 1;
       setCanUndo(idx.current > 0); setCanRedo(false);
       return next;
     });
+    setHistoryVersion(v => v + 1);
   }, []);
 
   const softUpdate = useCallback((updater) => {
