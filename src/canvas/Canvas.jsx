@@ -452,7 +452,7 @@ export default function Canvas({
         gobo: '', purpose: '', rotation, scale: 1,
         layerId: activeLayerId || 'layer-lighting',
       };
-      commitToDrawing(d => d.fixtures.push(newFixture));
+      commitToDrawing(d => d.fixtures.push(newFixture), `Add ${newFixture.type || 'fixture'}`);
       onPendingFixturePlaced();
       onSelect({ kind: 'fixture', ...newFixture });
       return;
