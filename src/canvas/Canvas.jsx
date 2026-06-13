@@ -105,12 +105,12 @@ export default function Canvas({
   const [cableGhost, setCableGhost] = useState(null); // {x, y} cursor pos
 
   // ─── Drawing-level commit helpers ─────────────────────────────────────
-  function commitToDrawing(updater) {
+  function commitToDrawing(updater, label) {
     commit(proj => {
       const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
       if (d) updater(d);
       return proj;
-    });
+    }, label);
   }
   function softUpdateDrawing(updater) {
     softUpdate(proj => {
