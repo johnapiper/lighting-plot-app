@@ -317,10 +317,10 @@ export function updateLicense(db, key, patch) {
 
 // ── Rights group CRUD ──────────────────────────────────────────────────────
 
-export function addRightsGroup(db, { id, name, features }) {
+export function addRightsGroup(db, { id, name, features, minVersion, maxVersion }) {
   const groups = db.rightsGroups || [];
   if (groups.find(g => g.id === id)) throw new Error(`Group ID "${id}" already exists.`);
-  return { ...db, rightsGroups: [...groups, { id, name, features: features || [] }] };
+  return { ...db, rightsGroups: [...groups, { id, name, features: features || [], minVersion: minVersion || '', maxVersion: maxVersion || '' }] };
 }
 
 export function updateRightsGroup(db, id, patch) {
