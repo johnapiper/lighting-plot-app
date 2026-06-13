@@ -79,6 +79,7 @@ export default function LicenseManager({ onClose }) {
       rights:    Array.isArray(l.rights) ? [...l.rights] : (l.rights ? [l.rights] : []),
       expiresAt: l.expiresAt,
       notes:     l.notes || '',
+      maxSeats:  l.maxSeats || 1,
     });
   }
 
