@@ -144,7 +144,12 @@ export default function LicenseManager({ onClose }) {
   // ── Rights groups ─────────────────────────────────────────────────────────
   function startEditGroup(g) {
     setEditingGroup(g.id);
-    setEditGroupForm({ name: g.name, features: [...(g.features || [])] });
+    setEditGroupForm({
+      name: g.name,
+      features: [...(g.features || [])],
+      minVersion: g.minVersion || '',
+      maxVersion: g.maxVersion || '',
+    });
   }
 
   async function saveEditGroup() {
