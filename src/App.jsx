@@ -590,6 +590,15 @@ function App() {
     });
   }
 
+  function handleLoadDrawingTemplate(snapshot) {
+    commit(proj => {
+      const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
+      if (d && snapshot) Object.assign(d, { ...snapshot, id: d.id, name: d.name });
+      return proj;
+    });
+    clearSelection();
+  }
+
   function handleApplyTemplate(template) {
     if (template.snapshot) {
       loadProject(template.snapshot);
