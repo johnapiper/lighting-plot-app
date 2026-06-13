@@ -90,6 +90,23 @@ export default function LibraryPanel({
       </button>
       <input ref={fileRef} type="file" accept=".gdtf" multiple style={{ display: 'none' }} onChange={handleFileChange} />
 
+      <div style={{ padding: '4px 8px', position: 'relative' }}>
+        <input
+          style={styles.searchInput}
+          placeholder="Search…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button style={styles.searchClear} onClick={() => setSearch('')}>✕</button>
+        )}
+      </div>
+      {search && (
+        <div style={{ padding: '2px 10px 4px', fontSize: 9, color: '#718096' }}>
+          {filtered.length} fixture{filtered.length !== 1 ? 's' : ''}
+        </div>
+      )}
+
       {pendingFixture && (
         <div style={styles.hint}>Click canvas to place<br /><strong>{pendingFixture.name}</strong></div>
       )}
