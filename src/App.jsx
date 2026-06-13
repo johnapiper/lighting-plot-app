@@ -104,7 +104,7 @@ export default function AppWithLicense() {
 }
 
 function App() {
-  const { project, commit, softUpdate, undo, redo, loadProject, resetProject, saveRevision, restoreRevision, historyStack, historyIdx } = useProjectStore();
+  const { project, commit, softUpdate, undo, redo, loadProject, resetProject, saveRevision, restoreRevision, historyStack, historyIdx, historyLabels } = useProjectStore();
 
   const [activeTool, setActiveTool]     = useState('select');
   const [pendingFixture, setPendingFixture] = useState(null);
