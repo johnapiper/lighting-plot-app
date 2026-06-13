@@ -18,6 +18,7 @@ import InfraInspector, { CableInspector } from './components/InfraInspector';
 import LicenseGate, { useLicense } from './components/LicenseGate';
 import LicenseManager from './components/LicenseManager';
 import MyLicenseModal from './components/MyLicenseModal';
+import ShortcutsModal from './components/ShortcutsModal';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
