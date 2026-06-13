@@ -12,7 +12,6 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
 
   useEffect(() => {
     ipcRenderer.invoke('get-app-version').then(v => v && setAppVersion(v)).catch(() => {});
-    ipcRenderer.invoke('get-pref', 'autoSaveEnabled').then(v => { if (v !== null) setAutoSaveEnabled(v); });
 
     const onAvailable    = (_, info) => { setLatestVersion(info.version); setUpdateStatus('available'); };
     const onNotAvailable = ()        => setUpdateStatus('uptodate');
