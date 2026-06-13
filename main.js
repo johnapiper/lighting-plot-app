@@ -338,6 +338,28 @@ ipcMain.handle('license-clear-key', () => {
   try { fs.unlinkSync(keyFilePath()); } catch {}
 });
 
+// ── Machine ID ────────────────────────────────────────────────────────────
+function machineIdPath() { return path.join(app.getPath('userData'), 'lplot-machine.id'); }
+ipcMain.handle('machine-id-get', () => {
+  try {
+    const existing = fs.readFileSync(machineIdPath(), 'utf8').trim();
+    if (existing) return existing;
+  } catch {}
+  const { randomUUID } = require('crypto');
+  const id = randomUUID();
+  try { fs.writeFileSync(machineIdPath(), id, 'utf8'); } catch {}
+  return id;
+});
+
+// ── Trial mode ────────────────────────────────────────────────────────────
+function trialPath() { return path.join(app.getPath('userData'), 'lplot-trial.json'); }
+ipcMain.handle('trial-read', () => {
+  try { return JSON.parse(fs.readFileSync(trialPath(), 'utf8')); } catch { return null; }
+});
+ipcMain.handle('trial-write', (e, data) => {
+  try { fs.writeFileSync(trialPath(), JSON.stringify(data), 'utf8'); } catch {}
+});
+
 // ── Auto-save / recovery ─────────────────────────────────────────────────
 function autoSavePath() { return path.join(app.getPath('userData'), 'lplot-autosave.json'); }
 ipcMain.handle('autosave-write', (e, data) => { try { fs.writeFileSync(autoSavePath(), data, 'utf8'); } catch {} });
