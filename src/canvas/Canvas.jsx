@@ -1482,6 +1482,7 @@ export default function Canvas({
               <g transform={`scale(${1/zoom})`}>
                 <FixtureSymbol fixtureType={ftype} unit={f.channel?.trim() ? `Ch.${f.channel.trim()}` : (f.unit?.trim()||null)} channel={null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} symbolOverride={f.symbolOverride||null} symbolColor={f.symbolColor||null} />
               </g>
+              {dmxConflicts.includes(f.id) && <circle cx={0} cy={0} r={16/zoom} fill="none" stroke="#fc8181" strokeWidth={2/zoom} strokeOpacity={0.85} style={{ pointerEvents:'none' }} />}
               {f.id === focusModeId && <circle cx={0} cy={0} r={6/zoom} fill="none" stroke="#ffaa00" strokeWidth={2/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} />}
               {f.locked && <text x={0} y={-20/zoom} textAnchor="middle" fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
             </g>
