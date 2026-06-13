@@ -580,7 +580,7 @@ function App() {
         if (newType.channels) f.channels = newType.channels;
         if (newType.powerW)   f.powerW   = newType.powerW;
       });
-    });
+    }, `Swap ${ids.length} fixture${ids.length !== 1 ? 's' : ''} → ${newType.name}`);
   }
 
   function handleDuplicateAlongPath(id) {
