@@ -892,6 +892,42 @@ function App() {
         />
       )}
 
+      {showUndoHistory && (
+        <UndoHistoryPanel
+          historyStack={historyStack} historyIdx={historyIdx}
+          onJump={handleHistoryJump}
+          onClose={() => setShowUndoHistory(false)}
+        />
+      )}
+      {showUniverse && (
+        <UniverseOverviewModal
+          fixtures={activeDrawing?.fixtures || []}
+          onClose={() => setShowUniverse(false)}
+        />
+      )}
+      {showRevisions && (
+        <RevisionHistoryModal
+          revisions={project.revisions || []}
+          onSave={name => saveRevision(name)}
+          onRestore={id => restoreRevision(id)}
+          onClose={() => setShowRevisions(false)}
+        />
+      )}
+      {swapFixtureIds && (
+        <FixtureSwapModal
+          fixtureIds={swapFixtureIds}
+          allFixtureTypes={fixtureTypesData}
+          customFixtureTypes={project.customFixtureTypes || []}
+          onSwap={handleSwapFixture}
+          onClose={() => setSwapFixtureIds(null)}
+        />
+      )}
+      {showTemplates && (
+        <ProjectTemplatesDialog
+          onSelect={handleApplyTemplate}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
       {showCableReport && license?.hasFeature('cable_routing') && (
         <CableReport
           drawing={activeDrawing}
