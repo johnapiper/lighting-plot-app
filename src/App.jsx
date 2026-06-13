@@ -375,6 +375,15 @@ function App() {
   }
   function handleGroupToggle() { if (groupInfo) handleUngroup(); else if (canGroup) handleGroup(); }
 
+  function handleBulkUpdate(fields) {
+    commitToActiveDrawing(d => {
+      allSelectedIds.forEach(id => {
+        const f = d.fixtures?.find(f => f.id === id);
+        if (f) Object.assign(f, fields);
+      });
+    });
+  }
+
   // ── Object updates ───────────────────────────────────────────────────────
   function handleUpdateFixtureInstance(id, rawFields) {
     const cur = activeDrawing?.fixtures?.find(f => f.id === id);
