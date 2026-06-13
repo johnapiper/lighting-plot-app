@@ -59,7 +59,8 @@ export default function Canvas({
   const clipboardRef = useRef(null);
   useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
   const pasteGeneration = useRef(0); // increments per paste so repeated Ctrl+V staggers
-  const [pipePlaceAngle, setPipePlaceAngle] = useState(null); // null=free, 0/90/180/270 = constrained
+  const [pipePlaceAngle, setPipePlaceAngle] = useState(null);
+  const [snapPoint, setSnapPoint] = useState(null); // { x, y } visual snap indicator
   // Cable waypoint editing: { cableId, wpIdx, baseWaypoints }
   const [wpDrag, setWpDrag] = useState(null);
   const wpDragRef = useRef(null);
