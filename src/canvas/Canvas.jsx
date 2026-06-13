@@ -797,7 +797,7 @@ export default function Canvas({
           (dragging.groupMembers || []).forEach(m => { const mo = arr.find(o => o.id === m.id); if (mo) mo.layerId = targetLayerId; });
         };
         setL(d.fixtures); setL(d.pipes); setL(d.lines); setL(d.rectangles); setL(d.texts); setL(d.images||[]); setL(d.annotations||[]);
-      });
+      }, 'Move to layer');
       dragTargetLayerRef.current = null;
     }
 
@@ -811,12 +811,12 @@ export default function Canvas({
           commitToDrawing(d => {
             const f = d.fixtures.find(f => f.id === dragging.id);
             if (f) { f.pipeId = null; f.position = ''; }
-          });
+          }, 'Move fixture');
         } else {
-          commit(p => p);
+          commit(p => p, 'Move fixture');
         }
       } else {
-        commit(p => p);
+        commit(p => p, `Move ${dragging.kind || 'object'}`);
       }
       setDragging(null);
       setHoveredPipe(null);
@@ -830,11 +830,11 @@ export default function Canvas({
 
     if (ds.kind === 'line') {
       if (distance(ds.x1, ds.y1, snapped.x, snapped.y) > 2)
-        commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: snapped.x, y2: snapped.y, layerId: activeLayerId || 'layer-arch' }));
+        commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: snapped.x, y2: snapped.y, layerId: activeLayerId || 'layer-arch' }), 'Add line');
     } else if (ds.kind === 'rect') {
       const rw = Math.abs(snapped.x-ds.x1), rh = Math.abs(snapped.y-ds.y1);
       if (rw > 2 && rh > 2)
-        commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x: Math.min(ds.x1,snapped.x), y: Math.min(ds.y1,snapped.y), w: rw, h: rh, layerId: activeLayerId || 'layer-arch' }));
+        commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x: Math.min(ds.x1,snapped.x), y: Math.min(ds.y1,snapped.y), w: rw, h: rh, layerId: activeLayerId || 'layer-arch' }), 'Add rectangle');
     }
     setDrawingState(null);
   }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, pipeSnap, layers]);
