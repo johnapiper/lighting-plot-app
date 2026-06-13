@@ -287,7 +287,7 @@ export default function LicenseManager({ onClose }) {
           {tab === 'list' && (
             <table style={S.table}>
               <thead>
-                <tr>{['Name / Key', 'Rights', 'Expires', 'Status', 'Actions'].map(h => (
+                <tr>{['Name / Key', 'Rights', 'Expires', 'Seats', 'Status', 'Actions'].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}</tr>
               </thead>
