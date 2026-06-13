@@ -186,7 +186,11 @@ function App() {
     const handlers = {
       'menu-app-settings':  () => setShowAppSettings(true),
       'menu-check-updates': () => setShowAppSettings(true),
-      'update-available':   (_, info) => setUpdateBanner({ version: info.version }),
+      'update-available':   (_, info) => {
+        // Respect the license's maximum-allowed version — don't surface newer updates.
+        if (maxVersion && compareVersions(info.version, maxVersion) > 0) return;
+        setUpdateBanner({ version: info.version });
+      },
       'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
