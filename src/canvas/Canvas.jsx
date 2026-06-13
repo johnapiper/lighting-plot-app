@@ -246,6 +246,7 @@ export default function Canvas({
     const ids = [];
     const check = (arr, kind, cx, cy) => arr.forEach(o => {
       if (o.locked || !isLayerVisible(getLayerId(o, kind)) || isLayerLocked(getLayerId(o, kind))) return;
+      if (activeLayerId && getLayerId(o, kind) !== activeLayerId) return;
       const x = cx(o), y = cy(o);
       if (x >= minX && x <= maxX && y >= minY && y <= maxY) ids.push(o.id);
     });
