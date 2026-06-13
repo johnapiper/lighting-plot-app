@@ -676,17 +676,21 @@ export default function Canvas({
 
     if (drawingState) {
       let ex = snapped.x, ey = snapped.y;
+      let newSnapPoint = null;
       // Snap end to nearest endpoint when placing pipe/truss
       if ((activeTool === 'pipe' || activeTool === 'truss') && pipeSnap) {
         const ep = findNearestPipeEndpoint(snapped.x, snapped.y);
-        if (ep) { ex = ep.x; ey = ep.y; }
+        if (ep) { ex = ep.x; ey = ep.y; newSnapPoint = ep; }
       }
       // Angle constraint for R-key rotation
       if ((activeTool === 'pipe' || activeTool === 'truss') && pipePlaceAngle !== null) {
         const c = constrainToAngle(drawingState.x1, drawingState.y1, ex, ey, pipePlaceAngle);
         ex = c.x; ey = c.y;
       }
+      setSnapPoint(newSnapPoint);
       setDrawingState(d => ({ ...d, x2: ex, y2: ey }));
+    } else {
+      setSnapPoint(null);
     }
 
     if (dragging?.handlePoint) {
