@@ -305,6 +305,7 @@ export default function LicenseManager({ onClose }) {
                       </td>
                       <td style={S.td}><span style={{ color: '#a0c4e8', fontSize: 12 }}>{rightsLabel(l.rights)}</span></td>
                       <td style={S.td} nowrap="true">{l.expiresAt}</td>
+                      <td style={S.td}>{l.maxSeats || 1}</td>
                       <td style={S.td}>
                         {!l.active ? <span style={{ color: '#fc8181' }}>Revoked</span>
                           : new Date(l.expiresAt) < new Date() ? <span style={{ color: '#f6ad55' }}>Expired</span>
