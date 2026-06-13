@@ -1,9 +1,15 @@
 /**
  * LicenseGate — wraps the entire app. Renders children only when a valid
- * license is loaded. Shows an activation screen otherwise.
+ * license is loaded AND the running app version satisfies the license's
+ * minimum-version requirement. Shows an activation / trial / version-blocked
+ * screen otherwise.
  */
-import React, { useState, useEffect, createContext, useContext } from 'react';
-import { fetchDatabase, verifyKey, hasFeature as checkFeature } from '../license/licenseService';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import {
+  fetchDatabase, verifyKey, hasFeature as checkFeature,
+  getTrialConfig, compareVersions,
+} from '../license/licenseService';
+import AppSettingsModal from './AppSettingsModal';
 
 const { ipcRenderer } = require('electron');
 
@@ -11,18 +17,22 @@ const { ipcRenderer } = require('electron');
 export const LicenseContext = createContext(null);
 export function useLicense() { return useContext(LicenseContext); }
 
-// ── Main gate ──────────────────────────────────────────────────────────────
-const TRIAL_DAYS = 14;
-const TRIAL_FEATURES = ['cad_edit', 'pdf_background', 'patch_panel', 'reports'];
+// Fallback trial features if the license DB can't be reached and defines none.
+const DEFAULT_TRIAL_FEATURES = ['cad_view', 'cad_edit', 'fixture_library'];
+const DEFAULT_TRIAL_DAYS = 14;
 
 export default function LicenseGate({ children }) {
-  const [status, setStatus]     = useState('loading'); // loading | activating | valid | trial | error
+  const [status, setStatus]     = useState('loading'); // loading | activating | valid | trial | blocked | error
   const [license, setLicense]   = useState(null);
   const [inputKey, setInputKey] = useState('');
   const [busy, setBusy]         = useState(false);
   const [errMsg, setErrMsg]     = useState('');
   const [offlineOk, setOfflineOk] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(null);
+  const [appVersion, setAppVersion] = useState(null);
+  const [blockedInfo, setBlockedInfo] = useState(null); // { minVersion }
+  const [showAbout, setShowAbout] = useState(false);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     // Clear any pre-encryption cached data
@@ -32,30 +42,70 @@ export default function LicenseGate({ children }) {
       const cachedResult = JSON.parse(localStorage.getItem('lplot_license_result') || 'null');
       if (cachedResult && !cachedResult._cacheVersion) localStorage.removeItem('lplot_license_result');
     } catch {}
-    bootCheck();
+    // Resolve the running app version first — version gating depends on it.
+    ipcRenderer.invoke('get-app-version')
+      .then(v => setAppVersion(v || '0.0.0'))
+      .catch(() => setAppVersion('0.0.0'))
+      .finally(() => bootCheck());
   }, []);
+
+  // Restore keyboard focus to the key field whenever the activation screen is
+  // shown. After deactivating (especially via a native confirm dialog) the
+  // renderer can lose keyboard focus, which made the field un-typeable.
+  useEffect(() => {
+    if (status !== 'activating') return;
+    ipcRenderer.invoke('focus-window').catch(() => {});
+    const t = setTimeout(() => { try { inputRef.current?.focus(); } catch {} }, 60);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  async function startTrial(db) {
+    const cfg = getTrialConfig(db);
+    if (!cfg.enabled) { setStatus('activating'); return; }
+    const days = cfg.days || DEFAULT_TRIAL_DAYS;
+    let trial = await ipcRenderer.invoke('trial-read');
+    if (!trial) {
+      trial = { startDate: new Date().toISOString() };
+      await ipcRenderer.invoke('trial-write', trial);
+    }
+    const daysUsed = Math.floor((Date.now() - new Date(trial.startDate)) / 86400000);
+    const left = days - daysUsed;
+    if (left <= 0) { setStatus('activating'); return; }
+    const features = cfg.features.length ? cfg.features : DEFAULT_TRIAL_FEATURES;
+    setTrialDaysLeft(left);
+    setLicense({ valid: true, features, trial: true, maxVersion: null });
+    setStatus('trial');
+    ipcRenderer.send('license-features', { features });
+  }
+
+  // Apply a verified license result, enforcing the minimum-version requirement.
+  function applyLicense(result, appVer) {
+    const min = result.minVersion;
+    if (min && compareVersions(appVer || appVersion || '0.0.0', min) < 0) {
+      // App is older than this license allows — block beyond the About window.
+      setLicense(result);
+      setBlockedInfo({ minVersion: min });
+      setStatus('blocked');
+      ipcRenderer.send('license-features', { features: [] });
+      return;
+    }
+    setLicense(result);
+    setStatus('valid');
+    ipcRenderer.send('license-features', { features: result.features || [] });
+  }
 
   async function bootCheck() {
     setStatus('loading');
+    const appVer = await ipcRenderer.invoke('get-app-version').catch(() => null) || appVersion || '0.0.0';
     try {
       const savedKey = await ipcRenderer.invoke('license-load-key');
+
       if (!savedKey) {
-        // Check trial
-        let trial = await ipcRenderer.invoke('trial-read');
-        if (!trial) {
-          trial = { startDate: new Date().toISOString() };
-          await ipcRenderer.invoke('trial-write', trial);
-        }
-        const daysUsed = Math.floor((Date.now() - new Date(trial.startDate)) / 86400000);
-        const left = TRIAL_DAYS - daysUsed;
-        if (left > 0) {
-          setTrialDaysLeft(left);
-          setLicense({ valid: true, features: TRIAL_FEATURES, trial: true });
-          setStatus('trial');
-          ipcRenderer.send('license-features', { features: TRIAL_FEATURES });
-          return;
-        }
-        setStatus('activating');
+        // No license — start (or resume) trial mode using DB-defined config.
+        let db = null;
+        try { db = await fetchDatabase(); }
+        catch { try { db = JSON.parse(localStorage.getItem('lplot_license_db') || 'null'); } catch {} }
+        await startTrial(db || {});
         return;
       }
 
@@ -67,9 +117,8 @@ export default function LicenseGate({ children }) {
         // Offline — check if we have a cached result from last boot
         const cached = JSON.parse(localStorage.getItem('lplot_license_result') || 'null');
         if (cached?.valid && new Date(cached.expiresAt) > new Date()) {
-          setLicense(cached);
           setOfflineOk(true);
-          setStatus('valid');
+          applyLicense(cached, appVer);
           return;
         }
         setErrMsg('Cannot reach the license server and no offline cache found. Please connect to the internet.');
@@ -80,9 +129,7 @@ export default function LicenseGate({ children }) {
       const result = await verifyKey(savedKey, db);
       if (result.valid) {
         localStorage.setItem('lplot_license_result', JSON.stringify({ ...result, _cacheVersion: 2 }));
-        setLicense(result);
-        setStatus('valid');
-        ipcRenderer.send('license-features', { features: result.features || [] });
+        applyLicense(result, appVer);
       } else {
         setErrMsg(result.reason);
         setStatus('activating');
@@ -103,9 +150,7 @@ export default function LicenseGate({ children }) {
       if (!result.valid) { setErrMsg(result.reason); return; }
       await ipcRenderer.invoke('license-save-key', { key: inputKey.trim().toUpperCase() });
       localStorage.setItem('lplot_license_result', JSON.stringify({ ...result, _cacheVersion: 2 }));
-      setLicense(result);
-      setStatus('valid');
-      ipcRenderer.send('license-features', { features: result.features || [] });
+      applyLicense(result, appVersion);
     } catch (e) {
       setErrMsg(e.message || 'Activation failed.');
     } finally {
@@ -119,7 +164,12 @@ export default function LicenseGate({ children }) {
     localStorage.removeItem('lplot_license_result');
     setLicense(null);
     setInputKey('');
+    setBlockedInfo(null);
+    setShowAbout(false);
     setStatus('activating');
+    // Nudge the OS window back into keyboard focus (fixes un-typeable field
+    // after deactivating from a menu confirm dialog).
+    ipcRenderer.invoke('focus-window').catch(() => {});
   }
 
   // ── Loading ────────────────────────────────────────────────────────────
@@ -147,6 +197,34 @@ export default function LicenseGate({ children }) {
     );
   }
 
+  // ── Version-blocked — app too old for this license ─────────────────────
+  if (status === 'blocked') {
+    return (
+      <div style={S.overlay}>
+        <div style={S.card}>
+          <Logo />
+          <h2 style={S.heading}>Update Required</h2>
+          <p style={S.sub}>
+            This license requires <strong style={{ color: '#e0e0e0' }}>version {blockedInfo?.minVersion}</strong> or newer.
+            You are running <strong style={{ color: '#e0e0e0' }}>v{appVersion}</strong>.
+            Please update to continue.
+          </p>
+          <button style={S.btn} onClick={() => setShowAbout(true)}>Check for Updates / About</button>
+          <button style={{ ...S.btn, background: 'transparent', border: '1px solid #2a4060', color: '#a0aec0' }}
+            onClick={handleDeactivate}>
+            Use a Different License
+          </button>
+          {showAbout && (
+            <AppSettingsModal
+              onClose={() => setShowAbout(false)}
+              maxVersion={license?.maxVersion || null}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ── Activation screen ──────────────────────────────────────────────────
   if (status === 'activating') {
     return (
@@ -157,6 +235,7 @@ export default function LicenseGate({ children }) {
           <p style={S.sub}>Enter your license key to continue.</p>
           <form onSubmit={handleActivate} style={{ width: '100%' }}>
             <input
+              ref={inputRef}
               style={S.keyInput}
               placeholder="LPLOT-XXXX-XXXX-XXXX-XXXX"
               value={inputKey}
@@ -177,15 +256,13 @@ export default function LicenseGate({ children }) {
     );
   }
 
-  // ── Valid — render app with context ───────────────────────────────────
-  const hasFeature = (featureId) => {
-    if (license?.trial) return TRIAL_FEATURES.includes(featureId);
-    return checkFeature(license, featureId);
-  };
+  // ── Valid / Trial — render app with context ────────────────────────────
+  const isTrial = status === 'trial' || license?.trial;
+  const hasFeature = (featureId) => checkFeature(license, featureId);
 
-  const trialBanner = status === 'trial' && trialDaysLeft !== null ? (
+  const trialBanner = isTrial && trialDaysLeft !== null ? (
     <div style={{ background:'#2a1a00', borderBottom:'1px solid #b7791f', padding:'5px 16px', fontSize:12, color:'#f6e05e', display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-      <span>⏳ Trial mode — {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining.</span>
+      <span>⏳ Trial mode — {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining. Saving, loading, exporting and importing are disabled.</span>
       <button onClick={() => setStatus('activating')}
         style={{ marginLeft:8, padding:'2px 12px', background:'transparent', border:'1px solid #b7791f', borderRadius:3, color:'#f6e05e', cursor:'pointer', fontSize:11 }}>
         Activate License
@@ -194,7 +271,15 @@ export default function LicenseGate({ children }) {
   ) : null;
 
   return (
-    <LicenseContext.Provider value={{ license, offlineOk, hasFeature, deactivate: handleDeactivate }}>
+    <LicenseContext.Provider value={{
+      license,
+      offlineOk,
+      hasFeature,
+      deactivate: handleDeactivate,
+      trial: isTrial,
+      maxVersion: license?.maxVersion || null,
+      appVersion,
+    }}>
       {trialBanner}
       {children}
     </LicenseContext.Provider>
