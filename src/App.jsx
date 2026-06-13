@@ -928,7 +928,7 @@ function App() {
 
       {showUndoHistory && (
         <UndoHistoryPanel
-          historyStack={historyStack} historyIdx={historyIdx}
+          historyStack={historyStack} historyIdx={historyIdx} historyLabels={historyLabels}
           onJump={handleHistoryJump}
           onClose={() => setShowUndoHistory(false)}
         />
