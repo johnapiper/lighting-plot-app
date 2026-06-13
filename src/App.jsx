@@ -825,6 +825,13 @@ function App() {
                 <span style={{ ...styles.statusItem, color: '#fc8181' }}>DMX conflicts: <strong>{conflictCount}</strong></span>
               </>
             )}
+            <span style={styles.statusSep}>|</span>
+            <span style={styles.statusItem}>Units: <strong>{project.meta?.units || 'mm'}</strong></span>
+            <span style={{ flex:1 }} />
+            <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>
+            <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>
+            <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>
+            <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">📁 Templates</button>
           </div>
         );
       })()}
