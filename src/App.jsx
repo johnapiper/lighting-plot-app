@@ -255,6 +255,10 @@ function App() {
       if ((e.ctrlKey||e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
       if ((e.ctrlKey||e.metaKey) && k === 's') { e.preventDefault(); handleSave(); }
       if ((e.ctrlKey||e.metaKey) && k === 'g') { e.preventDefault(); handleGroupToggle(); }
+      if (e.key === 'F12' && license?.hasFeature('dev_tools')) {
+        e.preventDefault();
+        ipcRenderer?.send('toggle-dev-tools');
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
