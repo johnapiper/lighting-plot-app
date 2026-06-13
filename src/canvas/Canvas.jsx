@@ -17,7 +17,7 @@ const BOX_THRESHOLD = 5;
 const LAYER_DEFAULTS = {
   fixture: 'layer-lighting', pipe: 'layer-lighting',
   line: 'layer-arch', rect: 'layer-arch', text: 'layer-arch',
-  image: 'layer-bg', annotation: 'layer-arch',
+  image: 'layer-bg', annotation: 'layer-arch', dimension: 'layer-arch',
 };
 function getLayerId(obj, kind) { return obj.layerId || LAYER_DEFAULTS[kind] || 'layer-arch'; }
 
