@@ -293,7 +293,7 @@ export default function LicenseManager({ onClose }) {
               </thead>
               <tbody>
                 {licenses.length === 0 && (
-                  <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: '#4a5568' }}>No licenses yet.</td></tr>
+                  <tr><td colSpan={6} style={{ ...S.td, textAlign: 'center', color: '#4a5568' }}>No licenses yet.</td></tr>
                 )}
                 {licenses.map(l => (
                   <React.Fragment key={l.key}>
