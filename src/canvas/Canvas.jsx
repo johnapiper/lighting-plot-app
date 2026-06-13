@@ -208,6 +208,8 @@ export default function Canvas({
       if (!includeLocked && obj.locked) continue;
       if (!isLayerVisible(getLayerId(obj, k))) continue;
       if (!includeLocked && isLayerLocked(getLayerId(obj, k))) continue;
+      // Restrict selection to the active layer (infra objects are always selectable)
+      if (activeLayerId && k !== 'infra' && getLayerId(obj, k) !== activeLayerId) continue;
 
       if (k === 'image') {
         if (wx >= obj.x && wx <= obj.x + obj.w && wy >= obj.y && wy <= obj.y + obj.h)
