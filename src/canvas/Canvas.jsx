@@ -232,6 +232,9 @@ export default function Canvas({
       } else if (k === 'infra') {
         if (distance(wx, wy, obj.x, obj.y) < 28 / zoom)
           return { kind: k, ...obj };
+      } else if (k === 'dimension') {
+        if (distanceToSegment(wx, wy, obj.x1, obj.y1, obj.x2, obj.y2) < HIT_RADIUS / zoom)
+          return { kind: k, ...obj };
       }
     }
     return null;
