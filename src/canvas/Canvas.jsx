@@ -305,7 +305,8 @@ export default function Canvas({
 
     // Rotation
     if (hp === 'rotate') {
-      const angle = Math.atan2(world.y - dg.centerY, world.x - dg.centerX) * 180 / Math.PI + 90;
+      let angle = Math.atan2(world.y - dg.centerY, world.x - dg.centerX) * 180 / Math.PI + 90;
+      if (shiftKey) angle = Math.round(angle / 45) * 45; // snap to 45° increments
       softUpdateDrawing(d => {
         const setR = arr => { const o = arr.find(o => o.id === dg.id); if (o) o.rotation = angle; };
         if (dg.kind === 'fixture') setR(d.fixtures);
