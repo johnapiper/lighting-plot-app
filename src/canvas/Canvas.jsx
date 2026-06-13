@@ -690,7 +690,7 @@ export default function Canvas({
     }
 
     if (dragging?.handlePoint) {
-      applyHandleDrag(dragging, snapped, world);
+      applyHandleDrag(dragging, snapped, world, e.shiftKey);
       return;
     }
 
