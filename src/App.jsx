@@ -235,6 +235,7 @@ function App() {
         if (canEdit && k === 'e') setActiveTool('rect');
         if (canEdit && k === 'p') setActiveTool('pipe');
         if (canEdit && k === 't') setActiveTool('text');
+        if (canEdit && k === 'm') setActiveTool('dimension');
         if (canEdit && k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
         if (k === 'escape') setPendingFixture(null);
         if (k === '?' || (e.shiftKey && k === '/')) { e.preventDefault(); setShowShortcuts(true); }
