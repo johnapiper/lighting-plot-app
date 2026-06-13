@@ -20,7 +20,7 @@ export default function LicenseManager({ onClose }) {
 
   // per-tab form state
   const [addForm, setAddForm] = useState({
-    name: '', email: '', rights: [], expiresAt: oneYearFromNow(), notes: '',
+    name: '', email: '', rights: [], expiresAt: oneYearFromNow(), notes: '', maxSeats: 1,
   });
   const [editingLicense, setEditingLicense] = useState(null); // license key being edited
   const [editForm, setEditForm] = useState({});
