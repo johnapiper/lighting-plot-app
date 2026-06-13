@@ -965,4 +965,5 @@ const styles = {
   },
   statusItem: { color: '#a0aec0' },
   statusSep: { color: '#2d3748' },
+  statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px' },
 };
