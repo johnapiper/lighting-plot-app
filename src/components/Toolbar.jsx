@@ -74,8 +74,10 @@ export default function Toolbar({
                 <span style={styles.icon}>↖</span>
                 <span style={styles.label}>Select</span>
               </button>
-              {/* Drawing tools only when cad_edit is licensed */}
-              {has('cad_edit') && CAD_EDIT_TOOLS.map(t => (
+              {/* Drawing tools only when cad_edit is licensed; Measure also needs dimensioning */}
+              {has('cad_edit') && CAD_EDIT_TOOLS
+                .filter(t => t.id !== 'dimension' || has('dimensioning'))
+                .map(t => (
                 <button key={t.id} title={t.key ? `${t.label} (${t.key})` : t.label}
                   style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
                   onClick={() => onToolChange(t.id)}>
