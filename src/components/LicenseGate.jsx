@@ -178,10 +178,24 @@ export default function LicenseGate({ children }) {
   }
 
   // ── Valid — render app with context ───────────────────────────────────
-  const hasFeature = (featureId) => checkFeature(license, featureId);
+  const hasFeature = (featureId) => {
+    if (license?.trial) return TRIAL_FEATURES.includes(featureId);
+    return checkFeature(license, featureId);
+  };
+
+  const trialBanner = status === 'trial' && trialDaysLeft !== null ? (
+    <div style={{ background:'#2a1a00', borderBottom:'1px solid #b7791f', padding:'5px 16px', fontSize:12, color:'#f6e05e', display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+      <span>⏳ Trial mode — {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining.</span>
+      <button onClick={() => setStatus('activating')}
+        style={{ marginLeft:8, padding:'2px 12px', background:'transparent', border:'1px solid #b7791f', borderRadius:3, color:'#f6e05e', cursor:'pointer', fontSize:11 }}>
+        Activate License
+      </button>
+    </div>
+  ) : null;
 
   return (
     <LicenseContext.Provider value={{ license, offlineOk, hasFeature, deactivate: handleDeactivate }}>
+      {trialBanner}
       {children}
     </LicenseContext.Provider>
   );
