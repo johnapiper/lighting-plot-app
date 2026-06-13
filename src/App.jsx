@@ -935,6 +935,7 @@ function App() {
       )}
       {showTemplates && (
         <ProjectTemplatesDialog
+          currentProject={project}
           onSelect={handleApplyTemplate}
           onClose={() => setShowTemplates(false)}
         />
