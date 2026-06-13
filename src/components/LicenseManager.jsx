@@ -63,7 +63,7 @@ export default function LicenseManager({ onClose }) {
       await writeDatabase(newDb, token);
       setDb(newDb);
       setNewLicenseKey(newKey);
-      setAddForm({ name: '', email: '', rights: [], expiresAt: oneYearFromNow(), notes: '' });
+      setAddForm({ name: '', email: '', rights: [], expiresAt: oneYearFromNow(), notes: '', maxSeats: 1 });
       flash('License created.');
       setTab('list');
     } catch (e) { setErrMsg(e.message); }
