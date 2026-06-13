@@ -405,7 +405,7 @@ function App() {
     clearSelection();
   }
   function handleStudioSettingsSave(settings) {
-    commit(proj => { proj.meta = { ...proj.meta, ...settings }; return proj; });
+    commit(proj => { proj.meta = { ...proj.meta, ...settings }; return proj; }, 'Edit studio settings');
     setShowStudioSettings(false);
   }
 
