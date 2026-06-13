@@ -233,9 +233,6 @@ export default function Toolbar({
               <button style={styles.btn} title="Studio Settings" onClick={onStudioSettings}>
                 <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
               </button>
-              <button title="App Settings" style={styles.btn} onClick={onAppSettings}>
-                <span style={styles.icon}>ℹ</span><span style={styles.label}>About</span>
-              </button>
             </div>
           </>
         )}
