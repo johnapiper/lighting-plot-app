@@ -1151,12 +1151,14 @@ export default function Canvas({
     if (!showRulers) return null;
     const step = gridSize;
     const ticksX = [], ticksY = [];
+    const units = meta?.units || 'mm';
+    const tickLabel = (wu) => String(+toDisplayValue(wu, units).toFixed(units === 'mm' ? 0 : 2));
     const si = Math.floor(-pan.x / zoom / step), ei = si + Math.ceil(svgW / zoom / step) + 1;
     for (let i = si; i <= ei; i++) {
       const sx = i * step * zoom + pan.x, major = i % 5 === 0;
       ticksX.push(<g key={`rx${i}`}>
         <line x1={sx+RULER_SIZE} y1={major?8:13} x2={sx+RULER_SIZE} y2={RULER_SIZE} stroke="#4a6080" strokeWidth={1} />
-        {major && <text x={sx+RULER_SIZE+2} y={10} fontSize={8} fill="#4a6080">{i*step}</text>}
+        {major && <text x={sx+RULER_SIZE+2} y={10} fontSize={8} fill="#4a6080">{tickLabel(i*step)}</text>}
       </g>);
     }
     const sj = Math.floor(-pan.y / zoom / step), ej = sj + Math.ceil(svgH / zoom / step) + 1;
@@ -1164,9 +1166,11 @@ export default function Canvas({
       const sy = j * step * zoom + pan.y, major = j % 5 === 0;
       ticksY.push(<g key={`ry${j}`}>
         <line x1={major?8:13} y1={sy+RULER_SIZE} x2={RULER_SIZE} y2={sy+RULER_SIZE} stroke="#4a6080" strokeWidth={1} />
-        {major && <text x={4} y={sy+RULER_SIZE+4} fontSize={8} fill="#4a6080" transform={`rotate(-90 4 ${sy+RULER_SIZE})`}>{j*step}</text>}
+        {major && <text x={4} y={sy+RULER_SIZE+4} fontSize={8} fill="#4a6080" transform={`rotate(-90 4 ${sy+RULER_SIZE})`}>{tickLabel(j*step)}</text>}
       </g>);
     }
+    // Unit indicator in the ruler corner
+    ticksX.push(<text key="unit-corner" x={3} y={13} fontSize={7} fill="#5a7a9a" fontWeight="700">{UNIT_LABELS[units] || units}</text>);
     return (
       <g>
         <rect x={0} y={0} width={svgW} height={RULER_SIZE} fill="#111827" />
