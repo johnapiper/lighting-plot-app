@@ -6,6 +6,7 @@ const CAD_EDIT_TOOLS = [
   { id: 'pipe',      label: 'Pipe',      icon: '━', key: 'P' },
   { id: 'truss',     label: 'Truss',     icon: '⊞', key: null },
   { id: 'text',      label: 'Text',      icon: 'T', key: 'T' },
+  { id: 'dimension', label: 'Measure',   icon: '⟷', key: 'M' },
   { id: 'calibrate', label: 'Calibrate', icon: '📐', key: 'C' },
 ];
 
