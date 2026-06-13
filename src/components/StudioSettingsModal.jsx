@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 export default function StudioSettingsModal({ meta, onSave, onClose }) {
   const [gridHeight, setGridHeight] = useState(String(meta?.gridHeight ?? 6000));
   const [rigHeight,  setRigHeight]  = useState(String(meta?.rigHeight  ?? 5500));
-  const [gridSize,   setGridSize]   = useState(String(meta?.gridSize   ?? 20));
+  const [gridSize,   setGridSize]   = useState(String(meta?.gridSize   ?? 1372));
   const [scale,      setScale]      = useState(String(meta?.scale      ?? 50));
   const [title,      setTitle]      = useState(meta?.title ?? '');
 
