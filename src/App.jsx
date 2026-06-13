@@ -859,7 +859,7 @@ function App() {
             <select
               style={styles.statusSelect}
               value={project.meta?.units || 'mm'}
-              onChange={e => commit(proj => { proj.meta = { ...proj.meta, units: e.target.value }; return proj; })}
+              onChange={e => commit(proj => { proj.meta = { ...proj.meta, units: e.target.value }; return proj; }, `Set units to ${e.target.value}`)}
               title="Display units (geometry is always stored in mm)">
               <option value="mm">mm</option>
               <option value="cm">cm</option>
