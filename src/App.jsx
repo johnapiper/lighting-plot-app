@@ -208,7 +208,6 @@ function App() {
       'menu-export-svg':    () => license?.hasFeature('mvr_export') ? handleExportSVG() : alert('Your license does not include export features.'),
       'menu-report-instrument': () => license?.hasFeature('reports') ? setReport({ type: 'instrument' }) : alert('Your license does not include reports.'),
       'menu-report-channel':    () => license?.hasFeature('reports') ? setReport({ type: 'channel' })     : alert('Your license does not include reports.'),
-      'menu-report-dimmer':     () => license?.hasFeature('reports') ? setReport({ type: 'dimmer' })      : alert('Your license does not include reports.'),
       'pdf-opened':   (e, { dataUrl }) => license?.hasFeature('pdf_background') ? handlePdfData(dataUrl) : null,
       'image-opened': (e, { dataUrl, fileName }) => license?.hasFeature('pdf_background') ? handleImageData(dataUrl, fileName) : null,
       'load-mvr-file': async (e, { filePath, buffer }) => {
