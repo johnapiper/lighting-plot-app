@@ -274,53 +274,6 @@ function App() {
     return () => clearInterval(id);
   }, [project, autoSaveEnabled]);
 
-  // ── Auto-update check ────────────────────────────────────────────────────
-  useEffect(() => {
-    async function checkForUpdate() {
-      try {
-        const https = require('https');
-        const ipc   = window.require ? window.require('electron').ipcRenderer : null;
-        const currentVersion = ipc ? await ipc.invoke('get-app-version') : null;
-        if (!currentVersion) return;
-
-        const data = await new Promise((resolve, reject) => {
-          const req = https.get(
-            'https://api.github.com/repos/johnapiper/lighting-plot-app/releases/latest',
-            { headers: { 'User-Agent': 'lighting-plot-app' } },
-            res => {
-              let body = '';
-              res.on('data', chunk => { body += chunk; });
-              res.on('end', () => {
-                try { resolve(JSON.parse(body)); } catch { reject(new Error('Parse error')); }
-              });
-            }
-          );
-          req.on('error', reject);
-          req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
-        });
-
-        const latestTag = (data.tag_name || '').replace(/^v/, '');
-        if (!latestTag) return;
-
-        // Simple semver comparison: split by '.' and compare numerically
-        function semverGt(a, b) {
-          const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
-          for (let i = 0; i < 3; i++) {
-            if ((pa[i] || 0) > (pb[i] || 0)) return true;
-            if ((pa[i] || 0) < (pb[i] || 0)) return false;
-          }
-          return false;
-        }
-
-        if (semverGt(latestTag, currentVersion)) {
-          setUpdateBanner({ version: latestTag, url: data.html_url || 'https://github.com/johnapiper/lighting-plot-app/releases' });
-        }
-      } catch {
-        // Silently ignore network errors — update check is best-effort
-      }
-    }
-    checkForUpdate();
-  }, []);
 
   function clearSelection() { setSelectedId(null); setSelectedObj(null); setSelectedIds([]); }
   function handleSave() { if (currentFile) saveToFile(currentFile); else if (ipcRenderer) ipcRenderer.send('save-as-request'); }
