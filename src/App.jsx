@@ -250,6 +250,29 @@ function App() {
   const isFirst = useRef(true);
   useEffect(() => { if (isFirst.current) { isFirst.current = false; return; } setDirty(true); }, [project]);
 
+  // ── Auto-save preference ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ipcRenderer) return;
+    ipcRenderer.invoke('get-pref', 'autoSaveEnabled').then(v => { if (v !== null) setAutoSaveEnabled(v); });
+    // Recovery check on startup
+    ipcRenderer.invoke('autosave-read').then(data => {
+      if (!data) return;
+      if (window.confirm('An unsaved session was found. Restore it?')) {
+        try { loadProject(JSON.parse(data)); } catch {}
+      }
+      ipcRenderer.invoke('autosave-clear');
+    });
+  }, []);
+
+  // ── Auto-save interval (every 2 minutes when enabled) ───────────────────
+  useEffect(() => {
+    if (!autoSaveEnabled || !ipcRenderer) return;
+    const id = setInterval(() => {
+      ipcRenderer.invoke('autosave-write', JSON.stringify(project));
+    }, 2 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [project, autoSaveEnabled]);
+
   // ── Auto-update check ────────────────────────────────────────────────────
   useEffect(() => {
     async function checkForUpdate() {
