@@ -4,6 +4,7 @@ const { ipcRenderer } = require('electron');
 
 export default function AppSettingsModal({ onClose }) {
   const [appVersion, setAppVersion] = useState('—');
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   // idle | checking | uptodate | available | downloading | downloaded | error
   const [updateStatus, setUpdateStatus]   = useState('idle');
   const [latestVersion, setLatestVersion] = useState(null);
