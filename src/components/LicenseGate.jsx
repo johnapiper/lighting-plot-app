@@ -215,10 +215,14 @@ export default function LicenseGate({ children }) {
             Use a Different License
           </button>
           {showAbout && (
-            <AppSettingsModal
-              onClose={() => setShowAbout(false)}
-              maxVersion={license?.maxVersion || null}
-            />
+            // Wrap in a higher stacking context so the modal sits above this
+            // full-screen blocked overlay (which is z-index 9999).
+            <div style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
+              <AppSettingsModal
+                onClose={() => setShowAbout(false)}
+                maxVersion={license?.maxVersion || null}
+              />
+            </div>
           )}
         </div>
       </div>
