@@ -1787,6 +1787,14 @@ export default function Canvas({
             {pipePlaceAngle !== null ? `🔄 Angle: ${pipePlaceAngle}° (R=rotate 90°, Esc=stop)` : 'Click to place section — click again to chain next — R/right-click=rotate 90° — Esc=stop'}
           </text>
         )}
+        {/* Snap indicator */}
+        {snapPoint && (
+          <g style={{ pointerEvents: 'none' }}>
+            <circle cx={snapPoint.x} cy={snapPoint.y} r={8/zoom} fill="none" stroke="#00ff88" strokeWidth={1.5/zoom} />
+            <line x1={snapPoint.x - 12/zoom} y1={snapPoint.y} x2={snapPoint.x + 12/zoom} y2={snapPoint.y} stroke="#00ff88" strokeWidth={1/zoom} />
+            <line x1={snapPoint.x} y1={snapPoint.y - 12/zoom} x2={snapPoint.x} y2={snapPoint.y + 12/zoom} stroke="#00ff88" strokeWidth={1/zoom} />
+          </g>
+        )}
         {/* In-progress calibration line (screen coords) */}
         {calibState?.p1 && (() => {
           const x1s = calibState.p1.x * zoom + pan.x + ro, y1s = calibState.p1.y * zoom + pan.y + ro;
