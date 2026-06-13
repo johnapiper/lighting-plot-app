@@ -564,7 +564,7 @@ export default function Canvas({
 
     if (activeTool === 'annotate') {
       const na = { id: generateId(), kind: 'annotation', x: snapped.x, y: snapped.y, label: 'Note', w: 120, h: 50, layerId: 'layer-arch' };
-      commitToDrawing(d => { if (!d.annotations) d.annotations = []; d.annotations.push(na); });
+      commitToDrawing(d => { if (!d.annotations) d.annotations = []; d.annotations.push(na); }, 'Add annotation');
       onSelect({ kind: 'annotation', ...na });
       if (onToolDone) onToolDone();
       setEditingText({ ...na, isAnnotation: true });
