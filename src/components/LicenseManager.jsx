@@ -523,6 +523,39 @@ export default function LicenseManager({ onClose }) {
             </div>
           )}
 
+          {/* ── TRIAL TAB ────────────────────────────────────────────────────── */}
+          {tab === 'trial' && (
+            <div style={S.form}>
+              <p style={{ color: '#a0aec0', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+                Trial mode applies to users with <strong style={{ color: '#e0e0e0' }}>no license key</strong>.
+                Choose which features they can use and for how long. Saving, loading, exporting and
+                importing are always disabled in trial mode — everything stays temporary.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!trialForm.enabled}
+                    onChange={e => setTrialForm(f => ({ ...f, enabled: e.target.checked }))}
+                    style={{ accentColor: '#4a90d9' }} />
+                  <span style={{ color: '#c0c8d8', fontSize: 13 }}>Trial mode enabled</span>
+                </label>
+                <LabelField label="Trial length (days)">
+                  <input style={{ ...S.inp, width: 90 }} type="number" min="0" value={trialForm.days}
+                    onChange={e => setTrialForm(f => ({ ...f, days: e.target.value }))} />
+                </LabelField>
+              </div>
+              <div style={{ color: '#718096', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+                Trial features
+              </div>
+              <FeatureChecklist value={trialForm.features}
+                onChange={v => setTrialForm(f => ({ ...f, features: v }))} />
+              <button style={{ ...S.btn, marginTop: 16, padding: '9px 22px', background: '#4a90d9' }}
+                onClick={saveTrialConfig} disabled={busy || !token}>
+                {busy ? 'Saving…' : 'Save Trial Settings'}
+              </button>
+              {!token && <div style={{ color: '#f6ad55', fontSize: 11, marginTop: 8 }}>⚠ Add a GitHub token first (Token tab).</div>}
+            </div>
+          )}
+
           {/* ── TOKEN TAB ────────────────────────────────────────────────────── */}
           {tab === 'token' && (
             <div style={S.form}>
