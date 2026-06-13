@@ -26,9 +26,12 @@ export default function LicenseManager({ onClose }) {
   const [editForm, setEditForm] = useState({});
 
   const [editingGroup, setEditingGroup]   = useState(null); // group id being edited
-  const [editGroupForm, setEditGroupForm] = useState({ name: '', features: [] });
-  const [addGroupForm, setAddGroupForm]   = useState({ id: '', name: '', features: [] });
+  const [editGroupForm, setEditGroupForm] = useState({ name: '', features: [], minVersion: '', maxVersion: '' });
+  const [addGroupForm, setAddGroupForm]   = useState({ id: '', name: '', features: [], minVersion: '', maxVersion: '' });
   const [showAddGroup, setShowAddGroup]   = useState(false);
+
+  // Trial-mode config (admin-defined): which features non-licensed users get.
+  const [trialForm, setTrialForm] = useState({ enabled: true, days: 14, features: [] });
 
   useEffect(() => { loadToken(); loadDb(); }, []);
 
