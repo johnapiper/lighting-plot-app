@@ -501,7 +501,7 @@ function App() {
 
   // ── Layers ────────────────────────────────────────────────────────────────
   function handleUpdateLayer(id, fields) { commit(proj => { const l=(proj.layers||[]).find(l=>l.id===id); if(l) Object.assign(l,fields); return proj; }); }
-  function handleAddLayer(layer) { commit(proj => { if(!proj.layers) proj.layers=[]; proj.layers.push(layer); return proj; }); }
+  function handleAddLayer(layer) { commit(proj => { if(!proj.layers) proj.layers=[]; proj.layers.push(layer); return proj; }, 'Add layer'); }
   function handleDeleteLayer(id) {
     commit(proj => {
       proj.layers = (proj.layers||[]).filter(l => l.id !== id);
