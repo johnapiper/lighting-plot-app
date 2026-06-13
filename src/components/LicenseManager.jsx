@@ -3,6 +3,7 @@ import {
   fetchDatabase, writeDatabase,
   addLicense, revokeLicense, updateLicense, deleteLicense, invalidateCache,
   addRightsGroup, updateRightsGroup, deleteRightsGroup,
+  getTrialConfig, updateTrialConfig,
 } from '../license/licenseService';
 import { FEATURES } from '../license/features';
 
