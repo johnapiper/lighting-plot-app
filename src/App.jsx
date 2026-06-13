@@ -301,7 +301,8 @@ function App() {
 
   // ── Auto-save interval (every 2 minutes when enabled & licensed) ────────
   useEffect(() => {
-    if (!autoSaveEnabled || !ipcRenderer || !license?.hasFeature('auto_save')) return;
+    // No persistence in trial mode — everything stays temporary.
+    if (isTrial || !autoSaveEnabled || !ipcRenderer || !license?.hasFeature('auto_save')) return;
     const id = setInterval(() => {
       ipcRenderer.invoke('autosave-write', JSON.stringify(project));
     }, 2 * 60 * 1000);
