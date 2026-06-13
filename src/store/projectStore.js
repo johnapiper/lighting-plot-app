@@ -72,7 +72,8 @@ export const initialProject = {
   // Shared
   customFixtureTypes: [],
   layers: DEFAULT_LAYERS,
-  meta: { title: 'Untitled', scale: 50, gridSize: 20, gridHeight: 6000, rigHeight: 5500 },
+  meta: { title: 'Untitled', scale: 50, gridSize: 20, gridHeight: 6000, rigHeight: 5500, units: 'mm' },
+  revisions: [],  // named snapshots [{id, name, timestamp, snapshot}]
 };
 
 // ── Migration ─────────────────────────────────────────────────────────────
