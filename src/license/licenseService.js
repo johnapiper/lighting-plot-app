@@ -151,8 +151,19 @@ export async function verifyKey(rawKey, db) {
 export function resolveFeatures(rights, rightsGroups) {
   const granted = new Set();
   for (const groupId of rights) {
+    // A developer/admin group always grants the full feature set, including
+    // features added in later app versions (so updates never lock them out).
+    if (groupId === 'developer' || groupId === 'admin') {
+      ALL_FEATURE_IDS.forEach(f => granted.add(f));
+      continue;
+    }
     const group = rightsGroups.find(g => g.id === groupId);
     if (!group) continue;
+    // A group may use the "*" wildcard to mean "grant everything".
+    if ((group.features || []).includes('*')) {
+      ALL_FEATURE_IDS.forEach(f => granted.add(f));
+      continue;
+    }
     for (const f of (group.features || [])) granted.add(f);
   }
   return [...granted];
