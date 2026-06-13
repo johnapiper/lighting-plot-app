@@ -209,5 +209,32 @@ export function useProjectStore() {
     setProject(fresh); setCanUndo(false); setCanRedo(false);
   }, []);
 
-  return { project, commit, softUpdate, undo, redo, canUndo, canRedo, loadProject, resetProject };
+  const saveRevision = useCallback((name) => {
+    commit(p => {
+      const revs = [...(p.revisions || [])];
+      revs.push({ id: generateId(), name: name || `Rev ${revs.length + 1}`, timestamp: new Date().toISOString(), snapshot: clone(p) });
+      if (revs.length > 20) revs.shift();
+      return { ...p, revisions: revs };
+    });
+  }, [commit]);
+
+  const restoreRevision = useCallback((revisionId) => {
+    setProject(prev => {
+      const rev = (prev.revisions || []).find(r => r.id === revisionId);
+      if (!rev) return prev;
+      const restored = { ...clone(rev.snapshot), revisions: clone(prev.revisions) };
+      history.current = history.current.slice(0, idx.current + 1);
+      history.current.push(clone(restored));
+      if (history.current.length > MAX_HISTORY) history.current.shift();
+      idx.current = history.current.length - 1;
+      setCanUndo(true); setCanRedo(false);
+      return restored;
+    });
+  }, []);
+
+  return {
+    project, commit, softUpdate, undo, redo, canUndo, canRedo,
+    loadProject, resetProject, saveRevision, restoreRevision,
+    historyStack: history, historyIdx: idx,
+  };
 }
