@@ -125,7 +125,7 @@ function App() {
   const license = useLicense();
   const [currentFile, setCurrentFile]   = useState(null);
   const [dirty, setDirty]               = useState(false);
-  const [updateBanner, setUpdateBanner] = useState(null); // { version, url }
+  const [updateBanner, setUpdateBanner] = useState(null); // { version }
 
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
