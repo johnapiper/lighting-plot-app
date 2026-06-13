@@ -5,48 +5,15 @@ on:
     tags:
       - 'v*.*.*'
 
+# NOTE: Windows is built and released MANUALLY from a Windows dev machine
+# (npm run dist:win → gh release create, which uploads the .exe + .blockmap +
+# latest.yml together). CI must NOT also build Windows: a second, separately
+# signed Windows .exe has a different sha512, and replacing just one of the
+# three Windows artifacts on the release breaks the auto-updater with a
+# checksum mismatch. CI therefore only builds macOS — the platform that cannot
+# be produced on the Windows dev machine. The Windows (latest.yml) and macOS
+# (latest-mac.yml) update manifests are separate files and never collide.
 jobs:
-  # ── Windows NSIS installer ─────────────────────────────────────────────────
-  build-windows:
-    runs-on: windows-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build webpack bundle
-        run: npm run build
-
-      - name: Build Windows installer (NSIS x64)
-        run: npx electron-builder --win --publish never
-
-      - name: Verify dist artifacts match latest.yml
-        run: npm run verify-dist
-
-      - name: Upload Windows installer to release
-        uses: softprops/action-gh-release@v2
-        with:
-          # The auto-updater needs latest.yml + the .blockmap alongside the .exe,
-          # otherwise it fails with a checksum mismatch / missing manifest.
-          files: |
-            dist/Lighting-Plot-Setup.exe
-            dist/Lighting-Plot-Setup.exe.blockmap
-            dist/latest.yml
-          fail_on_unmatched_files: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   # ── macOS DMG (Intel x64 + Apple Silicon arm64) ────────────────────────────
   build-mac:
     runs-on: macos-latest
