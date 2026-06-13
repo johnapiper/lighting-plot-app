@@ -1598,13 +1598,7 @@ export default function Canvas({
               const len = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
               const nx = -dy2/len, ny = dx2/len;
               const tick = 6/zoom;
-              const calib = drawing?.calibration;
-              let lbl;
-              if (calib) {
-                const f = calib.realDist*(calib.unit==='m'?1000:calib.unit==='cm'?10:calib.unit==='ft'?304.8:calib.unit==='in'?25.4:1);
-                const mm = len*f/calib.worldDist;
-                lbl = mm>=1000?`${(mm/1000).toFixed(2)}m`:`${Math.round(mm)}mm`;
-              } else { lbl = `${Math.round(len)}u`; }
+              const lbl = formatLength(len, meta?.units || 'mm');
               return (
                 <g style={{ pointerEvents: 'none' }}>
                   <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="#a0c0ff" strokeWidth={1.5/zoom} strokeDasharray={`${4/zoom} ${2/zoom}`} />
