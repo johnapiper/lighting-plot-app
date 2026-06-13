@@ -87,7 +87,7 @@ jobs:
         run: npm run verify-dist
 
       - name: Upload macOS DMGs and zips to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           # latest-mac.yml + the .zip files are required for macOS auto-update.
           # artifactName is "Lighting-Plot.${ext}"; electron-builder appends the
