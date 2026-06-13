@@ -761,6 +761,7 @@ function App() {
                 groupInfo={groupInfo}
                 onGroup={handleGroup}
                 onUngroup={handleUngroup}
+                onBulkUpdate={handleBulkUpdate}
               />
             );
           })()}
