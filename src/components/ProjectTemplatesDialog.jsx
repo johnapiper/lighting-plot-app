@@ -69,7 +69,7 @@ export default function ProjectTemplatesDialog({ currentProject, onSelect, onClo
           {/* Built-in templates */}
           <div style={S.sectionLabel}>Built-in Templates</div>
           {BUILT_IN_TEMPLATES.map(t => (
-            <div key={t.id} style={S.card} onClick={() => { onSelect(t); onClose(); }}>
+            <div key={t.id} style={S.card} onClick={() => { onSelect({ ...t, snapshot: t.buildSnapshot() }); onClose(); }}>
               <span style={S.icon}>{t.icon}</span>
               <div style={S.cardText}>
                 <div style={S.cardName}>{t.name}</div>
