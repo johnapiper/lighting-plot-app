@@ -1912,7 +1912,7 @@ export default function Canvas({
           <div style={{ background: '#16213e', border: '1px solid #0f3460', borderRadius: 8, padding: 20, width: 320, boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#4a90d9', marginBottom: 12 }}>📐 Scale Calibration</div>
             <div style={{ fontSize: 11, color: '#a0aec0', marginBottom: 12 }}>
-              World distance: <strong style={{ color: '#e0e0e0' }}>{Math.round(distance(calibState.p1.x, calibState.p1.y, calibState.p2.x, calibState.p2.y))} units</strong><br/>
+              Current span: <strong style={{ color: '#e0e0e0' }}>{formatLength(distance(calibState.p1.x, calibState.p1.y, calibState.p2.x, calibState.p2.y), meta?.units || 'mm')}</strong><br/>
               Enter the real-world measurement for this line:
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
