@@ -1353,6 +1353,31 @@ export default function Canvas({
             </g>
           );
         })}
+        {/* Dimension lines */}
+        {(drawing?.dimensions||[]).filter(o => getLayerId(o,'dimension') === layerId).map(d => {
+          const sel = allSelected.has(d.id);
+          const ddx = d.x2 - d.x1, ddy = d.y2 - d.y1;
+          const dlen = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
+          const nx = -ddy/dlen, ny = ddx/dlen;
+          const tick = 8/zoom;
+          const calib = drawing?.calibration;
+          let dlbl;
+          if (calib) {
+            const cf = calib.realDist*(calib.unit==='m'?1000:calib.unit==='cm'?10:calib.unit==='ft'?304.8:calib.unit==='in'?25.4:1);
+            const dmm = dlen*cf/calib.worldDist;
+            dlbl = dmm>=1000?`${(dmm/1000).toFixed(2)}m`:`${Math.round(dmm)}mm`;
+          } else { dlbl = `${Math.round(dlen)}u`; }
+          const stroke = sel ? '#00aaff' : '#a0c0e0';
+          return (
+            <g key={d.id} style={{ cursor: 'pointer' }} onClick={() => onSelect({ kind: 'dimension', ...d })}>
+              <line x1={d.x1+nx*tick} y1={d.y1+ny*tick} x2={d.x1-nx*tick} y2={d.y1-ny*tick} stroke={stroke} strokeWidth={1/zoom} />
+              <line x1={d.x2+nx*tick} y1={d.y2+ny*tick} x2={d.x2-nx*tick} y2={d.y2-ny*tick} stroke={stroke} strokeWidth={1/zoom} />
+              <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke={stroke} strokeWidth={1/zoom} />
+              <text x={(d.x1+d.x2)/2} y={(d.y1+d.y2)/2 - 5/zoom} textAnchor="middle" fontSize={9/zoom} fill={stroke} style={{ userSelect:'none', pointerEvents:'none' }}>{dlbl}</text>
+              <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="transparent" strokeWidth={8/zoom} />
+            </g>
+          );
+        })}
         {/* Pipes and Trusses */}
         {pipes.filter(o => getLayerId(o,'pipe') === layerId).map(p => {
           const sel = allSelected.has(p.id), hov = hoveredPipe === p.id;
