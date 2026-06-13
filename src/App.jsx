@@ -854,6 +854,7 @@ function App() {
             <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>
             <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>
             <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">📁 Templates</button>
+            <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">📐 Drawing</button>
           </div>
         );
       })()}
