@@ -501,6 +501,19 @@ export default function Canvas({
       return;
     }
 
+    if (activeTool === 'dimension') {
+      const cur = drawingRef.current;
+      if (!cur) {
+        setDrawingState({ kind: 'dimension', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      } else {
+        const dim = { id: generateId(), x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, layerId: activeLayerId || 'layer-arch' };
+        commitToDrawing(d => { if (!d.dimensions) d.dimensions = []; d.dimensions.push(dim); });
+        setDrawingState(null);
+        onToolChange?.('select');
+      }
+      return;
+    }
+
     if (activeTool === 'line' || activeTool === 'rect') {
       setDrawingState({ kind: activeTool, x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
       return;
