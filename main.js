@@ -338,6 +338,16 @@ ipcMain.handle('license-clear-key', () => {
   try { fs.unlinkSync(keyFilePath()); } catch {}
 });
 
+// ── Auto-save / recovery ─────────────────────────────────────────────────
+function autoSavePath() { return path.join(app.getPath('userData'), 'lplot-autosave.json'); }
+ipcMain.handle('autosave-write', (e, data) => { try { fs.writeFileSync(autoSavePath(), data, 'utf8'); } catch {} });
+ipcMain.handle('autosave-read',  () => { try { return fs.readFileSync(autoSavePath(), 'utf8'); } catch { return null; } });
+ipcMain.handle('autosave-clear', () => { try { fs.unlinkSync(autoSavePath()); } catch {} });
+
+// ── App-level preferences (electron-store) ───────────────────────────────
+ipcMain.handle('get-pref', (e, key)        => store?.get(key) ?? null);
+ipcMain.handle('set-pref', (e, key, value) => { store?.set(key, value); });
+
 // ── GitHub token storage (plain fs — same approach as license key) ────────
 function tokenFilePath() {
   return path.join(app.getPath('userData'), 'lplot-gh.token');
