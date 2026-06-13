@@ -163,8 +163,9 @@ function App() {
   useEffect(() => {
     if (!ipcRenderer) return;
     const handlers = {
-      'menu-app-settings': () => setShowAppSettings(true),
+      'menu-app-settings':  () => setShowAppSettings(true),
       'menu-check-updates': () => setShowAppSettings(true),
+      'update-available':   (_, info) => setUpdateBanner({ version: info.version }),
       'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
