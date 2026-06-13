@@ -19,6 +19,11 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+    # Job-level flag so step `if:` conditions can branch on whether an Apple
+    # signing certificate secret is configured (secrets can't be used directly
+    # in `if:`, but env can).
+    env:
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
 
     steps:
       - name: Checkout
@@ -36,15 +41,15 @@ jobs:
       - name: Build webpack bundle
         run: npm run build
 
-      # ── Code signing (optional — skipped if secrets not set) ──────────────
+      # ── Code signing (optional — only runs if signing secrets are set) ────
       # To enable signing, add these secrets in GitHub repo Settings → Secrets:
       #   APPLE_CERTIFICATE      — base64-encoded .p12 Developer ID certificate
       #   APPLE_CERTIFICATE_PWD  — certificate password
       #   APPLE_ID               — your Apple ID email
       #   APPLE_ID_PASSWORD      — app-specific password from appleid.apple.com
       #   APPLE_TEAM_ID          — your Apple Developer Team ID
-      - name: Import Apple certificate (if available)
-        if: ${{ env.APPLE_CERTIFICATE != '' }}
+      - name: Import Apple certificate
+        if: env.HAS_APPLE_CERT == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PWD: ${{ secrets.APPLE_CERTIFICATE_PWD }}
@@ -57,15 +62,26 @@ jobs:
           security import $RUNNER_TEMP/cert.p12 -k $KEYCHAIN_PATH -P "$APPLE_CERTIFICATE_PWD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "" $KEYCHAIN_PATH
 
-      - name: Build macOS DMG + zip (x64 + arm64)
+      # Signed build — certificate is in the keychain; electron-builder
+      # auto-discovers the identity, and notarises if APPLE_ID secrets exist.
+      - name: Build macOS DMG + zip (signed)
+        if: env.HAS_APPLE_CERT == 'true'
         run: npx electron-builder --mac --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PWD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      # Unsigned build — no certificate configured. Disable identity discovery
+      # so electron-builder produces an unsigned app instead of erroring on an
+      # empty CSC_LINK.
+      - name: Build macOS DMG + zip (unsigned)
+        if: env.HAS_APPLE_CERT != 'true'
+        run: npx electron-builder --mac --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Verify dist artifacts match latest-mac.yml
         run: npm run verify-dist
@@ -74,11 +90,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           # latest-mac.yml + the .zip files are required for macOS auto-update.
+          # artifactName is "Lighting-Plot.${ext}"; electron-builder appends the
+          # arch for the second arch, so match both bare and arch-suffixed names.
           files: |
-            dist/Lighting-Plot-x64.dmg
-            dist/Lighting-Plot-arm64.dmg
-            dist/Lighting-Plot-x64.zip
-            dist/Lighting-Plot-arm64.zip
+            dist/*.dmg
+            dist/*.zip
             dist/latest-mac.yml
           fail_on_unmatched_files: false
         env:
