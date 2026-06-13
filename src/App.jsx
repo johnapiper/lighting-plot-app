@@ -228,6 +228,7 @@ function App() {
       'pdf-opened':   (e, { dataUrl }) => license?.hasFeature('pdf_background') ? handlePdfData(dataUrl) : null,
       'image-opened': (e, { dataUrl, fileName }) => license?.hasFeature('pdf_background') ? handleImageData(dataUrl, fileName) : null,
       'load-mvr-file': async (e, { filePath, buffer }) => {
+        if (blockIfTrial()) return;
         if (!license?.hasFeature('mvr_import')) { alert('Your license does not include MVR import.'); return; }
         try {
           const proj = await importMVR(buffer);
