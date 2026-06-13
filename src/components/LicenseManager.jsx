@@ -372,6 +372,10 @@ export default function LicenseManager({ onClose }) {
               <LabelField label="Notes">
                 <input style={S.inp} value={addForm.notes} onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))} />
               </LabelField>
+              <LabelField label="Max Seats">
+                <input style={S.inp} type="number" min="1" value={addForm.maxSeats || 1}
+                  onChange={e => setAddForm(f => ({ ...f, maxSeats: parseInt(e.target.value, 10) || 1 }))} />
+              </LabelField>
               <LabelField label="Rights groups">
                 <RightsSelector value={addForm.rights} onChange={v => setAddForm(f => ({ ...f, rights: v }))} />
               </LabelField>
