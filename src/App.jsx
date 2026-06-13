@@ -594,7 +594,7 @@ function App() {
       for (let i = 1; i <= count; i++) {
         d.fixtures.push({ ...JSON.parse(JSON.stringify(f)), id: generateId(), x: f.x + dx * i, y: f.y + dy * i, dmxAddress: null, channel: null });
       }
-    });
+    }, `Duplicate fixture ×${count}`);
   }
 
   function handleLoadDrawingTemplate(snapshot) {
@@ -602,7 +602,7 @@ function App() {
       const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
       if (d && snapshot) Object.assign(d, { ...snapshot, id: d.id, name: d.name });
       return proj;
-    });
+    }, 'Load drawing template');
     clearSelection();
   }
 
