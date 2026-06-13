@@ -172,6 +172,14 @@ function App() {
   const canGroup   = allSelectedIds.length >= 2;
   const canUngroup = !!groupInfo;
 
+  // In trial mode everything is temporary: no save / load / export / import.
+  const isTrial    = !!license?.trial;
+  const maxVersion = license?.maxVersion || null;
+  function blockIfTrial() {
+    if (isTrial) { alert('Saving, loading, exporting and importing are disabled in trial mode. Activate a license to enable them.'); return true; }
+    return false;
+  }
+
   // ── IPC ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!ipcRenderer) return;
