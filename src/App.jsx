@@ -868,11 +868,11 @@ function App() {
               <option value="in">in</option>
             </select>
             <span style={{ flex:1 }} />
-            <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>
-            <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>
-            <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>
-            <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">📁 Templates</button>
-            <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">📐 Drawing</button>
+            {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>}
+            {license?.hasFeature('revisions') && <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>}
+            {license?.hasFeature('undo_history') && <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>}
+            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">📁 Templates</button>}
+            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">📐 Drawing</button>}
           </div>
         );
       })()}
