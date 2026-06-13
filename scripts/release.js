@@ -122,10 +122,12 @@ const distDir = path.join(__dirname, '..', 'dist');
 let installerFiles = [];
 try {
   const allFiles = fs.readdirSync(distDir);
-  // Pick installers for current platform only; CI attaches the other platform's builds
-  const names = process.platform === 'darwin' ? ['Lighting-Plot.dmg', 'Lighting-Plot.zip']
-              : process.platform === 'linux'  ? allFiles.filter(f => /\.(AppImage|deb|rpm)$/.test(f))
-              :                                 ['Lighting-Plot-Setup.exe'];
+  // Pick installers for current platform only; CI attaches the other platform's builds.
+  // The auto-updater REQUIRES the platform's latest*.yml manifest and (for NSIS) the
+  // .blockmap to be attached alongside the installer — without them updates fail.
+  const names = process.platform === 'darwin' ? ['Lighting-Plot.dmg', 'Lighting-Plot.zip', 'latest-mac.yml']
+              : process.platform === 'linux'  ? [...allFiles.filter(f => /\.(AppImage|deb|rpm)$/.test(f)), 'latest-linux.yml']
+              :                                 ['Lighting-Plot-Setup.exe', 'Lighting-Plot-Setup.exe.blockmap', 'latest.yml'];
   installerFiles = (Array.isArray(names) ? names : names)
     .filter(f => typeof f === 'string' && allFiles.includes(path.basename(f)))
     .map(f => path.join(distDir, path.basename(f)));
