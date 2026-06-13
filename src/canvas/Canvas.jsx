@@ -1549,20 +1549,31 @@ export default function Canvas({
     const p1 = calibState.p1;
 
     commitToDrawing(d => {
-      d.calibration = { p1, p2: calibState.p2, worldDist, realDist, unit: calibUnit, scaleFactor };
-      // Rescale pdfBackground so the calibrated distance matches real-world mm
-      if (d.pdfBackground && scaleFactor > 0 && isFinite(scaleFactor)) {
+      // Scale a coordinate about an anchor.
+      const sc = (v, o) => o + (v - o) * scaleFactor;
+      const valid = scaleFactor > 0 && isFinite(scaleFactor);
+      if (d.pdfBackground && valid) {
+        // Background present: the geometry is the truth (1wu=1mm). Rescale the
+        // imported background image so it matches, leaving fixtures/pipes put.
         const bg = d.pdfBackground;
-        bg.x = p1.x + (bg.x - p1.x) * scaleFactor;
-        bg.y = p1.y + (bg.y - p1.y) * scaleFactor;
-        bg.w = bg.w * scaleFactor;
-        bg.h = bg.h * scaleFactor;
-        // Rescale p2 so calibration line stays aligned with the rescaled background
-        d.calibration.p2 = {
-          x: p1.x + (calibState.p2.x - p1.x) * scaleFactor,
-          y: p1.y + (calibState.p2.y - p1.y) * scaleFactor,
-        };
+        bg.x = sc(bg.x, p1.x); bg.y = sc(bg.y, p1.y);
+        bg.w = bg.w * scaleFactor; bg.h = bg.h * scaleFactor;
+      } else if (valid) {
+        // No background: rescale ALL geometry about p1 so the measured feature
+        // becomes its true millimetre size, restoring the 1wu=1mm invariant.
+        const sp = (px, py) => ({ x: sc(px, p1.x), y: sc(py, p1.y) });
+        (d.fixtures||[]).forEach(f => { const p = sp(f.x, f.y); f.x = p.x; f.y = p.y; });
+        (d.pipes||[]).forEach(p => { const a = sp(p.x1,p.y1), b = sp(p.x2,p.y2); p.x1=a.x;p.y1=a.y;p.x2=b.x;p.y2=b.y; });
+        (d.lines||[]).forEach(l => { const a = sp(l.x1,l.y1), b = sp(l.x2,l.y2); l.x1=a.x;l.y1=a.y;l.x2=b.x;l.y2=b.y; });
+        (d.rectangles||[]).forEach(r => { const a = sp(r.x,r.y); r.x=a.x;r.y=a.y; r.w*=scaleFactor; r.h*=scaleFactor; });
+        (d.texts||[]).forEach(t => { const a = sp(t.x,t.y); t.x=a.x;t.y=a.y; });
+        (d.images||[]).forEach(im => { const a = sp(im.x,im.y); im.x=a.x;im.y=a.y; im.w*=scaleFactor; im.h*=scaleFactor; });
+        (d.infrastructure||[]).forEach(i => { const a = sp(i.x,i.y); i.x=a.x;i.y=a.y; });
+        (d.dimensions||[]).forEach(dm => { const a = sp(dm.x1,dm.y1), b = sp(dm.x2,dm.y2); dm.x1=a.x;dm.y1=a.y;dm.x2=b.x;dm.y2=b.y; });
       }
+      // Calibration is now an annotation only — measurement uses 1wu=1mm.
+      const p2s = valid ? { x: sc(calibState.p2.x, p1.x), y: sc(calibState.p2.y, p1.y) } : calibState.p2;
+      d.calibration = { p1, p2: p2s, realDist, unit: calibUnit };
     });
     setCalibState(null);
     setCalibDist('');
