@@ -81,7 +81,7 @@ function CadContent({ drawing, fixtureTypes, layers, worldScale = 1 }) {
         if (!ftype) return null;
         // Each fixture symbol is counter-scaled so it appears at ~30 screen pixels
         // regardless of the viewport's drawing scale.
-        const symScale = symBase * (f.scale || 1);
+        const symScale = symBase;
         const unitLabel = f.channel?.trim()
           ? `Ch.${f.channel.trim()}`
           : (f.unit?.trim() || null);
@@ -94,10 +94,10 @@ function CadContent({ drawing, fixtureTypes, layers, worldScale = 1 }) {
                 channel={null}
                 selected={false}
                 rotation={f.rotation || 0}
-                scale={1}
+                scale={f.scale || 1}
                 colourHex={f.colourHex || null}
                 symbolOverride={f.symbolOverride || null}
-                symbolColor={f.symbolColor || '#222'}
+                symbolColor={f.symbolColor || null}
               />
             </g>
           </g>
