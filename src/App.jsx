@@ -771,7 +771,11 @@ function App() {
         />
       )}
       {showAppSettings && (
-        <AppSettingsModal onClose={() => setShowAppSettings(false)} />
+        <AppSettingsModal
+          onClose={() => setShowAppSettings(false)}
+          autoSaveEnabled={autoSaveEnabled}
+          onChangeAutoSave={v => { setAutoSaveEnabled(v); ipcRenderer?.invoke('set-pref', 'autoSaveEnabled', v); }}
+        />
       )}
       {showMyLicense && (
         <MyLicenseModal
