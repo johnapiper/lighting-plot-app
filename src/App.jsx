@@ -915,6 +915,7 @@ function App() {
           autoSaveEnabled={autoSaveEnabled}
           onChangeAutoSave={v => { setAutoSaveEnabled(v); ipcRenderer?.invoke('set-pref', 'autoSaveEnabled', v); }}
           pendingUpdateVersion={updateBanner?.version || null}
+          maxVersion={maxVersion}
         />
       )}
       {showMyLicense && (
