@@ -12,6 +12,8 @@
  *   - A license holder can use any feature enabled by ANY of their groups
  */
 
+import { ALL_FEATURE_IDS } from './features';
+
 const REPO_OWNER  = 'johnapiper';
 const REPO_NAME   = 'lighting-plot-app';
 const DB_PATH     = 'licenses/database.json';
