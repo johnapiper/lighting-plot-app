@@ -500,6 +500,16 @@ export default function LicenseManager({ onClose }) {
                     <FeatureChecklist value={addGroupForm.features}
                       onChange={v => setAddGroupForm(f => ({ ...f, features: v }))} />
                   </LabelField>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+                    <LabelField label="Min app version">
+                      <input style={S.inp} value={addGroupForm.minVersion} placeholder="e.g. 1.6.0 (blank = any)"
+                        onChange={e => setAddGroupForm(f => ({ ...f, minVersion: e.target.value.trim() }))} />
+                    </LabelField>
+                    <LabelField label="Max app version">
+                      <input style={S.inp} value={addGroupForm.maxVersion} placeholder="e.g. 2.0.0 (blank = any)"
+                        onChange={e => setAddGroupForm(f => ({ ...f, maxVersion: e.target.value.trim() }))} />
+                    </LabelField>
+                  </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     <button type="submit" style={{ ...S.btn, padding: '7px 18px', background: '#4a90d9' }} disabled={busy || !token}>Create Group</button>
                     <button type="button" style={{ ...S.btn, padding: '7px 18px', background: 'none', border: '1px solid #1a3a5c', color: '#718096' }} onClick={() => setShowAddGroup(false)}>Cancel</button>
