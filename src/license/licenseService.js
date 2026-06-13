@@ -209,7 +209,7 @@ export async function writeDatabase(db, githubToken) {
 
 // ── License CRUD (returns updated db — call writeDatabase separately) ──────
 
-export async function addLicense(db, { name, email, rights, expiresAt, notes }) {
+export async function addLicense(db, { name, email, rights, expiresAt, notes, maxSeats }) {
   const key  = generateLicenseKey();
   const hash = await hashKey(key);
   const entry = {
@@ -222,6 +222,7 @@ export async function addLicense(db, { name, email, rights, expiresAt, notes }) 
     createdAt: new Date().toISOString().slice(0, 10),
     active:    true,
     notes:     notes || '',
+    maxSeats:  parseInt(maxSeats, 10) || 1,
   };
   return {
     newDb:  { ...db, licenses: [...db.licenses, entry] },
