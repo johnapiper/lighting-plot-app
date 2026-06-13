@@ -31,10 +31,18 @@ jobs:
       - name: Build Windows installer (NSIS x64)
         run: npx electron-builder --win --publish never
 
+      - name: Verify dist artifacts match latest.yml
+        run: npm run verify-dist
+
       - name: Upload Windows installer to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Lighting-Plot-Setup.exe
+          # The auto-updater needs latest.yml + the .blockmap alongside the .exe,
+          # otherwise it fails with a checksum mismatch / missing manifest.
+          files: |
+            dist/Lighting-Plot-Setup.exe
+            dist/Lighting-Plot-Setup.exe.blockmap
+            dist/latest.yml
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
