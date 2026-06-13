@@ -282,14 +282,14 @@ function App() {
     });
   }, []);
 
-  // ── Auto-save interval (every 2 minutes when enabled) ───────────────────
+  // ── Auto-save interval (every 2 minutes when enabled & licensed) ────────
   useEffect(() => {
-    if (!autoSaveEnabled || !ipcRenderer) return;
+    if (!autoSaveEnabled || !ipcRenderer || !license?.hasFeature('auto_save')) return;
     const id = setInterval(() => {
       ipcRenderer.invoke('autosave-write', JSON.stringify(project));
     }, 2 * 60 * 1000);
     return () => clearInterval(id);
-  }, [project, autoSaveEnabled]);
+  }, [project, autoSaveEnabled, license]);
 
 
   function clearSelection() { setSelectedId(null); setSelectedObj(null); setSelectedIds([]); }
