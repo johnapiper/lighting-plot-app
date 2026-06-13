@@ -7,6 +7,7 @@ import {
 import InfraLayer from './InfraLayer';
 import CablingLayer from './CablingLayer';
 import { findNearestStructure } from '../cabling/routing';
+import { formatLength, formatCoord, toDisplayValue, UNIT_LABELS } from './units';
 
 const RULER_SIZE = 20;
 const HIT_RADIUS = 8;
