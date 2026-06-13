@@ -125,6 +125,11 @@ function App() {
   const [showLicenseManager, setShowLicenseManager] = useState(false);
   const [showMyLicense, setShowMyLicense]           = useState(false);
   const [showShortcuts, setShowShortcuts]           = useState(false);
+  const [showUndoHistory, setShowUndoHistory]       = useState(false);
+  const [showUniverse, setShowUniverse]             = useState(false);
+  const [showRevisions, setShowRevisions]           = useState(false);
+  const [swapFixtureIds, setSwapFixtureIds]         = useState(null); // array of ids or null
+  const [showTemplates, setShowTemplates]           = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled]       = useState(true);
   const [animating, setAnimating]                   = useState(true);
   const license = useLicense();
