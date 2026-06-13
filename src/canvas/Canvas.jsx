@@ -1571,6 +1571,28 @@ export default function Canvas({
 
             {/* Drawing ghosts */}
             {drawingState?.kind === 'line' && <line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2} stroke="#607d8b" strokeWidth={2/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} />}
+            {drawingState?.kind === 'dimension' && (() => {
+              const d = drawingState;
+              const dx2 = d.x2 - d.x1, dy2 = d.y2 - d.y1;
+              const len = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
+              const nx = -dy2/len, ny = dx2/len;
+              const tick = 6/zoom;
+              const calib = drawing?.calibration;
+              let lbl;
+              if (calib) {
+                const f = calib.realDist*(calib.unit==='m'?1000:calib.unit==='cm'?10:calib.unit==='ft'?304.8:calib.unit==='in'?25.4:1);
+                const mm = len*f/calib.worldDist;
+                lbl = mm>=1000?`${(mm/1000).toFixed(2)}m`:`${Math.round(mm)}mm`;
+              } else { lbl = `${Math.round(len)}u`; }
+              return (
+                <g style={{ pointerEvents: 'none' }}>
+                  <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="#a0c0ff" strokeWidth={1.5/zoom} strokeDasharray={`${4/zoom} ${2/zoom}`} />
+                  <line x1={d.x1+nx*tick} y1={d.y1+ny*tick} x2={d.x1-nx*tick} y2={d.y1-ny*tick} stroke="#a0c0ff" strokeWidth={1/zoom} />
+                  <line x1={d.x2+nx*tick} y1={d.y2+ny*tick} x2={d.x2-nx*tick} y2={d.y2-ny*tick} stroke="#a0c0ff" strokeWidth={1/zoom} />
+                  <text x={(d.x1+d.x2)/2} y={(d.y1+d.y2)/2 - 5/zoom} textAnchor="middle" fontSize={9/zoom} fill="#a0c0ff">{lbl}</text>
+                </g>
+              );
+            })()}
             {drawingState?.kind === 'pipe' && (
               <g>
                 <line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2}
