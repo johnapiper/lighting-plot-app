@@ -32,6 +32,9 @@ export default function Canvas({
   animating,
   activeMode = 'cad',
   fitRef,
+  dmxConflicts = [],
+  onSwapFixture,
+  onDuplicateAlongPath,
 }) {
   const svgRef = useRef(null);
 
