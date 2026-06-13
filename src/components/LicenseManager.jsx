@@ -46,8 +46,11 @@ export default function LicenseManager({ onClose }) {
 
   async function saveToken() {
     if (!token.trim()) return;
-    await ipcRenderer.invoke('license-save-token', { token: token.trim() });
-    setTokenSaved(true); flash('GitHub token saved (encrypted).');
+    try {
+      const result = await ipcRenderer.invoke('license-save-token', { token: token.trim() });
+      if (result?.error) { setErrMsg('Failed to save token: ' + result.error); return; }
+      setTokenSaved(true); flash('GitHub token saved (encrypted).');
+    } catch (e) { setErrMsg('Failed to save token: ' + e.message); }
   }
 
   // ── License: add ──────────────────────────────────────────────────────────
