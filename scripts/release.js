@@ -94,6 +94,11 @@ const platformFlag = process.platform === 'darwin' ? '--mac --universal'
 console.log(`📦 Building installer (${process.platform})…`);
 run(`npx electron-builder ${platformFlag} --publish never`);
 
+// ── Verify dist artifacts match latest.yml before publishing ──────────────────
+// Guards against the auto-updater "sha512 checksum mismatch" failure.
+console.log('\n🔍 Verifying dist artifacts against latest.yml…');
+run('node scripts/verify-dist.js');
+
 // ── Git commit + tag ──────────────────────────────────────────────────────────
 console.log('\n📝 Committing…');
 run('git add -A');
