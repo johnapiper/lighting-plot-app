@@ -15,7 +15,7 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
     if (isNaN(gh) || gh <= 0) { alert('Grid height must be a positive number'); return; }
     if (isNaN(rh) || rh <= 0) { alert('Rig height must be a positive number'); return; }
     if (rh > gh) { alert('Rig height must be ≤ grid height'); return; }
-    onSave({ gridHeight: gh, rigHeight: rh, gridSize: isNaN(gs) ? 20 : gs, scale: isNaN(sc) ? 50 : sc, title });
+    onSave({ gridHeight: gh, rigHeight: rh, gridSize: isNaN(gs) ? 1372 : gs, scale: isNaN(sc) ? 50 : sc, title });
   }
 
   return (
