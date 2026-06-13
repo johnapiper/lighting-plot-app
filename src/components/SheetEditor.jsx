@@ -79,8 +79,8 @@ function CadContent({ drawing, fixtureTypes, layers, worldScale = 1 }) {
       {fixtures.filter(f => vis(f, 'fixture')).map(f => {
         const ftype = ftypes[f.fixtureTypeId];
         if (!ftype) return null;
-        // Each fixture symbol is counter-scaled so it appears at ~30 screen pixels
-        // regardless of the viewport's drawing scale.
+        // Counter-scale so the symbol renders at the SAME nominal size as the CAD
+        // canvas (1/zoom there, 1/worldScale here — both are 1/(screen-px per wu)).
         const symScale = symBase;
         const unitLabel = f.channel?.trim()
           ? `Ch.${f.channel.trim()}`
@@ -97,7 +97,9 @@ function CadContent({ drawing, fixtureTypes, layers, worldScale = 1 }) {
                 scale={f.scale || 1}
                 colourHex={f.colourHex || null}
                 symbolOverride={f.symbolOverride || null}
-                symbolColor={f.symbolColor || null}
+                // Honour the fixture's own symbol colour; fall back to dark so the
+                // symbol is visible on the white sheet paper (CAD uses a light default).
+                symbolColor={f.symbolColor || '#222'}
               />
             </g>
           </g>
