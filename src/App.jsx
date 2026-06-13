@@ -24,6 +24,7 @@ import UniverseOverviewModal from './components/UniverseOverviewModal';
 import RevisionHistoryModal from './components/RevisionHistoryModal';
 import FixtureSwapModal from './components/FixtureSwapModal';
 import ProjectTemplatesDialog from './components/ProjectTemplatesDialog';
+import DrawingTemplatesModal from './components/DrawingTemplatesModal';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
