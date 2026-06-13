@@ -471,7 +471,7 @@ export default function LicenseManager({ onClose }) {
                 {tokenSaved ? '✓ Saved' : 'Save Token'}
               </button>
               <p style={{ color: '#4a5568', fontSize: 11, marginTop: 16 }}>
-                Encrypted using the OS keychain (Windows DPAPI / macOS Keychain).
+                Encrypted with AES-256-GCM and stored in the app data folder.
               </p>
             </div>
           )}
