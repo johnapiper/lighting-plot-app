@@ -619,7 +619,7 @@ export default function Canvas({
         layerId: activeLayerId || 'layer-lighting',
         ...defaults,
       };
-      commitToDrawing(d => { if (!d.infrastructure) d.infrastructure = []; d.infrastructure.push(ni); });
+      commitToDrawing(d => { if (!d.infrastructure) d.infrastructure = []; d.infrastructure.push(ni); }, `Add ${ni.label}`);
       onSelect({ kind: 'infra', ...ni });
       if (onToolDone) onToolDone();
       return;
