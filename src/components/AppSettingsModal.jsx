@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { compareVersions } from '../license/licenseService';
 
 const { ipcRenderer } = require('electron');
 
-export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null }) {
+export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null, maxVersion = null }) {
   const [appVersion, setAppVersion] = useState('—');
+  // An update is only offered if it's within the license's allowed ceiling.
+  const allowed = (v) => !maxVersion || (v && compareVersions(v, maxVersion) <= 0);
   // idle | checking | uptodate | available | downloading | downloaded | error
-  const [updateStatus, setUpdateStatus]   = useState(pendingUpdateVersion ? 'available' : 'idle');
-  const [latestVersion, setLatestVersion] = useState(pendingUpdateVersion);
+  const [updateStatus, setUpdateStatus]   = useState(pendingUpdateVersion && allowed(pendingUpdateVersion) ? 'available' : 'idle');
+  const [latestVersion, setLatestVersion] = useState(pendingUpdateVersion && allowed(pendingUpdateVersion) ? pendingUpdateVersion : null);
   const [dlProgress, setDlProgress]       = useState(0);
   const [errMsg, setErrMsg]               = useState('');
 
   useEffect(() => {
     ipcRenderer.invoke('get-app-version').then(v => v && setAppVersion(v)).catch(() => {});
 
-    const onAvailable    = (_, info) => { setLatestVersion(info.version); setUpdateStatus('available'); };
+    const onAvailable    = (_, info) => {
+      // Respect the license's maximum-allowed version: ignore newer updates.
+      if (!allowed(info.version)) { setUpdateStatus('uptodate'); return; }
+      setLatestVersion(info.version); setUpdateStatus('available');
+    };
     const onNotAvailable = ()        => setUpdateStatus('uptodate');
     const onProgress     = (_, p)   => { setUpdateStatus('downloading'); setDlProgress(p.percent); };
     const onDownloaded   = ()        => setUpdateStatus('downloaded');
