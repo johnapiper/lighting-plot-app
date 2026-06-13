@@ -82,6 +82,12 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
                 <span style={S.rowValue}>v{latestVersion}</span>
               </div>
             )}
+            {maxVersion && (
+              <div style={S.row}>
+                <span style={S.rowLabel}>Max allowed by license</span>
+                <span style={S.rowValue}>v{maxVersion}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
               {(updateStatus === 'idle' || updateStatus === 'uptodate' || updateStatus === 'error') && (
                 <button style={S.primaryBtn} onClick={checkForUpdates}>
