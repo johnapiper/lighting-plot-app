@@ -119,6 +119,8 @@ function App() {
   const [showEOSImport, setShowEOSImport]           = useState(false);
   const [showLicenseManager, setShowLicenseManager] = useState(false);
   const [showMyLicense, setShowMyLicense]           = useState(false);
+  const [showShortcuts, setShowShortcuts]           = useState(false);
+  const [autoSaveEnabled, setAutoSaveEnabled]       = useState(true);
   const [animating, setAnimating]                   = useState(true);
   const license = useLicense();
   const [currentFile, setCurrentFile]   = useState(null);
