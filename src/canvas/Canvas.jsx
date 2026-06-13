@@ -1977,6 +1977,15 @@ export default function Canvas({
               }}>↔ Distribute Selected Evenly</div>
             )}
             <div style={ctxStyle.item} onClick={() => {
+              const ids = selectedIds?.includes(contextMenu.hit.id) ? selectedIds : [contextMenu.hit.id];
+              onSwapFixture?.(ids);
+              setContextMenu(null);
+            }}>🔄 Swap Fixture Type…</div>
+            <div style={ctxStyle.item} onClick={() => {
+              onDuplicateAlongPath?.(contextMenu.hit.id);
+              setContextMenu(null);
+            }}>↗ Duplicate Along Path…</div>
+            <div style={ctxStyle.item} onClick={() => {
               setShowBeams(v => !v);
               setContextMenu(null);
             }}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</div>
