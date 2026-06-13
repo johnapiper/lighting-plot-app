@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 
 const { ipcRenderer } = require('electron');
 
-export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave }) {
+export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null }) {
   const [appVersion, setAppVersion] = useState('—');
   // idle | checking | uptodate | available | downloading | downloaded | error
-  const [updateStatus, setUpdateStatus]   = useState('idle');
+  const [updateStatus, setUpdateStatus]   = useState(pendingUpdateVersion ? 'available' : 'idle');
   const [latestVersion, setLatestVersion] = useState(null);
   const [dlProgress, setDlProgress]       = useState(0);
   const [errMsg, setErrMsg]               = useState('');
