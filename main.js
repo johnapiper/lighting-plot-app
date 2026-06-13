@@ -294,6 +294,15 @@ ipcMain.on('license-features', (event, { features }) => {
 
 ipcMain.on('toggle-dev-tools', () => { mainWindow?.webContents.toggleDevTools(); });
 
+// Restore keyboard focus to the renderer (used after license deactivation so
+// the activation key field is typeable again).
+ipcMain.handle('focus-window', () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+  mainWindow.webContents.focus();
+});
+
 // ── GDTF Share credential storage (safeStorage = OS keychain encryption) ─────
 const { safeStorage } = require('electron');
 ipcMain.handle('gdtf-save-credentials', (event, { email, password }) => {
