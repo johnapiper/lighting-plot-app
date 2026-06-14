@@ -1687,6 +1687,36 @@ export default function Canvas({
   })();
 
   // ─── Inline text editor ───────────────────────────────────────────────
+  // Commit a line/pipe at a typed length (display units) and angle (° CCW, 0=East).
+  function commitDynamic() {
+    const ds = drawingRef.current;
+    if (!ds || (ds.kind !== 'line' && ds.kind !== 'pipe')) return;
+    const units = meta?.units || 'mm';
+    const liveLen = distance(ds.x1, ds.y1, ds.x2, ds.y2);
+    const liveAngDeg = Math.atan2(-(ds.y2 - ds.y1), ds.x2 - ds.x1) * 180 / Math.PI;
+    const lenWorld = dynLen !== '' ? parseFloat(dynLen) * (MM_PER_UNIT[units] || 1) : liveLen;
+    const angDeg = dynAng !== '' ? parseFloat(dynAng) : liveAngDeg;
+    if (!lenWorld || isNaN(lenWorld) || isNaN(angDeg)) return;
+    const rad = angDeg * Math.PI / 180;
+    const ex = ds.x1 + Math.cos(rad) * lenWorld;
+    const ey = ds.y1 - Math.sin(rad) * lenWorld; // screen y is down
+    if (ds.kind === 'line') {
+      commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: ex, y2: ey, layerId: activeLayerId || 'layer-arch' }), 'Add line');
+      setDrawingState(null);
+    } else {
+      const np = { id: generateId(), kind: 'pipe', x1: ds.x1, y1: ds.y1, x2: ex, y2: ey, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
+      commitToDrawing(d => d.pipes.push(np), 'Add pipe');
+      onSelect({ kind: 'pipe', ...np });
+      setDrawingState({ kind: 'pipe', x1: ex, y1: ey, x2: ex, y2: ey }); // chain
+    }
+    setDynLen(''); setDynAng('');
+  }
+  const onDynKey = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commitDynamic(); }
+    else if (e.key === 'Escape') { setDrawingState(null); setDynLen(''); setDynAng(''); }
+  };
+
   let editOverlay = null;
   if (editingText) {
     const sx = editingText.x * zoom + pan.x + ro;
