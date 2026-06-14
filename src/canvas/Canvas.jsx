@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import FixtureSymbol from '../fixtures/FixtureSymbol';
 import {
   snapPointToGrid, distance, projectPointOntoLine,
@@ -8,6 +8,7 @@ import InfraLayer from './InfraLayer';
 import CablingLayer from './CablingLayer';
 import { findNearestStructure } from '../cabling/routing';
 import { formatLength, formatCoord, toDisplayValue, UNIT_LABELS } from './units';
+import { gatherSnapTargets, computeOsnap, constrainAngle } from './snapping';
 
 const RULER_SIZE = 20;
 const HIT_RADIUS = 8;
