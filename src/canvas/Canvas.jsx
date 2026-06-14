@@ -901,6 +901,8 @@ export default function Canvas({
         onSelect(null); onMultiSelect([]);
         onToolChange?.('select');
       }
+      // All keyboard editing (delete, copy/paste, duplicate, rotate) requires edit rights.
+      if (!canEditRef.current) return;
       if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') deleteSelected();
       // R key: rotate pipe/truss placement by 90°
       if ((e.key === 'r' || e.key === 'R') && drawingRef.current && document.activeElement.tagName !== 'INPUT') {
