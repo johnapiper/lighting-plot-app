@@ -842,8 +842,8 @@ function App() {
         showGrid={showGrid} onToggleGrid={() => setShowGrid(v => !v)}
         snap={snap} onSnapChange={setSnap}
         userName={license?.license?.name || ''}
-        onMirror={handleMirror} onArray={() => setTransformMode('array')}
-        onOffset={handleOffset} onAlign={() => setTransformMode('align')}
+        onMirror={() => setTransformMode('mirror')} onArray={() => setTransformMode('array')}
+        onOffset={() => setTransformMode('offset')} onAlign={() => setTransformMode('align')}
         onCorner={handleCorner}
         hasSelection={allSelectedIds.length > 0}
         canCorner={allSelectedIds.length === 2 && allSelectedIds.every(id => {
