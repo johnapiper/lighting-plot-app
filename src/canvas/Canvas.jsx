@@ -928,8 +928,21 @@ export default function Canvas({
     setDrawingState(null);
   }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, pipeSnap, layers]);
 
-  // Double-click: edit text / annotation
+  // Finish the current polyline and commit it (≥2 points).
+  function finishPolyline(close) {
+    const cur = polyRef.current;
+    if (cur && cur.points.length >= 2) {
+      commitToDrawing(d => {
+        if (!d.polylines) d.polylines = [];
+        d.polylines.push({ id: generateId(), kind: 'polyline', points: cur.points, closed: !!close, layerId: activeLayerId || 'layer-arch' });
+      }, 'Add polyline');
+    }
+    setPolyDraw(null);
+  }
+
+  // Double-click: finish polyline, else edit text / annotation
   const onDblClick = useCallback((e) => {
+    if (activeTool === 'polyline' && polyRef.current) { finishPolyline(false); return; }
     const world = screenToWorld(e.clientX, e.clientY);
     for (const t of [...texts, ...annotations]) {
       const fs = t.fontSize || 14;
