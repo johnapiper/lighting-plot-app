@@ -419,6 +419,8 @@ const styles = {
   userName: {
     flexShrink: 0, marginLeft: 8, paddingLeft: 10, borderLeft: '1px solid #0f3460',
     color: '#a0aec0', fontSize: 11, whiteSpace: 'nowrap', alignSelf: 'center',
+    background: 'none', border: 'none', borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: '#0f3460',
+    cursor: 'pointer',
   },
   resizeHandle: {
     position: 'absolute', left: 0, right: 0, bottom: 0, height: 5,
