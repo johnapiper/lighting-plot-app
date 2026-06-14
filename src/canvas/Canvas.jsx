@@ -107,6 +107,7 @@ export default function Canvas({
   const pasteGeneration = useRef(0); // increments per paste so repeated Ctrl+V staggers
   const [pipePlaceAngle, setPipePlaceAngle] = useState(null);
   const [snapPoint, setSnapPoint] = useState(null); // { x, y, type } visual snap indicator
+  const [alignGuides, setAlignGuides] = useState(null); // { vx, hy } alignment guide lines while dragging
   const shiftRef = useRef(false);   // ortho/angle constrain while held
   const bypassRef = useRef(false);  // Ctrl held → free placement, no snapping
 
