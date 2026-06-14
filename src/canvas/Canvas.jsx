@@ -906,7 +906,7 @@ export default function Canvas({
       if (e.key === 'Escape') {
         setDrawingState(null); setFocusModeId(null); setFocusCursor(null);
         setCalibState(null); setCableFrom(null); setCableGhost(null);
-        setPipePlaceAngle(null); setScaleMode(null);
+        setPipePlaceAngle(null); setScaleMode(null); setMeasure(null);
         onSelect(null); onMultiSelect([]);
         onToolChange?.('select');
       }
