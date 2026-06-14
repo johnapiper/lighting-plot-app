@@ -158,6 +158,15 @@ function Demo({ type }) {
     </>);
     case 'scalefx': return g(<circle cx="65" cy="32" r="8" fill="none" stroke={C.line} strokeWidth="2">
       <animate attributeName="r" values="8;20;8" dur="2.2s" repeatCount="indefinite" /></circle>);
+    case 'distribute': return g(<>
+      <line x1="18" y1="32" x2="112" y2="32" stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
+      {/* three fixtures: start clustered, animate to even spacing */}
+      <circle r="5" cy="32" fill={C.line} stroke="#0d1117"><animate attributeName="cx" values="34;34;34" dur="2.6s" repeatCount="indefinite" /></circle>
+      <circle r="5" cy="32" fill={C.node} stroke="#0d1117"><animate attributeName="cx" values="46;46;65" dur="2.6s" repeatCount="indefinite" /></circle>
+      <circle r="5" cy="32" fill={C.line} stroke="#0d1117"><animate attributeName="cx" values="58;58;96" dur="2.6s" repeatCount="indefinite" /></circle>
+      {/* equal-gap ticks appear */}
+      {[34,65,96].map((x,i)=><line key={i} x1={x} y1="44" x2={x} y2="48" stroke={C.dim} strokeWidth="1"><animate attributeName="opacity" values="0;0;1" dur="2.6s" repeatCount="indefinite" /></line>)}
+    </>);
     case 'swap': return g(<>
       <circle cx="42" cy="32" r="10" fill="rgba(74,144,217,0.4)" stroke={C.line} strokeWidth="1.5">
         <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite" /></circle>
