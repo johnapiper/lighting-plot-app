@@ -179,6 +179,7 @@ export default function LicenseGate({ children }) {
     setInputKey('');
     setBlockedInfo(null);
     setShowAbout(false);
+    computeTrialInfo();          // so the activation screen can offer the trial
     setStatus('activating');
     // Nudge the OS window back into keyboard focus (fixes un-typeable field
     // after deactivating from a menu confirm dialog).
