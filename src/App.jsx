@@ -846,7 +846,6 @@ function App() {
             return (
               <InspectorPanel
                 selected={selectedObj}
-                readOnly={!canEditCanvas}
                 onUpdateFixture={handleUpdateFixtureInstance}
                 onUpdatePipe={handleUpdatePipe}
                 onUpdateText={handleUpdateText}
@@ -858,7 +857,7 @@ function App() {
                 groupInfo={groupInfo}
                 onGroup={handleGroup}
                 onUngroup={handleUngroup}
-                onBulkUpdate={canEditCanvas ? handleBulkUpdate : undefined}
+                onBulkUpdate={handleBulkUpdate}
               />
             );
           })()}
