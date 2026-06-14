@@ -1142,6 +1142,15 @@ function App() {
           onClose={() => setShowDrawingTemplates(false)}
         />
       )}
+      {transformMode && (
+        <TransformModal
+          mode={transformMode}
+          count={allSelectedIds.length}
+          onApplyArray={handleApplyArray}
+          onAlign={handleAlign}
+          onClose={() => setTransformMode(null)}
+        />
+      )}
       {showCableReport && license?.hasFeature('cable_routing') && (
         <CableReport
           drawing={activeDrawing}
