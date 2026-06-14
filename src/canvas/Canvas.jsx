@@ -1933,13 +1933,25 @@ export default function Canvas({
           </text>
         )}
         {/* Snap indicator */}
-        {snapPoint && (
-          <g style={{ pointerEvents: 'none' }}>
-            <circle cx={snapPoint.x} cy={snapPoint.y} r={8/zoom} fill="none" stroke="#00ff88" strokeWidth={1.5/zoom} />
-            <line x1={snapPoint.x - 12/zoom} y1={snapPoint.y} x2={snapPoint.x + 12/zoom} y2={snapPoint.y} stroke="#00ff88" strokeWidth={1/zoom} />
-            <line x1={snapPoint.x} y1={snapPoint.y - 12/zoom} x2={snapPoint.x} y2={snapPoint.y + 12/zoom} stroke="#00ff88" strokeWidth={1/zoom} />
-          </g>
-        )}
+        {snapPoint && (() => {
+          const x = snapPoint.x, y = snapPoint.y, s = 6/zoom, sw = 1.5/zoom;
+          const t = snapPoint.type;
+          const col = (t === 'endpoint' || t === 'intersection') ? '#ffdd33' : t === 'ortho' ? '#ff66cc' : '#00ff88';
+          let marker;
+          if (t === 'endpoint')         marker = <rect x={x-s} y={y-s} width={s*2} height={s*2} fill="none" stroke={col} strokeWidth={sw} />;
+          else if (t === 'midpoint')    marker = <polygon points={`${x},${y-s} ${x+s},${y+s} ${x-s},${y+s}`} fill="none" stroke={col} strokeWidth={sw} />;
+          else if (t === 'center')      marker = <circle cx={x} cy={y} r={s} fill="none" stroke={col} strokeWidth={sw} />;
+          else if (t === 'intersection')marker = <g stroke={col} strokeWidth={sw}><line x1={x-s} y1={y-s} x2={x+s} y2={y+s} /><line x1={x-s} y1={y+s} x2={x+s} y2={y-s} /></g>;
+          else if (t === 'perpendicular')marker = <g stroke={col} strokeWidth={sw} fill="none"><path d={`M ${x-s} ${y-s} L ${x-s} ${y+s} L ${x+s} ${y+s}`} /><rect x={x-s} y={y} width={s} height={s} /></g>;
+          else                          marker = <circle cx={x} cy={y} r={s*0.7} fill="none" stroke={col} strokeWidth={sw} />;
+          const label = { endpoint:'END', midpoint:'MID', center:'CEN', intersection:'INT', perpendicular:'PERP', nearest:'NEAR', ortho:'ORTHO' }[t] || '';
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              {marker}
+              <text x={x + 9/zoom} y={y - 9/zoom} fontSize={9/zoom} fill={col} style={{ userSelect:'none' }}>{label}</text>
+            </g>
+          );
+        })()}
         {/* In-progress calibration line (screen coords) */}
         {calibState?.p1 && (() => {
           const x1s = calibState.p1.x * zoom + pan.x + ro, y1s = calibState.p1.y * zoom + pan.y + ro;
