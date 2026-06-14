@@ -701,7 +701,7 @@ export default function SheetEditor({
         <span style={sty.modeLabel}>Drawing Sheet</span>
         <div style={{display:'flex',gap:2}}>
           {TOOLS.map(t => (
-            <button key={t.id} title={t.label}
+            <button key={t.id} title={t.label} {...sheetHints.bind(SHEET_TOOL_HINT[t.id] || t.id)}
               style={{...sty.toolBtn,...(tool===t.id?sty.toolActive:{})}}
               onClick={() => { setTool(t.id); setZoomWindowVpId(null); }}>
               <span style={{fontSize:14}}>{t.icon}</span>
@@ -709,6 +709,7 @@ export default function SheetEditor({
             </button>
           ))}
         </div>
+        {sheetHints.hintEl}
         {isZoomWindow && (
           <div style={{fontSize:10,color:'#ffd032',marginLeft:8,flexShrink:0}}>
             📐 Draw a box over the viewport area — Esc to cancel
