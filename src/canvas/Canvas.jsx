@@ -1455,6 +1455,23 @@ export default function Canvas({
             {r.locked && <text x={r.x+4/zoom} y={r.y+14/zoom} fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
           </g>
         ))}
+        {/* Circles */}
+        {circles.filter(o => getLayerId(o,'circle') === layerId).map(c => (
+          <circle key={c.id} cx={c.cx} cy={c.cy} r={c.r} fill="none"
+            stroke={allSelected.has(c.id)?'#00aaff':'#607d8b'} strokeWidth={2/zoom} style={{ opacity: c.locked ? 0.6 : 1 }} />
+        ))}
+        {/* Arcs */}
+        {arcs.filter(o => getLayerId(o,'arc') === layerId).map(a => (
+          <path key={a.id} d={arcPath(a.cx, a.cy, a.r, a.a0, a.a1)} fill="none"
+            stroke={allSelected.has(a.id)?'#00aaff':'#607d8b'} strokeWidth={2/zoom} style={{ opacity: a.locked ? 0.6 : 1 }} />
+        ))}
+        {/* Polylines */}
+        {polylines.filter(o => getLayerId(o,'polyline') === layerId).map(pl => (
+          <polyline key={pl.id} points={(pl.points||[]).map(p => `${p.x},${p.y}`).join(' ')}
+            fill="none" stroke={allSelected.has(pl.id)?'#00aaff':'#607d8b'} strokeWidth={2/zoom}
+            strokeLinejoin="round" strokeLinecap="round"
+            style={{ opacity: pl.locked ? 0.6 : 1, ...(pl.closed ? {} : {}) }} />
+        ))}
         {/* Texts */}
         {texts.filter(o => getLayerId(o,'text') === layerId).map(t => (
           <g key={t.id} transform={t.rotation ? `rotate(${t.rotation},${t.x},${t.y})` : undefined} style={{ opacity: t.locked ? 0.6 : 1 }}>
