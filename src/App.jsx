@@ -751,8 +751,9 @@ function App() {
               activeMode={activeMode}
               fitRef={fitViewRef}
               dmxConflicts={[...dmxConflicts]}
-              onSwapFixture={license?.hasFeature('fixture_swap') ? (ids => setSwapFixtureIds(ids)) : undefined}
+              onSwapFixture={(canEditCanvas && license?.hasFeature('fixture_swap')) ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
+              canEdit={canEditCanvas}
             />
             {license?.hasFeature('multi_drawing') && (
               <DrawingTabs
