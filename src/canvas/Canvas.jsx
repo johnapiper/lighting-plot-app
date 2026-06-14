@@ -432,8 +432,9 @@ export default function Canvas({
       return;
     }
 
-    // Pending fixture
+    // Pending fixture — placement requires edit rights
     if (pendingFixture) {
+      if (!canEdit) { onPendingFixturePlaced(); return; }
       const nearPipe = pipeSnap ? findNearestPipe(world.x, world.y) : null;
       let fx = snapped.x, fy = snapped.y, position = '', pipeId = null, rotation = 0;
       if (nearPipe) {
