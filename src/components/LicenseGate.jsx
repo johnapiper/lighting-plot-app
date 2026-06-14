@@ -269,11 +269,11 @@ export default function LicenseGate({ children }) {
           <p style={S.footer}>
             License keys can be obtained from your system administrator or project manager.
           </p>
-          {trialDaysLeft > 0 && license?.trial && (
+          {trialInfo?.daysLeft > 0 && (
             <div style={S.trialBox}>
-              <span>⏳ Trial active — {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining.</span>
-              <button style={S.trialBtn} onClick={() => { setErrMsg(''); setStatus('trial'); ipcRenderer.send('license-features', { features: license.features || [] }); }}>
-                Continue Trial →
+              <span>⏳ Free trial available — {trialInfo.daysLeft} day{trialInfo.daysLeft !== 1 ? 's' : ''} remaining.</span>
+              <button style={S.trialBtn} onClick={() => { setErrMsg(''); startTrialNow(trialInfo); }}>
+                Continue without a licence (Trial) →
               </button>
             </div>
           )}
