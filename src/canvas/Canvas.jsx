@@ -2370,8 +2370,9 @@ export default function Canvas({
       {contextMenu && (
         <div style={{ position: 'fixed', left: contextMenu.sx, top: contextMenu.sy, background: '#16213e', border: '1px solid #0f3460', borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.6)', zIndex: 999, minWidth: 170 }}
           onMouseLeave={() => setContextMenu(null)}>
+          {ctxHints.hintEl}
           {contextMenu.hit.kind === 'fixture' && (<>
-            <div style={ctxStyle.item} onClick={() => {
+            <div style={ctxStyle.item} {...ctxHints.bind('focus')} onClick={() => {
               setFocusModeId(contextMenu.hit.id);
               onSelect(contextMenu.hit);
               setContextMenu(null);
