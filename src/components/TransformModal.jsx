@@ -63,7 +63,7 @@ export default function TransformModal({ mode, count, onApplyArray, onAlign, onM
               </div>
             </>
           )}
-          {mode === 'array' ? (
+          {mode === 'array' && (
             <>
               <div style={S.tabs}>
                 {['grid', 'polar'].map(t => (
