@@ -2404,14 +2404,14 @@ export default function Canvas({
               const onPipeFixes = fixtures.filter(f => f.pipeId === contextMenu.hit.pipeId && contextMenu.hit.pipeId);
               const pipeObj = pipes.find(p => p.id === contextMenu.hit.pipeId);
               return onPipeFixes.length >= 2 && pipeObj ? (
-                <div style={{ ...ctxStyle.item }} onClick={() => {
+                <div style={{ ...ctxStyle.item }} {...ctxHints.bind('distribute')} onClick={() => {
                   distributeOnPipe(contextMenu.hit.pipeId);
                   setContextMenu(null);
                 }}>↔ Distribute on {pipeObj.name || 'Pipe'}</div>
               ) : null;
             })()}
             {(selectedIds?.length >= 3 && selectedIds.includes(contextMenu.hit.id)) && (
-              <div style={ctxStyle.item} onClick={() => {
+              <div style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
                 distributeSelected();
                 setContextMenu(null);
               }}>↔ Distribute Selected Evenly</div>
