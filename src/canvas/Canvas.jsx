@@ -2162,7 +2162,7 @@ export default function Canvas({
         const liveAng = Math.atan2(-(drawingState.y2 - drawingState.y1), drawingState.x2 - drawingState.x1) * 180 / Math.PI;
         const di = { width: 70, background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '3px 6px', outline: 'none' };
         return (
-          <div style={{ position: 'absolute', left: '50%', bottom: 30, transform: 'translateX(-50%)', display: 'flex', gap: 6, alignItems: 'center', background: 'rgba(13,27,42,0.96)', border: '1px solid #4a90d9', borderRadius: 6, padding: '6px 10px', zIndex: 200 }}>
+          <div style={{ position: 'fixed', left: '50%', bottom: 44, transform: 'translateX(-50%)', display: 'flex', gap: 6, alignItems: 'center', background: 'rgba(13,27,42,0.96)', border: '1px solid #4a90d9', borderRadius: 6, padding: '6px 10px', zIndex: 200 }}>
             <span style={{ fontSize: 11, color: '#718096' }}>Length</span>
             <input autoFocus style={di} value={dynLen} placeholder={formatLength(liveLen, units, { noUnit: true })}
               onChange={e => setDynLen(e.target.value)} onKeyDown={onDynKey} />
