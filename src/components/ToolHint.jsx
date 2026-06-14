@@ -1,4 +1,20 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
+
+// Reusable hover-hint hook: spread bind(id) onto any element and render hintEl.
+export function useToolHints(delay = 350) {
+  const [hint, setHint] = useState(null);
+  const timer = useRef(null);
+  const bind = (id) => ({
+    onMouseEnter: (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setHint({ id, rect }), delay);
+    },
+    onMouseLeave: () => { clearTimeout(timer.current); setHint(null); },
+  });
+  const hintEl = hint ? <ToolHint id={hint.id} rect={hint.rect} /> : null;
+  return { bind, hintEl };
+}
 
 // Per-tool descriptions + which animated demo to show.
 export const TOOL_HINTS = {
