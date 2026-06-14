@@ -80,7 +80,7 @@ export default function Canvas({
   const [snapPoint, setSnapPoint] = useState(null); // { x, y, type } visual snap indicator
   const [objectSnap, setObjectSnap] = useState(true); // OSNAP (endpoint/mid/center/intersection…)
   const shiftRef = useRef(false);   // ortho/angle constrain while held
-  const altRef = useRef(false);     // bypass snapping while held
+  const bypassRef = useRef(false);  // Ctrl held → free placement, no snapping
 
   // Snap targets recomputed when the drawing geometry changes.
   const snapTargets = useMemo(() => gatherSnapTargets(drawing), [drawing]);
