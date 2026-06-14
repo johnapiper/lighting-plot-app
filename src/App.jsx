@@ -136,7 +136,8 @@ function App() {
   const [swapFixtureIds, setSwapFixtureIds]         = useState(null); // array of ids or null
   const [showTemplates, setShowTemplates]           = useState(false);
   const [showDrawingTemplates, setShowDrawingTemplates] = useState(false);
-  const [transformMode, setTransformMode]           = useState(null); // 'array' | 'align' | null
+  const [transformMode, setTransformMode]           = useState(null); // 'array'|'align'|'mirror'|'offset'|'duplicate'|null
+  const [duplicateId, setDuplicateId]               = useState(null);
   const [autoSaveEnabled, setAutoSaveEnabled]       = useState(true);
   const [animating, setAnimating]                   = useState(true);
   const license = useLicense();
