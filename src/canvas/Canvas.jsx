@@ -40,7 +40,7 @@ export default function Canvas({
   activeTool, pendingFixture, onPendingFixturePlaced,
   selectedId, selectedIds, onSelect, onMultiSelect,
   showGrid, showRulers, fixtureTypes,
-  zoom, pan, onZoomChange, onPanChange, pipeSnap,
+  zoom, pan, onZoomChange, onPanChange, snap,
   onToolDone, onToolChange, dragTargetLayerRef,
   activeLayerId,
   animating,
