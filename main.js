@@ -312,29 +312,23 @@ ipcMain.handle('focus-window', () => {
   mainWindow.webContents.focus();
 });
 
-// ── GDTF Share credential storage (safeStorage = OS keychain encryption) ─────
-const { safeStorage } = require('electron');
+// ── GDTF Share credential storage (AES-256-GCM file — reliable across dev /
+// installed builds, unlike safeStorage/DPAPI which can differ per context) ─────
+function gdtfCredPath() { return path.join(app.getPath('userData'), 'lplot-gdtf.cred'); }
 ipcMain.handle('gdtf-save-credentials', (event, { email, password }) => {
-  if (!store) return;
-  store.set('gdtfEmail', email);
-  if (safeStorage.isEncryptionAvailable()) {
-    store.set('gdtfPassword', safeStorage.encryptString(password).toString('base64'));
-  }
+  try { fs.writeFileSync(gdtfCredPath(), encryptToken(JSON.stringify({ email: email || '', password: password || '' })), 'utf8'); return { ok: true }; }
+  catch (e) { return { error: e.message }; }
 });
 ipcMain.handle('gdtf-load-credentials', () => {
-  if (!store) return { email: '', password: '' };
-  const email = store.get('gdtfEmail', '');
-  const enc   = store.get('gdtfPassword', '');
-  let password = '';
-  if (enc && safeStorage.isEncryptionAvailable()) {
-    try { password = safeStorage.decryptString(Buffer.from(enc, 'base64')); } catch {}
-  }
-  return { email, password };
+  try {
+    const raw = fs.readFileSync(gdtfCredPath(), 'utf8').trim();
+    if (!raw) return { email: '', password: '' };
+    const data = JSON.parse(decryptToken(raw));
+    return { email: data.email || '', password: data.password || '' };
+  } catch { return { email: '', password: '' }; }
 });
 ipcMain.handle('gdtf-clear-credentials', () => {
-  if (!store) return;
-  store.delete('gdtfEmail');
-  store.delete('gdtfPassword');
+  try { fs.unlinkSync(gdtfCredPath()); } catch {}
 });
 
 // ── License key storage (raw file — most reliable cross-context approach) ─
