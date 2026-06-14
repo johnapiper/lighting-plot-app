@@ -257,16 +257,16 @@ export default function Toolbar({
                   <div style={styles.group}>
                     {has('pdf_background') && (
                       <>
-                        <button style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
+                        <button data-hint="pdf" style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
                           <span style={styles.icon}>📄</span><span style={styles.label}>PDF Bg</span>
                         </button>
-                        <button style={styles.btn} title="Place image" onClick={onImportImage}>
+                        <button data-hint="image" style={styles.btn} title="Place image" onClick={onImportImage}>
                           <span style={styles.icon}>🖼</span><span style={styles.label}>Image</span>
                         </button>
                       </>
                     )}
                     {has('patch_panel') && (
-                      <button style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
+                      <button data-hint="patch" style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
                         <span style={styles.icon}>⚡</span><span style={styles.label}>Patch</span>
                       </button>
                     )}
