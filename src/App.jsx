@@ -659,30 +659,24 @@ function App() {
     return { minX, minY, maxX, maxY, cx: (minX+maxX)/2, cy: (minY+maxY)/2 };
   }
 
-  function handleMirror() {
+  function handleApplyMirror(axis) {
+    setTransformMode(null);
     if (!canEditCanvas || !allSelectedIds.length) return;
-    const ans = (window.prompt('Mirror axis — V (vertical) or H (horizontal)?', 'V') || '').trim().toUpperCase();
-    if (!ans) return;
-    const axis = ans.startsWith('H') ? 'h' : 'v';
     commitToActiveDrawing(d => {
       const b = selectionBounds(d);
       // Reflect across the far edge of the selection so the mirrored copy lands
       // beside the original (reflecting through the centre would overlap it).
       const c = axis === 'v' ? b.maxX : b.maxY;
-      let added = 0;
       allSelectedIds.forEach(id => {
         const f = findObjKind(d, id); if (!f) return;
         d[f.arrName].push(cloneWithId(mirrorObject(f.obj, f.kind, axis, c)));
-        added++;
       });
-      if (!added) window.alert('Select one or more objects to mirror first.');
     }, 'Mirror selection');
   }
 
-  function handleOffset() {
-    if (!canEditCanvas || !allSelectedIds.length) return;
-    const dist = parseFloat(window.prompt('Offset distance (mm, negative = other side):', '500'));
-    if (!dist) return;
+  function handleApplyOffset(dist) {
+    setTransformMode(null);
+    if (!canEditCanvas || !allSelectedIds.length || !dist) return;
     commitToActiveDrawing(d => {
       allSelectedIds.forEach(id => {
         const f = findObjKind(d, id); if (!f) return;
