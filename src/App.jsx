@@ -666,11 +666,16 @@ function App() {
     const axis = ans.startsWith('H') ? 'h' : 'v';
     commitToActiveDrawing(d => {
       const b = selectionBounds(d);
-      const c = axis === 'v' ? b.cx : b.cy;
+      // Reflect across the far edge of the selection so the mirrored copy lands
+      // beside the original (reflecting through the centre would overlap it).
+      const c = axis === 'v' ? b.maxX : b.maxY;
+      let added = 0;
       allSelectedIds.forEach(id => {
         const f = findObjKind(d, id); if (!f) return;
         d[f.arrName].push(cloneWithId(mirrorObject(f.obj, f.kind, axis, c)));
+        added++;
       });
+      if (!added) window.alert('Select one or more objects to mirror first.');
     }, 'Mirror selection');
   }
 
