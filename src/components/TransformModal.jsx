@@ -4,7 +4,7 @@ import React, { useState } from 'react';
  * Array + Align/Distribute dialog for the current canvas selection.
  * mode: 'array' | 'align'. onApply receives a params object.
  */
-export default function TransformModal({ mode, count, onApplyArray, onAlign, onClose }) {
+export default function TransformModal({ mode, count, onApplyArray, onAlign, onMirror, onOffset, onDuplicate, onClose }) {
   const [arrType, setArrType] = useState('grid');
   const [rows, setRows] = useState('2');
   const [cols, setCols] = useState('3');
@@ -12,15 +12,57 @@ export default function TransformModal({ mode, count, onApplyArray, onAlign, onC
   const [dy, setDy] = useState('500');
   const [pCount, setPCount] = useState('6');
   const [pAngle, setPAngle] = useState('360');
+  const [offset, setOffset] = useState('500');
+  const [dupCount, setDupCount] = useState('4');
+  const [dupDx, setDupDx] = useState('500');
+  const [dupDy, setDupDy] = useState('0');
+
+  const titles = { array: '▦ Array', align: '⊟ Align & Distribute', mirror: '🪞 Mirror', offset: '⇇ Offset', duplicate: '↗ Duplicate Along Path' };
 
   return (
     <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={S.modal}>
         <div style={S.header}>
-          <span>{mode === 'array' ? '▦ Array' : '⊟ Align & Distribute'}</span>
+          <span>{titles[mode] || 'Transform'}</span>
           <button style={S.x} onClick={onClose}>✕</button>
         </div>
         <div style={S.body}>
+          {mode === 'mirror' && (
+            <>
+              <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 12 }}>Mirror a copy of the selection across:</div>
+              <div style={S.btnRow}>
+                <button style={S.opt} onClick={() => onMirror('v')}>⇆ Vertical axis</button>
+                <button style={S.opt} onClick={() => onMirror('h')}>⇅ Horizontal axis</button>
+              </div>
+              <div style={S.footer}><button style={S.cancel} onClick={onClose}>Cancel</button></div>
+            </>
+          )}
+          {mode === 'offset' && (
+            <>
+              <L label="Offset distance (mm — negative flips side)">
+                <input style={S.inp} autoFocus type="number" value={offset} onChange={e => setOffset(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onOffset(+offset || 0); }} />
+              </L>
+              <div style={S.footer}>
+                <button style={S.cancel} onClick={onClose}>Cancel</button>
+                <button style={S.go} onClick={() => onOffset(+offset || 0)}>Offset</button>
+              </div>
+            </>
+          )}
+          {mode === 'duplicate' && (
+            <>
+              <div style={S.grid2}>
+                <L label="Number of copies"><input style={S.inp} autoFocus type="number" min="1" value={dupCount} onChange={e => setDupCount(e.target.value)} /></L>
+                <div />
+                <L label="Spacing X (mm)"><input style={S.inp} type="number" value={dupDx} onChange={e => setDupDx(e.target.value)} /></L>
+                <L label="Spacing Y (mm)"><input style={S.inp} type="number" value={dupDy} onChange={e => setDupDy(e.target.value)} /></L>
+              </div>
+              <div style={S.footer}>
+                <button style={S.cancel} onClick={onClose}>Cancel</button>
+                <button style={S.go} onClick={() => onDuplicate({ count: +dupCount || 1, dx: +dupDx || 0, dy: +dupDy || 0 })}>Duplicate</button>
+              </div>
+            </>
+          )}
           {mode === 'array' ? (
             <>
               <div style={S.tabs}>
