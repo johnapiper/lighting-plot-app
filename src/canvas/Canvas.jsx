@@ -1991,11 +1991,13 @@ export default function Canvas({
                 setContextMenu(null);
               }}>↔ Distribute Selected Evenly</div>
             )}
-            <div style={ctxStyle.item} onClick={() => {
-              const ids = selectedIds?.includes(contextMenu.hit.id) ? selectedIds : [contextMenu.hit.id];
-              onSwapFixture?.(ids);
-              setContextMenu(null);
-            }}>🔄 Swap Fixture Type…</div>
+            {onSwapFixture && (
+              <div style={ctxStyle.item} onClick={() => {
+                const ids = selectedIds?.includes(contextMenu.hit.id) ? selectedIds : [contextMenu.hit.id];
+                onSwapFixture(ids);
+                setContextMenu(null);
+              }}>🔄 Swap Fixture Type…</div>
+            )}
             <div style={ctxStyle.item} onClick={() => {
               onDuplicateAlongPath?.(contextMenu.hit.id);
               setContextMenu(null);
