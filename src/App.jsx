@@ -638,6 +638,113 @@ function App() {
     }, `Duplicate fixture ×${count}`);
   }
 
+  // ── CAD transforms (mirror / array / offset / align) ─────────────────────
+  const KIND_ARRAY = { fixture:'fixtures', pipe:'pipes', line:'lines', rect:'rectangles', text:'texts', image:'images', annotation:'annotations', circle:'circles', arc:'arcs', polyline:'polylines', dimension:'dimensions', infra:'infrastructure' };
+  function findObjKind(d, id) {
+    for (const [kind, arrName] of Object.entries(KIND_ARRAY)) {
+      const obj = (d[arrName] || []).find(o => o.id === id);
+      if (obj) return { obj, kind, arrName };
+    }
+    return null;
+  }
+  function selectionBounds(d) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    allSelectedIds.forEach(id => {
+      const f = findObjKind(d, id); if (!f) return;
+      const b = objectBounds(f.obj, f.kind);
+      minX = Math.min(minX, b.minX); minY = Math.min(minY, b.minY);
+      maxX = Math.max(maxX, b.maxX); maxY = Math.max(maxY, b.maxY);
+    });
+    return { minX, minY, maxX, maxY, cx: (minX+maxX)/2, cy: (minY+maxY)/2 };
+  }
+
+  function handleMirror() {
+    if (!canEditCanvas || !allSelectedIds.length) return;
+    const ans = (window.prompt('Mirror axis — V (vertical) or H (horizontal)?', 'V') || '').trim().toUpperCase();
+    if (!ans) return;
+    const axis = ans.startsWith('H') ? 'h' : 'v';
+    commitToActiveDrawing(d => {
+      const b = selectionBounds(d);
+      const c = axis === 'v' ? b.cx : b.cy;
+      allSelectedIds.forEach(id => {
+        const f = findObjKind(d, id); if (!f) return;
+        d[f.arrName].push(cloneWithId(mirrorObject(f.obj, f.kind, axis, c)));
+      });
+    }, 'Mirror selection');
+  }
+
+  function handleOffset() {
+    if (!canEditCanvas || !allSelectedIds.length) return;
+    const dist = parseFloat(window.prompt('Offset distance (mm, negative = other side):', '500'));
+    if (!dist) return;
+    commitToActiveDrawing(d => {
+      allSelectedIds.forEach(id => {
+        const f = findObjKind(d, id); if (!f) return;
+        const off = offsetObject(f.obj, f.kind, dist);
+        if (off) d[f.arrName].push(cloneWithId(off));
+      });
+    }, 'Offset selection');
+  }
+
+  function handleApplyArray(params) {
+    setTransformMode(null);
+    if (!canEditCanvas || !allSelectedIds.length) return;
+    commitToActiveDrawing(d => {
+      const b = selectionBounds(d);
+      allSelectedIds.forEach(id => {
+        const f = findObjKind(d, id); if (!f) return;
+        if (params.type === 'grid') {
+          for (let r = 0; r < params.rows; r++) for (let c = 0; c < params.cols; c++) {
+            if (r === 0 && c === 0) continue;
+            d[f.arrName].push(cloneWithId(translateObject(f.obj, f.kind, c * params.dx, r * params.dy)));
+          }
+        } else {
+          const full = (params.angle % 360 === 0);
+          const denom = full ? params.count : (params.count - 1);
+          const step = (params.angle * Math.PI / 180) / (denom || 1);
+          for (let i = 1; i < params.count; i++) {
+            d[f.arrName].push(cloneWithId(rotateObject(f.obj, f.kind, b.cx, b.cy, step * i)));
+          }
+        }
+      });
+    }, 'Array selection');
+  }
+
+  function handleAlign(mode) {
+    if (!canEditCanvas || allSelectedIds.length < 2) return;
+    commitToActiveDrawing(d => {
+      const items = allSelectedIds.map(id => findObjKind(d, id)).filter(Boolean)
+        .map(f => ({ ...f, b: objectBounds(f.obj, f.kind) }));
+      if (items.length < 2) return;
+      const minX = Math.min(...items.map(i => i.b.minX)), maxX = Math.max(...items.map(i => i.b.maxX));
+      const minY = Math.min(...items.map(i => i.b.minY)), maxY = Math.max(...items.map(i => i.b.maxY));
+      const move = (f, dx, dy) => {
+        const moved = translateObject(f.obj, f.kind, dx, dy);
+        const idx = d[f.arrName].findIndex(o => o.id === f.obj.id);
+        if (idx >= 0) d[f.arrName][idx] = moved;
+      };
+      if (mode === 'left')     items.forEach(i => move(i, minX - i.b.minX, 0));
+      else if (mode === 'right')   items.forEach(i => move(i, maxX - i.b.maxX, 0));
+      else if (mode === 'top')     items.forEach(i => move(i, 0, minY - i.b.minY));
+      else if (mode === 'bottom')  items.forEach(i => move(i, 0, maxY - i.b.maxY));
+      else if (mode === 'centerH') { const c = (minX+maxX)/2; items.forEach(i => move(i, c - (i.b.minX+i.b.maxX)/2, 0)); }
+      else if (mode === 'centerV') { const c = (minY+maxY)/2; items.forEach(i => move(i, 0, c - (i.b.minY+i.b.maxY)/2)); }
+      else if (mode === 'distH' || mode === 'distV') {
+        const horiz = mode === 'distH';
+        const sorted = [...items].sort((a, b) => horiz ? (a.b.minX+a.b.maxX) - (b.b.minX+b.b.maxX) : (a.b.minY+a.b.maxY) - (b.b.minY+b.b.maxY));
+        const first = sorted[0], last = sorted[sorted.length-1];
+        const c0 = horiz ? (first.b.minX+first.b.maxX)/2 : (first.b.minY+first.b.maxY)/2;
+        const c1 = horiz ? (last.b.minX+last.b.maxX)/2 : (last.b.minY+last.b.maxY)/2;
+        const gap = (c1 - c0) / (sorted.length - 1);
+        sorted.forEach((it, i) => {
+          const target = c0 + gap * i;
+          const cur = horiz ? (it.b.minX+it.b.maxX)/2 : (it.b.minY+it.b.maxY)/2;
+          move(it, horiz ? target - cur : 0, horiz ? 0 : target - cur);
+        });
+      }
+    }, `Align (${mode})`);
+  }
+
   function handleLoadDrawingTemplate(snapshot) {
     commit(proj => {
       const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
