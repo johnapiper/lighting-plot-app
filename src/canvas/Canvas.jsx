@@ -964,7 +964,7 @@ export default function Canvas({
       });
     }
 
-    if (pendingFixture && snapRef.current.pipe) setHoveredPipe(findNearestPipe(world.x, world.y)?.id || null);
+    if (pendingFixture && snapRef.current.enabled && snapRef.current.pipe) setHoveredPipe(findNearestPipe(world.x, world.y)?.id || null);
     else if (!dragging) setHoveredPipe(null);
   }, [drawingState, dragging, pendingFixture, pipes, images, zoom, pan, showRulers, gridSize, focusModeId, layers]);
 
