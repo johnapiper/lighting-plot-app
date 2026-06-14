@@ -443,8 +443,8 @@ const styles = {
     minWidth: 40, height: 38, fontSize: 11, transition: 'all 0.1s',
   },
   caret: {
-    background: 'transparent', border: '1px solid transparent', color: '#718096',
-    cursor: 'pointer', fontSize: 10, padding: '0 3px', alignSelf: 'stretch',
+    background: '#0d1b2a', border: '1px solid #2a5a8a', borderRadius: 4, color: '#90cdf4',
+    cursor: 'pointer', fontSize: 11, padding: '0 4px', marginLeft: 2, alignSelf: 'center', height: 30,
   },
   snapPop: {
     position: 'fixed', zIndex: 1300,
