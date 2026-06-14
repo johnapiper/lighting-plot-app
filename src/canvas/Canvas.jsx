@@ -36,8 +36,11 @@ export default function Canvas({
   dmxConflicts = [],
   onSwapFixture,
   onDuplicateAlongPath,
+  canEdit = true,
 }) {
   const svgRef = useRef(null);
+  const canEditRef = useRef(canEdit);
+  useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
   const [drawingState, setDrawingState] = useState(null);
   const drawingRef = useRef(null);
