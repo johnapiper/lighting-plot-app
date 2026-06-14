@@ -330,6 +330,7 @@ function App() {
   function handleMultiSelect(ids) { setSelectedIds(ids); setSelectedId(null); setSelectedObj(null); }
 
   function handleDelete() {
+    if (!canEditCanvas) return;
     const toDelete = new Set(selectedIds.length ? selectedIds : selectedId ? [selectedId] : []);
     if (!toDelete.size) return;
     commitToActiveDrawing(d => {
