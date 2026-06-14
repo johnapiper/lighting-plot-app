@@ -38,6 +38,7 @@ export default function Toolbar({
   onShowEOSImport,
   onStudioSettings,
   onAppSettings,
+  onReportFixture, onReportChannel,
   features = [],
 }) {
   const has = (f) => features.includes(f);
