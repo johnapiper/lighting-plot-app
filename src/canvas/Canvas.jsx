@@ -1801,6 +1801,35 @@ export default function Canvas({
             )}
             {drawingState?.kind === 'rect' && <rect x={Math.min(drawingState.x1,drawingState.x2)} y={Math.min(drawingState.y1,drawingState.y2)} width={Math.abs(drawingState.x2-drawingState.x1)} height={Math.abs(drawingState.y2-drawingState.y1)} stroke="#607d8b" strokeWidth={2/zoom} fill="none" strokeDasharray={`${6/zoom} ${3/zoom}`} />}
 
+            {/* Circle ghost */}
+            {drawingState?.kind === 'circle' && (() => {
+              const r = distance(drawingState.x1, drawingState.y1, drawingState.x2, drawingState.y2);
+              return <g style={{ pointerEvents:'none' }}>
+                <circle cx={drawingState.x1} cy={drawingState.y1} r={r} stroke="#7fb0ff" strokeWidth={1.5/zoom} fill="none" strokeDasharray={`${5/zoom} ${3/zoom}`} />
+                <text x={drawingState.x1} y={drawingState.y1 - r - 6/zoom} textAnchor="middle" fontSize={10/zoom} fill="#7fb0ff">r {formatLength(r, meta?.units||'mm')}</text>
+              </g>;
+            })()}
+
+            {/* Arc ghost */}
+            {arcDraw && cursorPos && (() => {
+              if (arcDraw.stage === 1) {
+                const r = distance(arcDraw.cx, arcDraw.cy, cursorPos.x, cursorPos.y);
+                return <circle cx={arcDraw.cx} cy={arcDraw.cy} r={r} stroke="#7fb0ff" strokeWidth={1/zoom} fill="none" strokeDasharray={`${4/zoom} ${3/zoom}`} style={{ pointerEvents:'none' }} />;
+              }
+              const a1 = Math.atan2(cursorPos.y - arcDraw.cy, cursorPos.x - arcDraw.cx);
+              return <path d={arcPath(arcDraw.cx, arcDraw.cy, arcDraw.r, arcDraw.a0, a1)} stroke="#7fb0ff" strokeWidth={1.5/zoom} fill="none" style={{ pointerEvents:'none' }} />;
+            })()}
+
+            {/* Polyline ghost */}
+            {polyDraw && (() => {
+              const pts = [...polyDraw.points];
+              const live = cursorPos ? [...pts, cursorPos] : pts;
+              return <g style={{ pointerEvents:'none' }}>
+                <polyline points={live.map(p => `${p.x},${p.y}`).join(' ')} stroke="#7fb0ff" strokeWidth={1.5/zoom} fill="none" strokeDasharray={`${5/zoom} ${3/zoom}`} strokeLinejoin="round" />
+                {pts.map((p,i) => <circle key={i} cx={p.x} cy={p.y} r={3/zoom} fill="#7fb0ff" />)}
+              </g>;
+            })()}
+
             {/* Box selection */}
             {selBox && <rect x={Math.min(selBox.x1,selBox.x2)} y={Math.min(selBox.y1,selBox.y2)} width={Math.abs(selBox.x2-selBox.x1)} height={Math.abs(selBox.y2-selBox.y1)} stroke="#00aaff" strokeWidth={1.5/zoom} fill="rgba(0,170,255,0.08)" strokeDasharray={`${4/zoom} ${2/zoom}`} />}
 
