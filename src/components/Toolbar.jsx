@@ -345,14 +345,14 @@ export default function Toolbar({
 
               <div style={styles.divider} />
               <div style={styles.group}>
-                <button style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
+                <button data-hint="delete" style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
                   <span style={styles.icon}>🗑</span><span style={styles.label}>Delete</span>
                 </button>
-                <button style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
+                <button data-hint="zoomin" style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
                 <span style={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
-                <button style={styles.btn} title="Zoom Out" onClick={onZoomOut}>−</button>
-                <button style={styles.btn} title="Fit to window" onClick={onFit}>Fit</button>
-                <button style={styles.btn} title="Studio Settings" onClick={onStudioSettings}>
+                <button data-hint="zoomout" style={styles.btn} title="Zoom Out" onClick={onZoomOut}>−</button>
+                <button data-hint="fit" style={styles.btn} title="Fit to window" onClick={onFit}>Fit</button>
+                <button data-hint="studio" style={styles.btn} title="Studio Settings" onClick={onStudioSettings}>
                   <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
                 </button>
               </div>
