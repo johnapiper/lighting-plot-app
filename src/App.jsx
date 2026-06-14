@@ -1175,7 +1175,10 @@ function App() {
           count={allSelectedIds.length}
           onApplyArray={handleApplyArray}
           onAlign={handleAlign}
-          onClose={() => setTransformMode(null)}
+          onMirror={handleApplyMirror}
+          onOffset={handleApplyOffset}
+          onDuplicate={handleApplyDuplicate}
+          onClose={() => { setTransformMode(null); setDuplicateId(null); }}
         />
       )}
       {showCableReport && license?.hasFeature('cable_routing') && (
