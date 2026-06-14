@@ -2428,7 +2428,7 @@ export default function Canvas({
               setContextMenu(null);
             }}>↔ Distribute Fixtures Evenly</div>
           )}
-          <div style={ctxStyle.item} onClick={() => {
+          <div style={ctxStyle.item} {...ctxHints.bind('lock')} onClick={() => {
             toggleLock(contextMenu.hit.id, contextMenu.hit.kind);
             setContextMenu(null);
           }}>
