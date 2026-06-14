@@ -2407,13 +2407,13 @@ export default function Canvas({
               }}>↔ Distribute Selected Evenly</div>
             )}
             {onSwapFixture && (
-              <div style={ctxStyle.item} onClick={() => {
+              <div style={ctxStyle.item} {...ctxHints.bind('swap')} onClick={() => {
                 const ids = selectedIds?.includes(contextMenu.hit.id) ? selectedIds : [contextMenu.hit.id];
                 onSwapFixture(ids);
                 setContextMenu(null);
               }}>🔄 Swap Fixture Type…</div>
             )}
-            <div style={ctxStyle.item} onClick={() => {
+            <div style={ctxStyle.item} {...ctxHints.bind('duppath')} onClick={() => {
               onDuplicateAlongPath?.(contextMenu.hit.id);
               setContextMenu(null);
             }}>↗ Duplicate Along Path…</div>
