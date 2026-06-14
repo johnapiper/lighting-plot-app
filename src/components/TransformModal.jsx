@@ -94,7 +94,8 @@ export default function TransformModal({ mode, count, onApplyArray, onAlign, onM
                 }}>Create Array</button>
               </div>
             </>
-          ) : (
+          )}
+          {mode === 'align' && (
             <>
               <div style={S.secLabel}>Align ({count} selected)</div>
               <div style={S.btnRow}>
