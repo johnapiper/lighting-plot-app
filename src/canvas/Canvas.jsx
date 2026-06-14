@@ -862,6 +862,8 @@ export default function Canvas({
   // Right-click: context menu for ALL objects; also rotates pipe/truss during placement
   const onContextMenu = useCallback((e) => {
     e.preventDefault();
+    // The object context menu is entirely editing actions — suppress it without edit rights.
+    if (!canEdit) return;
     // If actively drawing a pipe/truss, right-click rotates by 90° instead of context menu
     if (drawingRef.current && (activeTool === 'pipe' || activeTool === 'truss')) {
       setPipePlaceAngle(a => a === null ? 0 : (a + 90) % 360);
@@ -870,7 +872,7 @@ export default function Canvas({
     const world = screenToWorld(e.clientX, e.clientY);
     const hit = hitTestAll(world.x, world.y, true); // includeLocked=true for right-click
     if (hit) setContextMenu({ sx: e.clientX, sy: e.clientY, hit });
-  }, [activeTool, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, layers]);
+  }, [activeTool, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, layers, canEdit]);
 
   const onWheel = useCallback((e) => {
     e.preventDefault();
