@@ -330,14 +330,14 @@ export default function Toolbar({
 
               <div style={styles.divider} />
               <div style={styles.group}>
-                <button title="Toggle animation" style={{ ...styles.btn, ...(animating ? styles.active : {}) }} onClick={onToggleAnimation}>
+                <button data-hint="anim" title="Toggle animation" style={{ ...styles.btn, ...(animating ? styles.active : {}) }} onClick={onToggleAnimation}>
                   <span style={styles.icon}>▶</span><span style={styles.label}>Anim</span>
                 </button>
-                <button title="Cable Report" style={styles.btn} onClick={onShowCableReport}>
+                <button data-hint="report" title="Cable Report" style={styles.btn} onClick={onShowCableReport}>
                   <span style={styles.icon}>📋</span><span style={styles.label}>Report</span>
                 </button>
                 {has('eos_import') && (
-                  <button title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
+                  <button data-hint="eos" title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
                     <span style={styles.icon}>🎛</span><span style={styles.label}>EOS Import</span>
                   </button>
                 )}
