@@ -161,6 +161,20 @@ export default function Toolbar({
               </>
             )}
 
+            {has('reports') && (
+              <>
+                <div style={styles.divider} />
+                <div style={styles.group}>
+                  <button style={styles.btn} title="Fixture Schedule report" onClick={onReportFixture}>
+                    <span style={styles.icon}>📋</span><span style={styles.label}>Fixtures</span>
+                  </button>
+                  <button style={styles.btn} title="Channel List report" onClick={onReportChannel}>
+                    <span style={styles.icon}>🔢</span><span style={styles.label}>Channels</span>
+                  </button>
+                </div>
+              </>
+            )}
+
             <div style={styles.divider} />
             <div style={styles.group}>
               <button title="Studio Settings" style={styles.btn} onClick={onStudioSettings}>
