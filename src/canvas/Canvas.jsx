@@ -1644,48 +1644,41 @@ export default function Canvas({
           // We project the cone edge onto the floor plan.
           const beamEl = (() => {
             if (!showBeams) return null;
-            const halfBeamDeg = (ftype?.beamAngle || 0) / 2;
-            if (halfBeamDeg <= 0) return null;
-            const tilt = f.tiltAngle ?? 0;         // degrees from vertical (0 = straight down)
-            const h = rigHeight || 5500;             // mm from floor
-            const halfBeamRad = halfBeamDeg * Math.PI / 180;
-            const tiltRad = tilt * Math.PI / 180;
-            // Centre of cone projected on floor (tilt pushes centre forward)
-            const centreDist = h * Math.tan(tiltRad);
-            // Near and far edge distances along the tilt axis
-            const nearDist = h * Math.tan(Math.max(0, tiltRad - halfBeamRad));
+            // Per-fixture override wins, else the fixture type's beam angle.
+            const beamDeg = f.beamAngle ?? ftype?.beamAngle ?? 0;
+            const halfBeamRad = (beamDeg / 2) * Math.PI / 180;
+            if (halfBeamRad <= 0) return null;
+            const tiltRad = (f.tiltAngle ?? 0) * Math.PI / 180; // 0 = straight down
+            const h = rigHeight || 5500;                         // throw height (mm) above floor
+            // Project the cone onto the floor. Near/far edges along the tilt axis
+            // (no clamping — at tilt 0 these are symmetric, giving a circle).
+            const nearDist = h * Math.tan(tiltRad - halfBeamRad);
             const farDist  = h * Math.tan(tiltRad + halfBeamRad);
-            // Width of the ellipse at the mid-throw distance
-            const midDist  = (nearDist + farDist) / 2;
-            const beamW    = h / Math.cos(tiltRad) * Math.tan(halfBeamRad) * 2; // cone width (approx)
-            // Rotation: fixture rotation + 180 (symbol points up, beam shoots "below" the fixture)
-            const rotRad = ((f.rotation || 0) + 180) * Math.PI / 180;
-            const cx = centreDist * Math.sin(rotRad);
-            const cy = centreDist * Math.cos(rotRad);
-            // Scale: 1 world unit = 1 mm if the project uses mm (typical for lighting CAD)
-            const scale = 1;
-            const rX = beamW / 2 * scale;
-            const rY = (farDist - nearDist) / 2 * scale;
-            const colour = f.colourHex || '#ffee88';
+            const centreDist = (nearDist + farDist) / 2;
+            const rMajor = Math.abs(farDist - nearDist) / 2;             // along throw
+            const rMinor = (h / Math.cos(tiltRad)) * Math.tan(halfBeamRad); // perpendicular
+            // Beam shoots in the direction the symbol points (rotation; +180 so a
+            // 0° fixture throws "down" the plan toward the stage).
+            const rotDeg = (f.rotation || 0) + 180;
+            const rotRad = rotDeg * Math.PI / 180;
+            const dirX = Math.sin(rotRad), dirY = -Math.cos(rotRad);     // throw direction
+            const cx = centreDist * dirX, cy = centreDist * dirY;
+            // Edge points of the footprint (near & far along throw) for the cone lines.
+            const nearX = nearDist * dirX, nearY = nearDist * dirY;
+            const px = -dirY, py = dirX;                                  // perpendicular unit
+            const colour = f.colourHex && f.colourHex !== 'null' ? f.colourHex : '#ffd86b';
             return (
               <g style={{ pointerEvents: 'none' }}>
-                {/* Cone lines */}
-                <line x1={0} y1={0}
-                  x2={cx + (beamW/2)*Math.cos(rotRad)*scale}
-                  y2={cy - (beamW/2)*Math.sin(rotRad)*scale}
-                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.5} strokeDasharray={`${4/zoom} ${3/zoom}`} />
-                <line x1={0} y1={0}
-                  x2={cx - (beamW/2)*Math.cos(rotRad)*scale}
-                  y2={cy + (beamW/2)*Math.sin(rotRad)*scale}
-                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.5} strokeDasharray={`${4/zoom} ${3/zoom}`} />
-                {/* Footprint ellipse */}
-                <ellipse
-                  cx={cx} cy={cy}
-                  rx={rX} ry={rY}
-                  transform={`rotate(${f.rotation||0} ${cx} ${cy})`}
-                  fill={colour} fillOpacity={0.07}
-                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.4}
-                />
+                {/* Cone edges: fixture → the two sides of the footprint at the near plane offset */}
+                <line x1={0} y1={0} x2={cx + px*rMinor} y2={cy + py*rMinor}
+                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.45} strokeDasharray={`${4/zoom} ${3/zoom}`} />
+                <line x1={0} y1={0} x2={cx - px*rMinor} y2={cy - py*rMinor}
+                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.45} strokeDasharray={`${4/zoom} ${3/zoom}`} />
+                {/* Footprint ellipse (major axis along the throw) */}
+                <ellipse cx={cx} cy={cy} rx={rMinor} ry={rMajor}
+                  transform={`rotate(${rotDeg} ${cx} ${cy})`}
+                  fill={colour} fillOpacity={0.10}
+                  stroke={colour} strokeWidth={1/zoom} strokeOpacity={0.55} />
               </g>
             );
           })();
