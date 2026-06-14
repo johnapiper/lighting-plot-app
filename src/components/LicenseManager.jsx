@@ -605,6 +605,47 @@ function LabelField({ label, children }) {
   );
 }
 
+// Plain-English summary of which app versions a group's min/max bounds permit.
+function versionAccessSummary(min, max, versions = []) {
+  if (min && max && compareVersions(min, max) > 0)
+    return '⚠ Invalid range — minimum is newer than maximum. No versions would be allowed.';
+  if (!min && !max) return 'Access: all versions (no restriction).';
+  const inRange = versions.filter(v =>
+    (!min || compareVersions(v, min) >= 0) && (!max || compareVersions(v, max) <= 0));
+  const scope = min && max ? `v${min} – v${max}` : min ? `v${min} and newer` : `up to v${max}`;
+  const listed = inRange.length
+    ? ` Released in range: ${inRange.slice(0, 8).map(v => 'v' + v).join(', ')}${inRange.length > 8 ? '…' : ''}.`
+    : ' No released versions currently fall in this range.';
+  const blockNote = min ? ' Older versions are blocked beyond the About window.' : '';
+  const updNote   = max ? ` Updates above v${max} are hidden.` : '';
+  return `Access: ${scope}.${listed}${blockNote}${updNote}`;
+}
+
+// Two dropdowns (min / max) populated from GitHub releases + a live summary.
+function VersionRangePicker({ minVersion, maxVersion, versions, onChangeMin, onChangeMax }) {
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <LabelField label="Min app version">
+          <select style={S.inp} value={minVersion || ''} onChange={e => onChangeMin(e.target.value)}>
+            <option value="">Any</option>
+            {versions.map(v => <option key={v} value={v}>v{v}</option>)}
+          </select>
+        </LabelField>
+        <LabelField label="Max app version">
+          <select style={S.inp} value={maxVersion || ''} onChange={e => onChangeMax(e.target.value)}>
+            <option value="">Any</option>
+            {versions.map(v => <option key={v} value={v}>v{v}</option>)}
+          </select>
+        </LabelField>
+      </div>
+      <div style={{ fontSize: 11, color: '#a0c4e8', background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 4, padding: '7px 10px' }}>
+        {versionAccessSummary(minVersion, maxVersion, versions)}
+      </div>
+    </div>
+  );
+}
+
 function oneYearFromNow() {
   const d = new Date(); d.setFullYear(d.getFullYear() + 1);
   return d.toISOString().slice(0, 10);
