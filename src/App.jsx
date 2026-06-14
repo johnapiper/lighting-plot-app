@@ -711,6 +711,8 @@ function App() {
         onShowEOSImport={() => setShowEOSImport(true)}
         onStudioSettings={() => setShowStudioSettings(true)}
         onAppSettings={() => setShowAppSettings(true)}
+        onReportFixture={() => license?.hasFeature('reports') ? setReport({ type: 'instrument' }) : null}
+        onReportChannel={() => license?.hasFeature('reports') ? setReport({ type: 'channel' }) : null}
         features={license?.license?.features || []}
       />
 
