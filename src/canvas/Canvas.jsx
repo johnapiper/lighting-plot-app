@@ -2433,7 +2433,7 @@ export default function Canvas({
             }}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</div>
           </>)}
           {contextMenu.hit.kind === 'pipe' && (
-            <div style={ctxStyle.item} onClick={() => {
+            <div style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
               distributeOnPipe(contextMenu.hit.id);
               setContextMenu(null);
             }}>↔ Distribute Fixtures Evenly</div>
