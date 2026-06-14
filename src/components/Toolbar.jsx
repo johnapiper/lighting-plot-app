@@ -155,7 +155,7 @@ export default function Toolbar({
             <>
               <div style={styles.divider} />
               <div style={styles.group}>
-                <button title="Select (V)"
+                <button title="Select (V)" data-hint="select"
                   style={{ ...styles.btn, ...(activeTool === 'select' ? styles.active : {}) }}
                   onClick={() => onToolChange('select')}>
                   <span style={styles.icon}>↖</span>
@@ -164,7 +164,7 @@ export default function Toolbar({
                 {has('cad_edit') && CAD_EDIT_TOOLS
                   .filter(t => t.id !== 'dimension' || has('dimensioning'))
                   .map(t => (
-                  <button key={t.id} title={t.key ? `${t.label} (${t.key})` : t.label}
+                  <button key={t.id} title={t.key ? `${t.label} (${t.key})` : t.label} data-hint={t.id}
                     style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
                     onClick={() => onToolChange(t.id)}>
                     <span style={styles.icon}>{t.icon}</span>
