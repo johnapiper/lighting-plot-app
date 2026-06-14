@@ -542,12 +542,13 @@ export default function Canvas({
     const snapped = getSnapped(e.clientX, e.clientY);
     mouseDownScreen.current = { x: e.clientX, y: e.clientY };
 
-    // Focus mode
+    // Focus mode — aim the beam so its footprint centres on the clicked point
+    // (at floor level, Z=0). Sets both pan (rotation) and tilt.
     if (focusModeId) {
       const fx = fixtures.find(f => f.id === focusModeId);
       if (fx) {
-        const angle = Math.atan2(world.y - fx.y, world.x - fx.x) * 180 / Math.PI + 90;
-        commitToDrawing(d => { const f = d.fixtures.find(f => f.id === focusModeId); if (f) f.rotation = angle; });
+        const aim = aimAt(fx.x, fx.y, snapped.x, snapped.y, rigHeight || 5500);
+        commitToDrawing(d => { const f = d.fixtures.find(f => f.id === focusModeId); if (f) { f.rotation = aim.rotation; f.tiltAngle = aim.tilt; } }, 'Set focus');
       }
       setFocusModeId(null); setFocusCursor(null);
       return;
