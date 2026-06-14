@@ -1276,29 +1276,33 @@ export default function Canvas({
   function distributeOnPipe(pipeId) {
     const pipe = pipes.find(p => p.id === pipeId);
     if (!pipe) return;
-    const onPipe = fixtures.filter(f => f.pipeId === pipeId);
-    if (onPipe.length < 2) return;
     const dx = pipe.x2 - pipe.x1, dy = pipe.y2 - pipe.y1;
     const len = Math.sqrt(dx*dx + dy*dy);
     if (len < 1) return;
     const ux = dx/len, uy = dy/len;
-    // project each fixture onto pipe axis, sort by position
-    const withT = onPipe.map(f => {
-      const t = (f.x - pipe.x1)*ux + (f.y - pipe.y1)*uy;
-      return { f, t };
-    }).sort((a,b) => a.t - b.t);
+    // Fixtures attached to this pipe, OR lying close to its line (so it works even
+    // if they were placed without snapping). Tolerance scales with the symbol size.
+    const tol = 60; // mm
+    const onPipe = fixtures.filter(f => f.pipeId === pipeId
+      || distanceToSegment(f.x, f.y, pipe.x1, pipe.y1, pipe.x2, pipe.y2) <= tol);
+    if (onPipe.length < 2) return;
+    const withT = onPipe.map(f => ({ f, t: (f.x - pipe.x1)*ux + (f.y - pipe.y1)*uy }))
+      .sort((a, b) => a.t - b.t);
     const tMin = withT[0].t, tMax = withT[withT.length-1].t;
     const step = (tMax - tMin) / (withT.length - 1);
+    const rot = pipeAngle(pipe) * 180 / Math.PI;
     commitToDrawing(d => {
       withT.forEach(({ f: orig }, i) => {
         const fix = d.fixtures.find(fx => fx.id === orig.id);
         if (!fix) return;
         const t = tMin + i * step;
-        const perp = (orig.x - pipe.x1)*(-uy) + (orig.y - pipe.y1)*ux; // preserve offset from pipe
-        fix.x = pipe.x1 + t*ux + perp*(-uy);
-        fix.y = pipe.y1 + t*uy + perp*ux;
+        fix.x = pipe.x1 + t*ux;          // sit exactly on the pipe line
+        fix.y = pipe.y1 + t*uy;
+        fix.pipeId = pipeId;              // (re-)attach to the pipe
+        fix.position = pipe.name;
+        fix.rotation = rot;
       });
-    });
+    }, 'Distribute on pipe');
   }
 
   // Distribute selected fixtures evenly between their own bounding-box endpoints
