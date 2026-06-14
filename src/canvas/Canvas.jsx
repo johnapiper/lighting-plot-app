@@ -917,7 +917,7 @@ export default function Canvas({
       }
 
       if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
-        if (snapRef.current.enabled && snapRef.current.pipe) {
+        if (snapRef.current.enabled && snapRef.current.pipe && !bypassRef.current) {
           const nearPipe = findNearestPipe(world.x, world.y);
           if (nearPipe) {
             // Snap exactly onto the pipe line (no grid snap, which would offset it).
