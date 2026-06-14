@@ -144,6 +144,7 @@ export default function LicenseGate({ children }) {
         applyLicense(result, appVer);
       } else {
         setErrMsg(result.reason);
+        await computeTrialInfo();
         setStatus('activating');
       }
     } catch (e) {
