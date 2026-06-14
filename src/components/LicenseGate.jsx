@@ -60,23 +60,35 @@ export default function LicenseGate({ children }) {
     return () => clearTimeout(t);
   }, [status]);
 
-  async function startTrial(db) {
-    const cfg = getTrialConfig(db);
-    if (!cfg.enabled) { setStatus('activating'); return; }
+  // Work out whether a trial is available (without starting the clock). Stores
+  // the result in trialInfo so the activation screen can offer "Continue Trial".
+  async function computeTrialInfo() {
+    let db = null;
+    try { db = await fetchDatabase(); }
+    catch { try { db = JSON.parse(localStorage.getItem('lplot_license_db') || 'null'); } catch {} }
+    const cfg = getTrialConfig(db || {});
+    if (!cfg.enabled) { setTrialInfo(null); return null; }
     const days = cfg.days || DEFAULT_TRIAL_DAYS;
-    let trial = await ipcRenderer.invoke('trial-read');
-    if (!trial) {
-      trial = { startDate: new Date().toISOString() };
-      await ipcRenderer.invoke('trial-write', trial);
-    }
-    const daysUsed = Math.floor((Date.now() - new Date(trial.startDate)) / 86400000);
-    const left = days - daysUsed;
-    if (left <= 0) { setStatus('activating'); return; }
+    const trial = await ipcRenderer.invoke('trial-read');
+    const used = trial?.startDate ? Math.floor((Date.now() - new Date(trial.startDate)) / 86400000) : 0;
+    const left = days - used;
+    if (left <= 0) { setTrialInfo(null); return null; }
     const features = cfg.features.length ? cfg.features : DEFAULT_TRIAL_FEATURES;
-    setTrialDaysLeft(left);
-    setLicense({ valid: true, features, trial: true, maxVersion: null });
+    const info = { daysLeft: left, features };
+    setTrialInfo(info);
+    return info;
+  }
+
+  // Begin (or resume) the trial — writes the start date if not already set.
+  function startTrialNow(info) {
+    if (!info) return;
+    ipcRenderer.invoke('trial-read').then(t => {
+      if (!t) ipcRenderer.invoke('trial-write', { startDate: new Date().toISOString() });
+    });
+    setTrialDaysLeft(info.daysLeft);
+    setLicense({ valid: true, features: info.features, trial: true, maxVersion: null });
     setStatus('trial');
-    ipcRenderer.send('license-features', { features });
+    ipcRenderer.send('license-features', { features: info.features });
   }
 
   // Apply a verified license result, enforcing the minimum-version requirement.
