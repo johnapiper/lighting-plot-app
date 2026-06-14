@@ -792,7 +792,7 @@ export default function Canvas({
       }
       return;
     }
-  }, [activeTool, pendingFixture, fixtures, pipes, lines, rectangles, texts, images, annotations, infrastructure, cables, zoom, pan, showRulers, gridSize, focusModeId, layers, cableFrom]);
+  }, [activeTool, pendingFixture, fixtures, pipes, lines, rectangles, texts, images, annotations, infrastructure, cables, zoom, pan, showRulers, gridSize, focusModeId, layers, cableFrom, selectedId, selectedIds, canEdit]);
 
   const onMouseMove = useCallback((e) => {
     if (isPanning.current) {
