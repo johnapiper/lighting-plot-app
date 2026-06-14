@@ -61,6 +61,7 @@ export default function Toolbar({
   const [canScroll, setCanScroll] = useState(false);
   const scrollRef = useRef(null);
   const snapWrapRef = useRef(null);
+  const snapPopRef = useRef(null);
 
   const wrapMode = barHeight > 62; // taller bar → wrap tools onto multiple rows
 
