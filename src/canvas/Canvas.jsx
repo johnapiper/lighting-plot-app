@@ -1632,19 +1632,26 @@ export default function Canvas({
 
             {/* Drawing ghosts */}
             {drawingState?.kind === 'line' && <line x1={drawingState.x1} y1={drawingState.y1} x2={drawingState.x2} y2={drawingState.y2} stroke="#607d8b" strokeWidth={2/zoom} strokeDasharray={`${6/zoom} ${3/zoom}`} />}
-            {drawingState?.kind === 'dimension' && (() => {
-              const d = drawingState;
-              const dx2 = d.x2 - d.x1, dy2 = d.y2 - d.y1;
+            {measure && (() => {
+              // In-progress: follow the cursor; completed: fixed endpoint.
+              const x1 = measure.x1, y1 = measure.y1;
+              const x2 = measure.done ? measure.x2 : (cursorPos ? cursorPos.x : measure.x1);
+              const y2 = measure.done ? measure.y2 : (cursorPos ? cursorPos.y : measure.y1);
+              const dx2 = x2 - x1, dy2 = y2 - y1;
               const len = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
               const nx = -dy2/len, ny = dx2/len;
               const tick = 6/zoom;
               const lbl = formatLength(len, meta?.units || 'mm');
+              const col = measure.done ? '#68d391' : '#a0c0ff';
               return (
                 <g style={{ pointerEvents: 'none' }}>
-                  <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="#a0c0ff" strokeWidth={1.5/zoom} strokeDasharray={`${4/zoom} ${2/zoom}`} />
-                  <line x1={d.x1+nx*tick} y1={d.y1+ny*tick} x2={d.x1-nx*tick} y2={d.y1-ny*tick} stroke="#a0c0ff" strokeWidth={1/zoom} />
-                  <line x1={d.x2+nx*tick} y1={d.y2+ny*tick} x2={d.x2-nx*tick} y2={d.y2-ny*tick} stroke="#a0c0ff" strokeWidth={1/zoom} />
-                  <text x={(d.x1+d.x2)/2} y={(d.y1+d.y2)/2 - 5/zoom} textAnchor="middle" fontSize={9/zoom} fill="#a0c0ff">{lbl}</text>
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={1.5/zoom} strokeDasharray={measure.done ? 'none' : `${4/zoom} ${2/zoom}`} />
+                  <line x1={x1+nx*tick} y1={y1+ny*tick} x2={x1-nx*tick} y2={y1-ny*tick} stroke={col} strokeWidth={1/zoom} />
+                  <line x1={x2+nx*tick} y1={y2+ny*tick} x2={x2-nx*tick} y2={y2-ny*tick} stroke={col} strokeWidth={1/zoom} />
+                  <circle cx={x1} cy={y1} r={3/zoom} fill={col} />
+                  {measure.done && <circle cx={x2} cy={y2} r={3/zoom} fill={col} />}
+                  <text x={(x1+x2)/2} y={(y1+y2)/2 - 6/zoom} textAnchor="middle" fontSize={10/zoom} fill={col}
+                    style={{ paintOrder: 'stroke', stroke: '#0d1117', strokeWidth: 3/zoom }}>{lbl}</text>
                 </g>
               );
             })()}
