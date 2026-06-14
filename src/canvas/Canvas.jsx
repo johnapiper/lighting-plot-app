@@ -914,7 +914,8 @@ export default function Canvas({
     if (!drawingState) return;
     const snapped = getSnapped(e.clientX, e.clientY);
     const ds = drawingState;
-    if (ds.kind === 'pipe') return;
+    // Pipe and circle are click-click tools — don't let mouse-up clear them.
+    if (ds.kind === 'pipe' || ds.kind === 'circle') return;
 
     if (ds.kind === 'line') {
       if (distance(ds.x1, ds.y1, snapped.x, snapped.y) > 2)
