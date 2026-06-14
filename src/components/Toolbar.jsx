@@ -223,16 +223,16 @@ export default function Toolbar({
                   <div style={styles.divider} />
                   <div style={styles.group}>
                     {canUngroup ? (
-                      <button style={styles.btn} title="Ungroup (Ctrl+G)" onClick={onUngroup}>
+                      <button data-hint="ungroup" style={styles.btn} title="Ungroup (Ctrl+G)" onClick={onUngroup}>
                         <span style={styles.icon}>⬚</span><span style={styles.label}>Ungroup</span>
                       </button>
                     ) : (
-                      <button style={{ ...styles.btn, ...(canGroup ? {} : styles.disabled) }}
+                      <button data-hint="group" style={{ ...styles.btn, ...(canGroup ? {} : styles.disabled) }}
                         title="Group (Ctrl+G)" onClick={onGroup} disabled={!canGroup}>
                         <span style={styles.icon}>⊟</span><span style={styles.label}>Group</span>
                       </button>
                     )}
-                    <button style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
+                    <button data-hint="delete" style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
                       <span style={styles.icon}>🗑</span><span style={styles.label}>Delete</span>
                     </button>
                   </div>
