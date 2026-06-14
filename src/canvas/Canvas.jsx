@@ -123,6 +123,9 @@ export default function Canvas({
   const texts = drawing?.texts || [];
   const images = drawing?.images || [];
   const annotations = drawing?.annotations || [];
+  const circles = drawing?.circles || [];
+  const arcs = drawing?.arcs || [];
+  const polylines = drawing?.polylines || [];
   const infrastructure = drawing?.infrastructure || [];
   const cables = drawing?.cables || [];
   const pdfBackground = drawing?.pdfBackground || null;
