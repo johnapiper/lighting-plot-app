@@ -4,6 +4,7 @@ import {
   addLicense, revokeLicense, updateLicense, deleteLicense, invalidateCache,
   addRightsGroup, updateRightsGroup, deleteRightsGroup,
   getTrialConfig, updateTrialConfig,
+  fetchReleaseVersions, compareVersions,
 } from '../license/licenseService';
 import { FEATURES } from '../license/features';
 
