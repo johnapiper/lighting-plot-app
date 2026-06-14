@@ -351,6 +351,23 @@ export default function Toolbar({
 
       {/* Resize handle (drag to make the ribbon taller — tools wrap to rows) */}
       <div style={styles.resizeHandle} onMouseDown={startResize} title="Drag to resize ribbon" />
+
+      {/* Snap settings popover — rendered here (fixed) so the toolbar's overflow
+          clipping doesn't hide it. */}
+      {snapMenu && (
+        <div ref={snapPopRef} style={{ ...styles.snapPop, top: snapAnchor.top, left: snapAnchor.left }}>
+          <div style={styles.snapPopTitle}>Snap to</div>
+          {SNAP_OPTIONS.map(([k, l]) => (
+            <label key={k} style={styles.snapRow}>
+              <input type="checkbox" checked={!!snap[k]} disabled={!snap.enabled && k !== 'grid'}
+                onChange={e => onSnapChange?.({ ...snap, [k]: e.target.checked })}
+                style={{ accentColor: '#4a90d9' }} />
+              <span>{l}</span>
+            </label>
+          ))}
+          <div style={styles.snapHint}>Object Snap {snap.enabled ? 'ON' : 'OFF'} — toggle with the Snap button or F3.</div>
+        </div>
+      )}
     </div>
   );
 }
