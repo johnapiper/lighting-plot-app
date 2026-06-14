@@ -1771,10 +1771,13 @@ export default function Canvas({
         commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: end.x2, y2: end.y2, layerId: activeLayerId || 'layer-arch' }), 'Add line');
       setDrawingState(null);
     } else if (ds.kind === 'pipe') {
+      if (distance(ds.x1, ds.y1, end.x2, end.y2) <= 2) { setDrawingState(null); resetDyn(); return true; }
       const np = { id: generateId(), kind: 'pipe', x1: ds.x1, y1: ds.y1, x2: end.x2, y2: end.y2, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
       commitToDrawing(d => d.pipes.push(np), 'Add pipe');
       onSelect({ kind: 'pipe', ...np });
+      resetDyn();
       setDrawingState({ kind: 'pipe', x1: end.x2, y1: end.y2, x2: end.x2, y2: end.y2 }); // chain
+      return true;
     } else if (ds.kind === 'rect') {
       const x = Math.min(ds.x1, end.x2), y = Math.min(ds.y1, end.y2);
       const w = Math.abs(end.x2 - ds.x1), h = Math.abs(end.y2 - ds.y1);
