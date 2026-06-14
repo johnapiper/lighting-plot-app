@@ -922,6 +922,7 @@ export default function Canvas({
 
   const onMouseUp = useCallback((e) => {
     isPanning.current = false;
+    setAlignGuides(null);
 
     // Commit cable waypoint drag
     if (wpDragRef.current) {
