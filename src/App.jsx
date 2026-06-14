@@ -172,6 +172,10 @@ function App() {
   const canGroup   = allSelectedIds.length >= 2;
   const canUngroup = !!groupInfo;
 
+  // ── Permission shortcuts ─────────────────────────────────────────────────
+  const canEditCanvas = !!license?.hasFeature('cad_edit');
+  const canUseLibrary = !!license?.hasFeature('fixture_library');
+
   // In trial mode everything is temporary: no save / load / export / import.
   const isTrial    = !!license?.trial;
   const maxVersion = license?.maxVersion || null;
