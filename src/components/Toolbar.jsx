@@ -302,7 +302,7 @@ export default function Toolbar({
               <div style={styles.divider} />
               <div style={styles.group}>
                 {INFRA_TOOLS.map(t => (
-                  <button key={t.id} title={t.title}
+                  <button key={t.id} title={t.title} data-hint={t.id}
                     style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
                     onClick={() => onToolChange(t.id)}>
                     <span style={styles.icon}>{t.icon}</span>
