@@ -290,7 +290,7 @@ export default function Toolbar({
 
               <div style={styles.divider} />
               <div style={styles.group}>
-                <button title="Studio Settings" style={styles.btn} onClick={onStudioSettings}>
+                <button data-hint="studio" title="Studio Settings" style={styles.btn} onClick={onStudioSettings}>
                   <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
                 </button>
               </div>
