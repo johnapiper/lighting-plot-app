@@ -994,10 +994,14 @@ export default function Canvas({
   function finishPolyline(close) {
     const cur = polyRef.current;
     if (cur && cur.points.length >= 2) {
-      commitToDrawing(d => {
-        if (!d.polylines) d.polylines = [];
-        d.polylines.push({ id: generateId(), kind: 'polyline', points: cur.points, closed: !!close, layerId: activeLayerId || 'layer-arch' });
-      }, 'Add polyline');
+      // Drop a trailing duplicate vertex (from the double-click that finishes).
+      const pts = cur.points.filter((p, i, a) => i === 0 || distance(p.x, p.y, a[i-1].x, a[i-1].y) > 0.5);
+      if (pts.length >= 2) {
+        commitToDrawing(d => {
+          if (!d.polylines) d.polylines = [];
+          d.polylines.push({ id: generateId(), kind: 'polyline', points: pts, closed: !!close, layerId: activeLayerId || 'layer-arch' });
+        }, 'Add polyline');
+      }
     }
     setPolyDraw(null);
   }
