@@ -991,10 +991,14 @@ export default function Canvas({
 
   useEffect(() => {
     const handler = (e) => {
+      if (e.key === 'Enter' && polyRef.current && document.activeElement.tagName !== 'INPUT') {
+        finishPolyline(false); return;
+      }
       if (e.key === 'Escape') {
         setDrawingState(null); setFocusModeId(null); setFocusCursor(null);
         setCalibState(null); setCableFrom(null); setCableGhost(null);
         setPipePlaceAngle(null); setScaleMode(null); setMeasure(null);
+        setPolyDraw(null); setArcDraw(null);
         onSelect(null); onMultiSelect([]);
         onToolChange?.('select');
       }
