@@ -603,6 +603,7 @@ function App() {
   }
 
   function handleSwapFixture(ids, newTypeId) {
+    if (!canEditCanvas || !license?.hasFeature('fixture_swap')) return;
     const allTypes = [...fixtureTypesData, ...(project.customFixtureTypes || [])];
     const newType = allTypes.find(t => (t.id || t.name) === newTypeId);
     if (!newType) return;
