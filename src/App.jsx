@@ -836,8 +836,8 @@ function App() {
         onZoomOut={() => setZoom(z => Math.max(0.02, z/1.2))}
         onFit={() => fitViewRef.current?.()}
         showGrid={showGrid} onToggleGrid={() => setShowGrid(v => !v)}
-        pipeSnap={pipeSnap} onTogglePipeSnap={() => setPipeSnap(v => !v)}
-        objectSnap={objectSnap} onToggleObjectSnap={() => setObjectSnap(v => !v)}
+        snap={snap} onSnapChange={setSnap}
+        userName={license?.license?.name || ''}
         onMirror={handleMirror} onArray={() => setTransformMode('array')}
         onOffset={handleOffset} onAlign={() => setTransformMode('align')}
         onCorner={handleCorner}
