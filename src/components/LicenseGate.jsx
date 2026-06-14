@@ -115,10 +115,9 @@ export default function LicenseGate({ children }) {
 
       if (!savedKey) {
         // No license — start (or resume) trial mode using DB-defined config.
-        let db = null;
-        try { db = await fetchDatabase(); }
-        catch { try { db = JSON.parse(localStorage.getItem('lplot_license_db') || 'null'); } catch {} }
-        await startTrial(db || {});
+        const info = await computeTrialInfo();
+        if (info) startTrialNow(info);
+        else setStatus('activating');
         return;
       }
 
