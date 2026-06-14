@@ -261,6 +261,9 @@ export default function Canvas({
       ...rectangles.map(o => ({ ...o, _kind: 'rect' })),
       ...texts.map(o => ({ ...o, _kind: 'text' })),
       ...annotations.map(o => ({ ...o, _kind: 'annotation' })),
+      ...circles.map(o => ({ ...o, _kind: 'circle' })),
+      ...arcs.map(o => ({ ...o, _kind: 'arc' })),
+      ...polylines.map(o => ({ ...o, _kind: 'polyline' })),
       ...infrastructure.map(o => ({ ...o, _kind: 'infra' })),
     ];
 
