@@ -746,6 +746,25 @@ function App() {
     }, `Align (${mode})`);
   }
 
+  // Join/trim two selected lines (or pipes) so they meet at their intersection.
+  function handleCorner() {
+    if (!canEditCanvas) return;
+    commitToActiveDrawing(d => {
+      const segs = allSelectedIds.map(id => findObjKind(d, id)).filter(f => f && (f.kind === 'line' || f.kind === 'pipe'));
+      if (segs.length !== 2) return;
+      const a = segs[0].obj, b = segs[1].obj;
+      const den = (a.x1 - a.x2) * (b.y1 - b.y2) - (a.y1 - a.y2) * (b.x1 - b.x2);
+      if (Math.abs(den) < 1e-9) return; // parallel
+      const px = ((a.x1 * a.y2 - a.y1 * a.x2) * (b.x1 - b.x2) - (a.x1 - a.x2) * (b.x1 * b.y2 - b.y1 * b.x2)) / den;
+      const py = ((a.x1 * a.y2 - a.y1 * a.x2) * (b.y1 - b.y2) - (a.y1 - a.y2) * (b.x1 * b.y2 - b.y1 * b.x2)) / den;
+      const snapNearestEnd = (o) => {
+        const d1 = Math.hypot(o.x1 - px, o.y1 - py), d2 = Math.hypot(o.x2 - px, o.y2 - py);
+        if (d1 <= d2) { o.x1 = px; o.y1 = py; } else { o.x2 = px; o.y2 = py; }
+      };
+      snapNearestEnd(a); snapNearestEnd(b);
+    }, 'Join corner');
+  }
+
   function handleLoadDrawingTemplate(snapshot) {
     commit(proj => {
       const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
