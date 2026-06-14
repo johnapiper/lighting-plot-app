@@ -32,7 +32,7 @@ export default function Toolbar({
   showGrid, onToggleGrid,
   pipeSnap, onTogglePipeSnap,
   objectSnap, onToggleObjectSnap,
-  onMirror, onArray, onOffset, onAlign, hasSelection,
+  onMirror, onArray, onOffset, onAlign, onCorner, hasSelection, canCorner,
   zoom,
   onImportPdf, onImportImage,
   onShowPatch,
