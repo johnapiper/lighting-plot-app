@@ -278,10 +278,10 @@ export default function Toolbar({
                 <>
                   <div style={styles.divider} />
                   <div style={styles.group}>
-                    <button style={styles.btn} title="Fixture Schedule report" onClick={onReportFixture}>
+                    <button data-hint="fixtures" style={styles.btn} title="Fixture Schedule report" onClick={onReportFixture}>
                       <span style={styles.icon}>📋</span><span style={styles.label}>Fixtures</span>
                     </button>
-                    <button style={styles.btn} title="Channel List report" onClick={onReportChannel}>
+                    <button data-hint="channels" style={styles.btn} title="Channel List report" onClick={onReportChannel}>
                       <span style={styles.icon}>🔢</span><span style={styles.label}>Channels</span>
                     </button>
                   </div>
