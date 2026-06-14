@@ -50,6 +50,7 @@ export default function Canvas({
   onSwapFixture,
   onDuplicateAlongPath,
   canEdit = true,
+  objectSnap = true,
 }) {
   const svgRef = useRef(null);
   const canEditRef = useRef(canEdit);
