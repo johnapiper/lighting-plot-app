@@ -46,6 +46,14 @@ export default function Canvas({
   const drawingRef = useRef(null);
   useEffect(() => { drawingRef.current = drawingState; }, [drawingState]);
 
+  // Transient measurement (Measure tool): null | {x1,y1} | {x1,y1,x2,y2,done}.
+  // Persists on screen while the tool is active; a new click resets it; it is
+  // cleared when the Measure tool is deselected.
+  const [measure, setMeasure] = useState(null);
+  const measureRef = useRef(null);
+  useEffect(() => { measureRef.current = measure; }, [measure]);
+  useEffect(() => { if (activeTool !== 'dimension') setMeasure(null); }, [activeTool]);
+
   const [dragging, setDragging] = useState(null);
   const draggingRef = useRef(null);
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
