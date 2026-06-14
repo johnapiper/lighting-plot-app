@@ -179,7 +179,7 @@ export default function Toolbar({
                   {/* Snap: single OSnap toggle + popover of individual snap modes */}
                   <div style={styles.group} ref={snapWrapRef}>
                     <div style={{ display: 'flex' }}>
-                      <button style={{ ...styles.btn, ...(snap.enabled ? styles.active : {}), minWidth: 36, paddingRight: 2 }}
+                      <button data-hint="snap" style={{ ...styles.btn, ...(snap.enabled ? styles.active : {}), minWidth: 36, paddingRight: 2 }}
                         title="Object Snap on/off (F3). Hold Ctrl to bypass, Shift to constrain angle. Click ▾ for individual snaps." onClick={() => onSnapChange?.({ ...snap, enabled: !snap.enabled })}>
                         <span style={styles.icon}>⊹</span><span style={styles.label}>Snap</span>
                       </button>
