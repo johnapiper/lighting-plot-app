@@ -35,7 +35,18 @@ export default function LicenseManager({ onClose }) {
   // Trial-mode config (admin-defined): which features non-licensed users get.
   const [trialForm, setTrialForm] = useState({ enabled: true, days: 14, features: [] });
 
-  useEffect(() => { loadToken(); loadDb(); }, []);
+  // Published release versions (for the min/max version dropdowns).
+  const [versions, setVersions] = useState([]);
+
+  useEffect(() => { loadToken(); loadDb(); loadVersions(); }, []);
+
+  async function loadVersions() {
+    try {
+      const t = await ipcRenderer.invoke('license-load-token').catch(() => '');
+      const list = await fetchReleaseVersions(t || undefined);
+      setVersions(list);
+    } catch { /* dropdowns fall back to "Any" only */ }
+  }
 
   async function loadToken() {
     const t = await ipcRenderer.invoke('license-load-token');
