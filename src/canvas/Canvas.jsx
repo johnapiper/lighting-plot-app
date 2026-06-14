@@ -1030,21 +1030,8 @@ export default function Canvas({
       return;
     }
 
-    if (!drawingState) return;
-    const snapped = getSnapped(e.clientX, e.clientY);
-    const ds = drawingState;
-    // Pipe and circle are click-click tools — don't let mouse-up clear them.
-    if (ds.kind === 'pipe' || ds.kind === 'circle') return;
-
-    if (ds.kind === 'line') {
-      if (distance(ds.x1, ds.y1, snapped.x, snapped.y) > 2)
-        commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: snapped.x, y2: snapped.y, layerId: activeLayerId || 'layer-arch' }), 'Add line');
-    } else if (ds.kind === 'rect') {
-      const rw = Math.abs(snapped.x-ds.x1), rh = Math.abs(snapped.y-ds.y1);
-      if (rw > 2 && rh > 2)
-        commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x: Math.min(ds.x1,snapped.x), y: Math.min(ds.y1,snapped.y), w: rw, h: rh, layerId: activeLayerId || 'layer-arch' }), 'Add rectangle');
-    }
-    setDrawingState(null);
+    // Line, rect, pipe and circle are all click-click tools now (so you can type
+    // dimensions between clicks) — mouse-up never commits or clears them.
   }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, layers]);
 
   // Finish the current polyline and commit it (≥2 points).
