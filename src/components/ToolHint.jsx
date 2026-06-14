@@ -43,6 +43,23 @@ export const TOOL_HINTS = {
   anim:      { title: 'Animate Cables',  demo: 'cable',   desc: 'Toggle animated flow along cables to visualise routing.' },
   report:    { title: 'Cable Report',    demo: 'report',  desc: 'Generate the cable schedule with lengths and circuit loads.' },
   eos:       { title: 'EOS Import',      demo: 'report',  desc: 'Import an ETC EOS show file to match channels to fixtures.' },
+  // Library
+  gdtf:      { title: 'Import GDTF',     demo: 'gdtf',    desc: 'Import a GDTF fixture file from disk into your library.' },
+  'gdtf-share': { title: 'GDTF Share',   demo: 'cloud',   desc: 'Browse and download fixtures from GDTF-Share.com (login remembered).' },
+  // Drawing (sheet) page
+  viewport:  { title: 'Viewport',        demo: 'viewport',desc: 'Drag a window onto the sheet that shows your plot at a chosen scale.' },
+  note:      { title: 'Note',            demo: 'note',    desc: 'Add a callout note with a leader line on the sheet.' },
+  keyblock:  { title: 'Symbol Key',      demo: 'keyblk',  desc: 'Place a legend listing each fixture type used and its symbol.' },
+  sheettext: { title: 'Text',            demo: 'text',    desc: 'Add a free text label to the sheet.' },
+  // Context-menu actions
+  focus:     { title: 'Set Focus',       demo: 'focus',   desc: 'Click a point on stage to aim the beam — its footprint centres there.' },
+  scale:     { title: 'Scale Fixture',   demo: 'scalefx', desc: 'Resize the fixture symbol on the plan.' },
+  distribute:{ title: 'Distribute',      demo: 'align',   desc: 'Space fixtures evenly along the pipe / selection.' },
+  swap:      { title: 'Swap Type',       demo: 'swap',    desc: 'Replace the selected fixtures with a different fixture type.' },
+  duppath:   { title: 'Duplicate',       demo: 'array',   desc: 'Copy the fixture N times along a vector.' },
+  lock:      { title: 'Lock / Unlock',   demo: 'lock',    desc: 'Lock an object so it can’t be moved or edited until unlocked.' },
+  copy:      { title: 'Copy',            demo: 'copy',    desc: 'Copy the selection to the clipboard (Ctrl+C).' },
+  paste:     { title: 'Paste',           demo: 'copy',    desc: 'Paste the clipboard (Ctrl+V).' },
 };
 
 const C = { line: '#4a90d9', node: '#00ff88', accent: '#ffd166', dim: '#5a7a9a' };
