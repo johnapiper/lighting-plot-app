@@ -127,6 +127,10 @@ export default function Toolbar({
                     title="Align / distribute selection" onClick={onAlign}>
                     <span style={styles.icon}>⊟</span><span style={styles.label}>Align</span>
                   </button>
+                  <button style={{ ...styles.btn, ...(canCorner ? {} : styles.disabled) }} disabled={!canCorner}
+                    title="Trim / extend two selected lines to meet at a corner" onClick={onCorner}>
+                    <span style={styles.icon}>∟</span><span style={styles.label}>Corner</span>
+                  </button>
                 </div>
               </>
             )}
