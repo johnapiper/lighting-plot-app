@@ -227,6 +227,7 @@ export default function SheetEditor({
   const svgRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ w:900, h:700 });
   const [tool, setTool] = useState('select');
+  const sheetHints = useToolHints();
   const [selectedId, setSelectedId] = useState(null);
   const [dragging, setDragging] = useState(null);
   const draggingRef = useRef(null);
