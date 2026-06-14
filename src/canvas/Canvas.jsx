@@ -156,9 +156,23 @@ export default function Canvas({
       y: (sy - rect.top - oy - pan.y) / zoom,
     };
   }
-  function getSnapped(sx, sy) {
+  // Snap precedence: Alt bypasses everything; otherwise OSNAP (object snap) wins,
+  // then Shift-ortho constrain to the anchor, then grid. `fromPoint` is the line
+  // anchor (for perpendicular snaps and ortho constraint). Returns {x,y,snapType}.
+  function getSnapped(sx, sy, fromPoint) {
     const w = screenToWorld(sx, sy);
-    return snapPointToGrid(w.x, w.y, gridSize);
+    if (altRef.current) return { x: w.x, y: w.y, snapType: null };
+    if (objectSnap) {
+      const os = computeOsnap(w.x, w.y, snapTargets, OSNAP_RADIUS / zoom, fromPoint);
+      if (os) return { x: os.x, y: os.y, snapType: os.type };
+    }
+    if (shiftRef.current && fromPoint) {
+      const c = constrainAngle(fromPoint.x, fromPoint.y, w.x, w.y, 45);
+      const g = snapPointToGrid(c.x, c.y, gridSize);
+      return { x: g.x, y: g.y, snapType: 'ortho' };
+    }
+    const g = snapPointToGrid(w.x, w.y, gridSize);
+    return { x: g.x, y: g.y, snapType: null };
   }
   function findNearestPipe(wx, wy) {
     let best = null, bestDist = Infinity;
