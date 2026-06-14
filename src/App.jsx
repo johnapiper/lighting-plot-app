@@ -116,7 +116,8 @@ function App() {
   const [selectedIds, setSelectedIds]   = useState([]);
   const [showGrid, setShowGrid]         = useState(true);
   const [showRulers, setShowRulers]     = useState(true);
-  const [pipeSnap, setPipeSnap]         = useState(true);
+  // Unified snap config (object snap + grid + pipe attachment in one place).
+  const [snap, setSnap] = useState({ enabled: true, endpoint: true, midpoint: true, center: true, intersection: true, nearest: true, grid: true, pipe: true });
   const [zoom, setZoom]                 = useState(1);
   const [pan, setPan]                   = useState({ x: 100, y: 100 });
   const [report, setReport]             = useState(null);

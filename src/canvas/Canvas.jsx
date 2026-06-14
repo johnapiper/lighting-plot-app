@@ -519,7 +519,7 @@ export default function Canvas({
     // Pending fixture — placement requires edit rights
     if (pendingFixture) {
       if (!canEdit) { onPendingFixturePlaced(); return; }
-      const nearPipe = pipeSnap ? findNearestPipe(world.x, world.y) : null;
+      const nearPipe = snapRef.current.pipe ? findNearestPipe(world.x, world.y) : null;
       let fx = snapped.x, fy = snapped.y, position = '', pipeId = null, rotation = 0;
       if (nearPipe) {
         const pp = projectPointOntoLine(world.x, world.y, nearPipe.x1, nearPipe.y1, nearPipe.x2, nearPipe.y2);
@@ -650,15 +650,15 @@ export default function Canvas({
     if (activeTool === 'pipe') {
       const cur = drawingRef.current;
       if (!cur) {
-        // Snap start to nearest pipe endpoint when pipeSnap is on
-        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        // Snap start to nearest pipe endpoint when pipe snap is on
+        const epSnap = snapRef.current.pipe ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
         const sx = epSnap ? epSnap.x : snapped.x;
         const sy = epSnap ? epSnap.y : snapped.y;
         setPipePlaceAngle(null);
         setDrawingState({ kind: 'pipe', x1: sx, y1: sy, x2: sx, y2: sy });
       } else {
-        // Snap end to nearest pipe endpoint when pipeSnap is on
-        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        // Snap end to nearest pipe endpoint when pipe snap is on
+        const epSnap = snapRef.current.pipe ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
         let ex = epSnap ? epSnap.x : snapped.x;
         let ey = epSnap ? epSnap.y : snapped.y;
         if (pipePlaceAngle !== null) {
@@ -701,13 +701,13 @@ export default function Canvas({
     if (activeTool === 'truss') {
       const cur = drawingRef.current;
       if (!cur) {
-        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        const epSnap = snapRef.current.pipe ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
         const sx = epSnap ? epSnap.x : snapped.x;
         const sy = epSnap ? epSnap.y : snapped.y;
         setPipePlaceAngle(null);
         setDrawingState({ kind: 'pipe', x1: sx, y1: sy, x2: sx, y2: sy });
       } else {
-        const epSnap = pipeSnap ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
+        const epSnap = snapRef.current.pipe ? findNearestPipeEndpoint(snapped.x, snapped.y) : null;
         let ex = epSnap ? epSnap.x : snapped.x;
         let ey = epSnap ? epSnap.y : snapped.y;
         if (pipePlaceAngle !== null) {
@@ -785,7 +785,7 @@ export default function Canvas({
       }
       return;
     }
-  }, [activeTool, pendingFixture, fixtures, pipes, lines, rectangles, texts, images, annotations, infrastructure, cables, zoom, pan, showRulers, gridSize, pipeSnap, focusModeId, layers, cableFrom]);
+  }, [activeTool, pendingFixture, fixtures, pipes, lines, rectangles, texts, images, annotations, infrastructure, cables, zoom, pan, showRulers, gridSize, focusModeId, layers, cableFrom]);
 
   const onMouseMove = useCallback((e) => {
     if (isPanning.current) {
@@ -860,7 +860,7 @@ export default function Canvas({
       }
 
       if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
-        if (pipeSnap) {
+        if (snapRef.current.pipe) {
           const nearPipe = findNearestPipe(world.x, world.y);
           if (nearPipe) {
             const pp = projectPointOntoLine(world.x, world.y, nearPipe.x1, nearPipe.y1, nearPipe.x2, nearPipe.y2);
@@ -876,7 +876,7 @@ export default function Canvas({
       // Smart alignment guides: snap a single dragged object's centre to other
       // objects' centres (x and y independently) and draw guide lines.
       let adx = dx, ady = dy, gx = null, gy = null;
-      if (objectSnap && !shiftRef.current && !bypassRef.current && !dragging.groupMembers?.length) {
+      if (snapRef.current.enabled && !shiftRef.current && !bypassRef.current && !dragging.groupMembers?.length) {
         const cx0 = (dragging.kind === 'pipe' || dragging.kind === 'line')
           ? (dragging.origX + dragging.origX2) / 2
           : dragging.kind === 'rect' ? dragging.origX + (dragging.origW || 0) / 2 : dragging.origX;
@@ -921,9 +921,9 @@ export default function Canvas({
       });
     }
 
-    if (pendingFixture && pipeSnap) setHoveredPipe(findNearestPipe(world.x, world.y)?.id || null);
+    if (pendingFixture && snapRef.current.pipe) setHoveredPipe(findNearestPipe(world.x, world.y)?.id || null);
     else if (!dragging) setHoveredPipe(null);
-  }, [drawingState, dragging, pendingFixture, pipes, images, zoom, pan, showRulers, gridSize, pipeSnap, focusModeId, layers]);
+  }, [drawingState, dragging, pendingFixture, pipes, images, zoom, pan, showRulers, gridSize, focusModeId, layers]);
 
   const onMouseUp = useCallback((e) => {
     isPanning.current = false;
@@ -960,7 +960,7 @@ export default function Canvas({
       // If we were dragging a fixture, explicitly commit pipeId based on final drop position
       if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
         const upWorld = screenToWorld(e.clientX, e.clientY);
-        const nearPipe = pipeSnap ? findNearestPipe(upWorld.x, upWorld.y) : null;
+        const nearPipe = snapRef.current.pipe ? findNearestPipe(upWorld.x, upWorld.y) : null;
         if (!nearPipe) {
           // Dropped away from any pipe — commit with pipeId cleared
           commitToDrawing(d => {
@@ -993,7 +993,7 @@ export default function Canvas({
         commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x: Math.min(ds.x1,snapped.x), y: Math.min(ds.y1,snapped.y), w: rw, h: rh, layerId: activeLayerId || 'layer-arch' }), 'Add rectangle');
     }
     setDrawingState(null);
-  }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, pipeSnap, layers]);
+  }, [drawingState, dragging, selBox, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, gridSize, layers]);
 
   // Finish the current polyline and commit it (≥2 points).
   function finishPolyline(close) {
@@ -2120,7 +2120,7 @@ export default function Canvas({
             {renderSelectionControls()}
 
             {/* Pipe snap zone */}
-            {pendingFixture && pipeSnap && hoveredPipe && (() => {
+            {pendingFixture && snapRef.current.pipe && hoveredPipe && (() => {
               const p = pipes.find(p => p.id === hoveredPipe);
               return p ? <circle cx={(p.x1+p.x2)/2} cy={(p.y1+p.y2)/2} r={PIPE_SNAP_RADIUS/zoom} stroke="#00aaff" strokeWidth={1/zoom} fill="none" opacity={0.3} strokeDasharray={`${4/zoom} ${4/zoom}`} /> : null;
             })()}
