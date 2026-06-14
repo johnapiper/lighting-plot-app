@@ -29,6 +29,7 @@ export default function LicenseGate({ children }) {
   const [errMsg, setErrMsg]     = useState('');
   const [offlineOk, setOfflineOk] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(null);
+  const [trialInfo, setTrialInfo] = useState(null); // { daysLeft, features } when a trial is available
   const [appVersion, setAppVersion] = useState(null);
   const [blockedInfo, setBlockedInfo] = useState(null); // { minVersion }
   const [showAbout, setShowAbout] = useState(false);
