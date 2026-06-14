@@ -108,11 +108,14 @@ export function computeOsnap(wx, wy, targets, radius, fromPoint) {
   // Vertex / midpoint / center candidates.
   for (const p of points) consider(p.x, p.y, p.type);
 
-  // Intersections (pairwise). Bounded cost for typical drawings.
-  for (let i = 0; i < segments.length; i++) {
-    for (let j = i + 1; j < segments.length; j++) {
-      const ip = segIntersection(segments[i], segments[j]);
-      if (ip) consider(ip.x, ip.y, 'intersection');
+  // Intersections (pairwise). Skip on very large drawings to keep mouse-move
+  // responsive (O(n²) — only worthwhile up to a couple hundred segments).
+  if (segments.length <= 160) {
+    for (let i = 0; i < segments.length; i++) {
+      for (let j = i + 1; j < segments.length; j++) {
+        const ip = segIntersection(segments[i], segments[j]);
+        if (ip) consider(ip.x, ip.y, 'intersection');
+      }
     }
   }
 
