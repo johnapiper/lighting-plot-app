@@ -285,6 +285,15 @@ function App() {
   const isFirst = useRef(true);
   useEffect(() => { if (isFirst.current) { isFirst.current = false; return; } setDirty(true); }, [project]);
 
+  // After interacting with the native menu / dialogs, the renderer's webContents
+  // can lose keyboard focus, leaving text inputs un-clickable. Whenever an
+  // input-bearing modal opens, restore web-contents focus so its fields work.
+  useEffect(() => {
+    if ((showLicenseManager || showMyLicense || showAppSettings || showStudioSettings) && ipcRenderer) {
+      ipcRenderer.invoke('focus-window').catch(() => {});
+    }
+  }, [showLicenseManager, showMyLicense, showAppSettings, showStudioSettings]);
+
   // ── Auto-save preference ────────────────────────────────────────────────
   useEffect(() => {
     if (!ipcRenderer) return;
