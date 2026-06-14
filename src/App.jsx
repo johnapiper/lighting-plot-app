@@ -369,11 +369,13 @@ function App() {
 
   // ── Groups ───────────────────────────────────────────────────────────────
   function handleGroup() {
+    if (!canEditCanvas) return;
     if (allSelectedIds.length < 2) return;
     const gid = generateId();
     commitToActiveDrawing(d => setGroupIdInDrawing(d, allSelectedIds, gid), `Group ${allSelectedIds.length} objects`);
   }
   function handleUngroup() {
+    if (!canEditCanvas) return;
     if (!groupInfo) return;
     commitToActiveDrawing(d => setGroupIdInDrawing(d, allSelectedIds, null), 'Ungroup');
   }
