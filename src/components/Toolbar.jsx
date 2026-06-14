@@ -102,6 +102,31 @@ export default function Toolbar({
                     <span style={styles.icon}>🧲</span>
                     <span style={styles.label}>Snap</span>
                   </button>
+                  <button style={{ ...styles.btn, ...(objectSnap ? styles.active : {}) }}
+                    title="Object Snap — endpoint / midpoint / centre / intersection (F3). Hold Ctrl to bypass, Shift to constrain angle." onClick={onToggleObjectSnap}>
+                    <span style={styles.icon}>⊹</span>
+                    <span style={styles.label}>OSnap</span>
+                  </button>
+                </div>
+
+                <div style={styles.divider} />
+                <div style={styles.group}>
+                  <button style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
+                    title="Mirror selection" onClick={onMirror}>
+                    <span style={styles.icon}>🪞</span><span style={styles.label}>Mirror</span>
+                  </button>
+                  <button style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
+                    title="Array (grid / radial copies)" onClick={onArray}>
+                    <span style={styles.icon}>▦</span><span style={styles.label}>Array</span>
+                  </button>
+                  <button style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
+                    title="Offset (parallel copy)" onClick={onOffset}>
+                    <span style={styles.icon}>⇇</span><span style={styles.label}>Offset</span>
+                  </button>
+                  <button style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
+                    title="Align / distribute selection" onClick={onAlign}>
+                    <span style={styles.icon}>⊟</span><span style={styles.label}>Align</span>
+                  </button>
                 </div>
               </>
             )}
