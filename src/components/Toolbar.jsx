@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ToolHint from './ToolHint';
 
 const CAD_EDIT_TOOLS = [
   { id: 'line',      label: 'Line',      icon: '╱', key: 'L' },
