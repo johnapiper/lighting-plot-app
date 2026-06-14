@@ -298,6 +298,7 @@ export default function Canvas({
 
   // ─── Handle drag start ────────────────────────────────────────────────
   function startHandleDrag(e, point, kind, obj, cx, cy) {
+    if (!canEdit) return;
     e.stopPropagation();
     const w = screenToWorld(e.clientX, e.clientY);
     setDragging({
