@@ -56,6 +56,7 @@ export default function Toolbar({
 }) {
   const has = (f) => features.includes(f);
   const [snapMenu, setSnapMenu] = useState(false);
+  const [snapAnchor, setSnapAnchor] = useState({ top: 0, left: 0 });
   const [barHeight, setBarHeight] = useState(DEFAULT_BAR_HEIGHT);
   const [canScroll, setCanScroll] = useState(false);
   const scrollRef = useRef(null);
