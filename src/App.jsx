@@ -715,18 +715,19 @@ function App() {
       />
 
       <div style={styles.main}>
-        {/* Library only visible in CAD mode */}
-        {activeMode === 'cad' && (
+        {/* Library only visible in CAD mode and when the fixture_library feature is licensed */}
+        {activeMode === 'cad' && canUseLibrary && (
           <LibraryPanel
             builtinFixtures={fixtureTypesData}
             customFixtures={project.customFixtureTypes||[]}
             pendingFixture={pendingFixture}
-            onSelectFixture={f => { setPendingFixture(f); setActiveTool('select'); }}
+            canEdit={canEditCanvas}
+            onSelectFixture={f => { if (!canEditCanvas) return; setPendingFixture(f); setActiveTool('select'); }}
             onImportGdtf={handleImportGdtf}
             onDeleteCustomFixture={handleDeleteCustomFixture}
             onRenameFixture={handleRenameFixture}
             onUpdateFixture={handleUpdateFixtureType}
-            onOpenGdtfBrowser={() => setShowGdtfBrowser(true)}
+            onOpenGdtfBrowser={license?.hasFeature('gdtf_browser') ? () => setShowGdtfBrowser(true) : null}
           />
         )}
 
