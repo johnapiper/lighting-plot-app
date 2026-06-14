@@ -2130,6 +2130,15 @@ export default function Canvas({
           </text>
         )}
         {/* Snap indicator */}
+        {alignGuides && (() => {
+          const ext = 100000; // long enough to span the view
+          return (
+            <g style={{ pointerEvents:'none' }} stroke="#ff66cc" strokeWidth={0.8/zoom} strokeDasharray={`${6/zoom} ${4/zoom}`}>
+              {alignGuides.vx != null && <line x1={alignGuides.vx} y1={-ext} x2={alignGuides.vx} y2={ext} />}
+              {alignGuides.hy != null && <line x1={-ext} y1={alignGuides.hy} x2={ext} y2={alignGuides.hy} />}
+            </g>
+          );
+        })()}
         {snapPoint && (() => {
           const x = snapPoint.x, y = snapPoint.y, s = 6/zoom, sw = 1.5/zoom;
           const t = snapPoint.type;
