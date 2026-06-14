@@ -1,5 +1,8 @@
 import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import FixtureSymbol from '../fixtures/FixtureSymbol';
+import { useToolHints } from './ToolHint';
+
+const SHEET_TOOL_HINT = { select: 'select', viewport: 'viewport', text: 'sheettext', annotate: 'note', keyblock: 'keyblock' };
 
 // ── Paper sizes (mm) ──────────────────────────────────────────────────────────
 const PAPER = {
