@@ -241,11 +241,11 @@ export default function Toolbar({
 
               <div style={styles.divider} />
               <div style={styles.group}>
-                <button style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
+                <button data-hint="zoomin" style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
                 <span style={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
-                <button style={styles.btn} title="Zoom Out" onClick={onZoomOut}>−</button>
-                <button style={styles.btn} title="Fit to window" onClick={onFit}>Fit</button>
-                <button style={{ ...styles.btn, ...(showGrid ? styles.active : {}) }}
+                <button data-hint="zoomout" style={styles.btn} title="Zoom Out" onClick={onZoomOut}>−</button>
+                <button data-hint="fit" style={styles.btn} title="Fit to window" onClick={onFit}>Fit</button>
+                <button data-hint="grid" style={{ ...styles.btn, ...(showGrid ? styles.active : {}) }}
                   title="Toggle Grid" onClick={onToggleGrid}>
                   <span style={styles.icon}>⊞</span><span style={styles.label}>Grid</span>
                 </button>
