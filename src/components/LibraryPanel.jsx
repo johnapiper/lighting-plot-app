@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { FixturePreview } from '../fixtures/FixtureSymbol';
 import { parseGdtf } from '../library/GdtfImporter';
 import FixturePropertiesModal from './FixturePropertiesModal';
+import { useToolHints } from './ToolHint';
 
 export default function LibraryPanel({
   builtinFixtures, customFixtures, pendingFixture,
