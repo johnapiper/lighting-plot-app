@@ -92,12 +92,14 @@ function segIntersection(a, b) {
  *                   for perpendicular snaps.
  * Returns { x, y, type } or null.
  */
-export function computeOsnap(wx, wy, targets, radius, fromPoint) {
+export function computeOsnap(wx, wy, targets, radius, fromPoint, types) {
   if (!targets) return null;
+  const on = (t) => !types || types[t];               // which snap types are enabled
   const { points, segments } = targets;
   let best = null; // { x, y, type, score }
 
   const consider = (x, y, type) => {
+    if (!on(type)) return;
     const d = distance(wx, wy, x, y);
     if (d > radius) return;
     // Score: priority first, then closeness.
@@ -110,7 +112,7 @@ export function computeOsnap(wx, wy, targets, radius, fromPoint) {
 
   // Intersections (pairwise). Skip on very large drawings to keep mouse-move
   // responsive (O(n²) — only worthwhile up to a couple hundred segments).
-  if (segments.length <= 160) {
+  if (on('intersection') && segments.length <= 160) {
     for (let i = 0; i < segments.length; i++) {
       for (let j = i + 1; j < segments.length; j++) {
         const ip = segIntersection(segments[i], segments[j]);
@@ -120,17 +122,16 @@ export function computeOsnap(wx, wy, targets, radius, fromPoint) {
   }
 
   // Perpendicular foot from the anchor point onto each segment.
-  if (fromPoint) {
+  if (on('perpendicular') && fromPoint) {
     for (const s of segments) {
       const foot = projectPointOntoLine(fromPoint.x, fromPoint.y, s.x1, s.y1, s.x2, s.y2);
-      // Only accept if the foot lies on the segment span and is near the cursor.
       const onSpan = distanceToSegment(foot.x, foot.y, s.x1, s.y1, s.x2, s.y2) < 1e-6;
       if (onSpan) consider(foot.x, foot.y, 'perpendicular');
     }
   }
 
   // Nearest point on a segment (weakest snap — only if nothing better found).
-  if (!best) {
+  if (on('nearest') && !best) {
     for (const s of segments) {
       const foot = projectPointOntoLine(wx, wy, s.x1, s.y1, s.x2, s.y2);
       const onSpan = distanceToSegment(foot.x, foot.y, s.x1, s.y1, s.x2, s.y2) < 1e-6;
