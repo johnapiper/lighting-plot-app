@@ -556,12 +556,12 @@ export default function Canvas({
     // Pending fixture — placement requires edit rights
     if (pendingFixture) {
       if (!canEdit) { onPendingFixturePlaced(); return; }
-      const nearPipe = snapRef.current.pipe ? findNearestPipe(world.x, world.y) : null;
+      const nearPipe = (snapRef.current.enabled && snapRef.current.pipe) ? findNearestPipe(world.x, world.y) : null;
       let fx = snapped.x, fy = snapped.y, position = '', pipeId = null, rotation = 0;
       if (nearPipe) {
+        // Sit exactly ON the pipe line — do NOT grid-snap afterwards (that pulls it off the line).
         const pp = projectPointOntoLine(world.x, world.y, nearPipe.x1, nearPipe.y1, nearPipe.x2, nearPipe.y2);
-        const s = snapPointToGrid(pp.x, pp.y, gridSize);
-        fx = s.x; fy = s.y; position = nearPipe.name; pipeId = nearPipe.id;
+        fx = pp.x; fy = pp.y; position = nearPipe.name; pipeId = nearPipe.id;
         rotation = pipeAngle(nearPipe) * 180 / Math.PI;
       }
       const usedUnits = fixtures.filter(f => pipeId ? f.pipeId === pipeId : true).map(f => Number(f.unit)).filter(Boolean);
