@@ -153,25 +153,17 @@ export default function Toolbar({
                   <div style={styles.divider} />
                   {/* Snap: single OSnap toggle + popover of individual snap modes */}
                   <div style={styles.group} ref={snapWrapRef}>
-                    <div style={{ position: 'relative', display: 'flex' }}>
+                    <div style={{ display: 'flex' }}>
                       <button style={{ ...styles.btn, ...(snap.enabled ? styles.active : {}), minWidth: 36, paddingRight: 2 }}
-                        title="Object Snap on/off (F3). Hold Ctrl to bypass, Shift to constrain angle." onClick={() => onSnapChange?.({ ...snap, enabled: !snap.enabled })}>
+                        title="Object Snap on/off (F3). Hold Ctrl to bypass, Shift to constrain angle. Click ▾ for individual snaps." onClick={() => onSnapChange?.({ ...snap, enabled: !snap.enabled })}>
                         <span style={styles.icon}>⊹</span><span style={styles.label}>Snap</span>
                       </button>
-                      <button style={styles.caret} title="Snap settings" onClick={() => setSnapMenu(o => !o)}>▾</button>
-                      {snapMenu && (
-                        <div style={styles.snapPop}>
-                          <div style={styles.snapPopTitle}>Snap to</div>
-                          {SNAP_OPTIONS.map(([k, l]) => (
-                            <label key={k} style={styles.snapRow}>
-                              <input type="checkbox" checked={!!snap[k]} disabled={!snap.enabled && k !== 'grid'}
-                                onChange={e => onSnapChange?.({ ...snap, [k]: e.target.checked })}
-                                style={{ accentColor: '#4a90d9' }} />
-                              <span>{l}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
+                      <button style={styles.caret} title="Snap settings — choose which snaps are active"
+                        onClick={(e) => {
+                          const r = e.currentTarget.getBoundingClientRect();
+                          setSnapAnchor({ top: r.bottom + 4, left: r.left - 120 });
+                          setSnapMenu(o => !o);
+                        }}>▾</button>
                     </div>
                   </div>
 
