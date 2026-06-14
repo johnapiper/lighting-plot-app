@@ -907,10 +907,10 @@ export default function Canvas({
         (dragging.pipeFollowers || []).forEach(f => {
           if (f.kind === 'fixture') {
             const fix = d.fixtures.find(fx => fx.id === f.id);
-            if (fix) { fix.x = f.origX + dx; fix.y = f.origY + dy; }
+            if (fix) { fix.x = f.origX + adx; fix.y = f.origY + ady; }
           } else if (f.kind === 'infra') {
             const inf = (d.infrastructure || []).find(i => i.id === f.id);
-            if (inf) { inf.x = f.origX + dx; inf.y = f.origY + dy; }
+            if (inf) { inf.x = f.origX + adx; inf.y = f.origY + ady; }
           }
         });
       });
