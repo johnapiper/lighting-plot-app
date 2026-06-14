@@ -663,11 +663,10 @@ export default function Canvas({
     if (activeTool === 'circle') {
       const cur = drawingRef.current;
       if (!cur) {
+        resetDyn();
         setDrawingState({ kind: 'circle', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
       } else {
-        const r = distance(cur.x1, cur.y1, snapped.x, snapped.y);
-        if (r > 1) commitToDrawing(d => { if (!d.circles) d.circles = []; d.circles.push({ id: generateId(), kind: 'circle', cx: cur.x1, cy: cur.y1, r, layerId: activeLayerId || 'layer-arch' }); }, 'Add circle');
-        setDrawingState(null);
+        commitDyn(snapped.x, snapped.y);   // honours a typed radius
       }
       return;
     }
