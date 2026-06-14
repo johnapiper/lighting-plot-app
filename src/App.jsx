@@ -907,7 +907,6 @@ function App() {
               onSwapFixture={(canEditCanvas && license?.hasFeature('fixture_swap')) ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
               canEdit={canEditCanvas}
-              objectSnap={objectSnap}
             />
             {license?.hasFeature('multi_drawing') && (
               <DrawingTabs
