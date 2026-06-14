@@ -41,12 +41,13 @@ function collectDownstream(entryId, entryType, allCables, fixtureMap, infraMap, 
 
 // ── Colour by cable category ───────────────────────────────────────────────
 function cableColor(cable) {
-  const spec = CABLE_TYPES[cable.subtype];
-  if (spec) return spec.color;
+  // Colour by cable TYPE so every power cable looks alike, every DMX cable alike,
+  // etc. (matches the toolbar swatches). Connector subtype colour is only a fallback.
   if (cable.cableType === 'power')   return '#f59e0b';
   if (cable.cableType === 'dmx')     return '#a78bfa';
   if (cable.cableType === 'network') return '#34d399';
-  return '#94a3b8';
+  const spec = CABLE_TYPES[cable.subtype];
+  return spec?.color || '#94a3b8';
 }
 
 // ── Dot animation along a path ─────────────────────────────────────────────
