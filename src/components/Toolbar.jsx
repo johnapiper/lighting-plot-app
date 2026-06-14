@@ -149,7 +149,7 @@ export default function Toolbar({
           )}
         </div>
 
-        <div ref={scrollRef} style={toolScrollStyle}>
+        <div ref={scrollRef} style={toolScrollStyle} onMouseOver={onHoverOver} onMouseOut={onHoverOut}>
 
           {activeMode === 'cad' && (
             <>
