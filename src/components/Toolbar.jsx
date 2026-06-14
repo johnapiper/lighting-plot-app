@@ -63,6 +63,25 @@ export default function Toolbar({
   const scrollRef = useRef(null);
   const snapWrapRef = useRef(null);
   const snapPopRef = useRef(null);
+  const [hint, setHint] = useState(null); // { id, rect } animated tooltip
+  const hintTimer = useRef(null);
+
+  // Delegated hover → show the animated tool hint after a short delay.
+  const onHoverOver = (e) => {
+    const el = e.target.closest?.('[data-hint]');
+    if (!el) return;
+    const id = el.getAttribute('data-hint');
+    const rect = el.getBoundingClientRect();
+    clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setHint({ id, rect }), 350);
+  };
+  const onHoverOut = (e) => {
+    const to = e.relatedTarget;
+    if (to && to.closest?.('[data-hint]')) return; // moving between tools
+    clearTimeout(hintTimer.current);
+    setHint(null);
+  };
+  useEffect(() => () => clearTimeout(hintTimer.current), []);
 
   const wrapMode = barHeight > 62; // taller bar → wrap tools onto multiple rows
 
