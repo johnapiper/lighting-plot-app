@@ -1697,14 +1697,20 @@ export default function Canvas({
             const fxRot   = focusPreview ? focusPreview.rotation : (f.rotation || 0);
             const tiltRad = tiltDeg * Math.PI / 180; // 0 = straight down
             const h = rigHeight || 5500;                         // throw height (mm) above floor
-            // Project the cone onto the floor. Near/far edges along the tilt axis.
-            const nearDist = h * Math.tan(tiltRad - halfBeamRad);
-            const farDist  = h * Math.tan(tiltRad + halfBeamRad);
-            // Centre the footprint on the BEAM-AXIS hit point (= where you aim),
-            // not the mean of near/far — so focus lands the beam where you click.
-            const centreDist = h * Math.tan(tiltRad);
+            // Project the cone onto the floor — a true ellipse. The near and far
+            // edges are where the cone's leading/trailing rays meet the floor;
+            // clamp angles just under 90° so a grazing beam doesn't shoot to ∞.
+            const CAP = 1.4835;                                   // ~85° in radians
+            const clamp = (a) => Math.max(-CAP, Math.min(CAP, a));
+            const nearDist = h * Math.tan(clamp(tiltRad - halfBeamRad));
+            const farDist  = h * Math.tan(clamp(tiltRad + halfBeamRad));
+            // Ellipse centre = midpoint of the near/far edges (NOT the axis hit
+            // point). Because tan is convex this sits beyond the aim point, so the
+            // far side of the pool spreads more than the near side as tilt grows —
+            // matching a real light footprint.
+            const centreDist = (nearDist + farDist) / 2;
             const rMajor = Math.abs(farDist - nearDist) / 2;             // along throw
-            const rMinor = (h / Math.cos(tiltRad)) * Math.tan(halfBeamRad); // perpendicular
+            const rMinor = (h / Math.cos(clamp(Math.abs(tiltRad)))) * Math.tan(halfBeamRad); // perpendicular
             // Beam shoots in the direction the symbol points (rotation; +180 so a
             // 0° fixture throws "down" the plan toward the stage).
             const rotDeg = fxRot + 180;
