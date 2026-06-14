@@ -468,6 +468,8 @@ export default function Canvas({
         const gm = hit.groupId ? getGroupMembersForDrag(hit.groupId, hit.id) : null;
         if (hit.groupId) onMultiSelect(getGroupMemberIds(hit.groupId));
         else onSelect(hit);
+        // View-only (no edit rights): allow selection, but never start a drag.
+        if (!canEdit) return;
         // Collect fixtures/infra snapped to this pipe/truss so they move with it
         let pipeFollowers = null;
         if (hit.kind === 'pipe') {
