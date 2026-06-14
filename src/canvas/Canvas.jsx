@@ -1191,6 +1191,7 @@ export default function Canvas({
   // ─── Selection controls (rotation handle + shape handles) ─────────────
   function renderSelectionControls() {
     if (!selectedId) return null;
+    if (!canEdit) return null; // no resize / rotate / move handles without edit rights
     const bounds = getObjectBounds(selectedId);
     if (!bounds) return null;
 
