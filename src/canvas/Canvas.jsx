@@ -649,7 +649,13 @@ export default function Canvas({
     }
 
     if (activeTool === 'line' || activeTool === 'rect') {
-      setDrawingState({ kind: activeTool, x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      const cur = drawingRef.current;
+      if (!cur) {
+        resetDyn();
+        setDrawingState({ kind: activeTool, x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      } else {
+        commitDyn(snapped.x, snapped.y);   // second click finishes (honours typed dims)
+      }
       return;
     }
 
