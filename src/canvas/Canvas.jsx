@@ -162,7 +162,7 @@ export default function Canvas({
   // anchor (for perpendicular snaps and ortho constraint). Returns {x,y,snapType}.
   function getSnapped(sx, sy, fromPoint) {
     const w = screenToWorld(sx, sy);
-    if (altRef.current) return { x: w.x, y: w.y, snapType: null };
+    if (bypassRef.current) return { x: w.x, y: w.y, snapType: null };
     if (objectSnap) {
       const os = computeOsnap(w.x, w.y, snapTargets, OSNAP_RADIUS / zoom, fromPoint);
       if (os) return { x: os.x, y: os.y, snapType: os.type };
