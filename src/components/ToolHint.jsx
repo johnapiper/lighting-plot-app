@@ -94,6 +94,73 @@ function Demo({ type }) {
       <line x1="18" y1="32" x2="18" y2="32" stroke={C.accent} strokeWidth="4" strokeLinecap="round">
         <animate attributeName="x2" values="18;112;112;18" dur="2.6s" repeatCount="indefinite" /></line>
     </>);
+    case 'truss': return g(<g stroke={C.accent} strokeWidth="1.6" fill="none">
+      {/* two rails + zig-zag lattice, drawn left→right */}
+      <line x1="18" y1="24" x2="18" y2="24"><animate attributeName="x2" values="18;112;112;18" dur="2.6s" repeatCount="indefinite" /></line>
+      <line x1="18" y1="40" x2="18" y2="40"><animate attributeName="x2" values="18;112;112;18" dur="2.6s" repeatCount="indefinite" /></line>
+      <polyline points="18,24 30,40 42,24 54,40 66,24 78,40 90,24 102,40 112,24">
+        <animate attributeName="opacity" values="0;0;1;1" dur="2.6s" repeatCount="indefinite" /></polyline>
+    </g>);
+    case 'gdtf': return g(<>
+      <rect x="34" y="14" width="62" height="40" rx="3" fill="none" stroke={C.line} strokeWidth="1.5" />
+      <circle cx="50" cy="34" r="8" fill="none" stroke={C.accent} strokeWidth="1.5" />
+      <text x="74" y="38" fontSize="13" fontWeight="700" fill={C.node} textAnchor="middle">GDTF
+        <animate attributeName="opacity" values="0;0;1;1" dur="2.2s" repeatCount="indefinite" /></text>
+    </>);
+    case 'cloud': return g(<>
+      <path d="M 44 34 a 10 10 0 0 1 20 -3 a 8 8 0 0 1 8 8 h -30 a 8 8 0 0 1 2 -5 z" fill="none" stroke={C.line} strokeWidth="1.5" />
+      <line x1="58" y1="36" x2="58" y2="50" stroke={C.node} strokeWidth="2"><animate attributeName="y2" values="36;50;50" dur="1.6s" repeatCount="indefinite" /></line>
+      <path d="M 52 46 l 6 6 l 6 -6" fill="none" stroke={C.node} strokeWidth="2"><animate attributeName="opacity" values="0;1;1" dur="1.6s" repeatCount="indefinite" /></path>
+    </>);
+    case 'viewport': return g(<>
+      <rect x="28" y="14" width="74" height="40" rx="2" fill="none" stroke={C.line} strokeWidth="1.5" strokeDasharray="4 2">
+        <animate attributeName="width" values="6;74;74" dur="2.4s" repeatCount="indefinite" />
+        <animate attributeName="height" values="4;40;40" dur="2.4s" repeatCount="indefinite" /></rect>
+      <line x1="40" y1="40" x2="92" y2="40" stroke={C.accent} strokeWidth="2" /><circle cx="50" cy="40" r="3" fill={C.line} />
+    </>);
+    case 'note': return g(<>
+      <rect x="50" y="14" width="56" height="26" rx="2" fill="rgba(255,209,102,0.12)" stroke={C.accent} strokeWidth="1.5" />
+      {[20,27,34].map((y,i)=><line key={i} x1="56" y1={y} x2={i===2?86:98} y2={y} stroke={C.accent} strokeWidth="1.5" />)}
+      <line x1="50" y1="40" x2="30" y2="54" stroke={C.accent} strokeWidth="1.5" /><circle cx="30" cy="54" r="2.5" fill={C.accent} />
+    </>);
+    case 'keyblk': return g(<>
+      <rect x="34" y="12" width="62" height="44" rx="2" fill="none" stroke={C.line} strokeWidth="1.5" />
+      {[0,1,2].map(i=><g key={i}><circle cx="46" cy={24+i*12} r="4" fill="none" stroke={C.accent} strokeWidth="1.3"/>
+        <line x1="56" y1={24+i*12} x2="86" y2={24+i*12} stroke={C.dim} strokeWidth="2"/></g>)}
+    </>);
+    case 'focus': return g(<>
+      <path d="M 40 12 l 0 8 M 40 12 l 8 0" stroke={C.line} strokeWidth="2" fill="none" />
+      <circle cx="78" cy="44" r="3" fill="none" stroke={C.node} strokeWidth="2">
+        <animate attributeName="cx" values="60;95;78" dur="2.4s" repeatCount="indefinite" />
+        <animate attributeName="cy" values="44;30;44" dur="2.4s" repeatCount="indefinite" /></circle>
+      <line x1="40" y1="20" x2="78" y2="44" stroke={C.accent} strokeWidth="1.2" strokeDasharray="3 2">
+        <animate attributeName="x2" values="60;95;78" dur="2.4s" repeatCount="indefinite" />
+        <animate attributeName="y2" values="44;30;44" dur="2.4s" repeatCount="indefinite" /></line>
+      <ellipse cx="78" cy="44" rx="14" ry="8" fill="rgba(255,216,107,0.15)" stroke={C.accent} strokeWidth="1">
+        <animate attributeName="cx" values="60;95;78" dur="2.4s" repeatCount="indefinite" />
+        <animate attributeName="cy" values="44;30;44" dur="2.4s" repeatCount="indefinite" /></ellipse>
+    </>);
+    case 'scalefx': return g(<circle cx="65" cy="32" r="8" fill="none" stroke={C.line} strokeWidth="2">
+      <animate attributeName="r" values="8;20;8" dur="2.2s" repeatCount="indefinite" /></circle>);
+    case 'swap': return g(<>
+      <circle cx="42" cy="32" r="10" fill="rgba(74,144,217,0.4)" stroke={C.line} strokeWidth="1.5">
+        <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite" /></circle>
+      <rect x="78" y="22" width="20" height="20" rx="2" fill="none" stroke={C.node} strokeWidth="1.5">
+        <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" /></rect>
+      <path d="M 56 28 l 12 0 l -3 -3 M 68 36 l -12 0 l 3 3" stroke={C.accent} strokeWidth="1.5" fill="none" />
+    </>);
+    case 'lock': return g(<>
+      <rect x="52" y="30" width="26" height="20" rx="2" fill="none" stroke={C.accent} strokeWidth="2" />
+      <path d="M 57 30 v -5 a 8 8 0 0 1 16 0 v 5" fill="none" stroke={C.accent} strokeWidth="2">
+        <animate attributeName="d" values="M 57 30 v -5 a 8 8 0 0 1 16 0 v 5;M 57 30 v -8 a 8 8 0 0 1 16 -2 v 0;M 57 30 v -5 a 8 8 0 0 1 16 0 v 5" dur="2.4s" repeatCount="indefinite" /></path>
+      <circle cx="65" cy="40" r="2.5" fill={C.accent} />
+    </>);
+    case 'copy': return g(<>
+      <rect x="40" y="20" width="26" height="30" rx="2" fill="none" stroke={C.dim} strokeWidth="1.5" />
+      <rect x="40" y="20" width="26" height="30" rx="2" fill="rgba(74,144,217,0.25)" stroke={C.line} strokeWidth="1.5">
+        <animate attributeName="x" values="40;58;58" dur="2s" repeatCount="indefinite" />
+        <animate attributeName="y" values="20;14;14" dur="2s" repeatCount="indefinite" /></rect>
+    </>);
     case 'text': return g(<>
       <text x="48" y="44" fontSize="34" fontWeight="700" fill={C.line} fontFamily="serif">T</text>
       <rect x="70" y="18" width="2" height="28" fill={C.node}><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" /></rect>
