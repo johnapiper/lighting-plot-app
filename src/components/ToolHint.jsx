@@ -9,7 +9,7 @@ export const TOOL_HINTS = {
   circle:    { title: 'Circle',          demo: 'circle',  desc: 'Click the centre, then click again to set the radius.' },
   arc:       { title: 'Arc',             demo: 'arc',     desc: 'Click the centre, then the start point, then sweep to the end angle.' },
   pipe:      { title: 'Pipe / Bar',      demo: 'bar',     desc: 'Click to place a lighting bar; click again to chain another section. Fixtures snap onto pipes.' },
-  truss:     { title: 'Truss',           demo: 'bar',     desc: 'Like Pipe, but drawn as a truss. Click to chain sections; press R to rotate 90°.' },
+  truss:     { title: 'Truss',           demo: 'truss',   desc: 'Like Pipe, but drawn as a lattice truss. Click to chain sections; press R to rotate 90°.' },
   text:      { title: 'Text',            demo: 'text',    desc: 'Click to place a text label; double-click any label to edit it.' },
   dimension: { title: 'Measure',         demo: 'measure', desc: 'Click two points to measure the distance. The result stays on screen until you measure again or switch tools.' },
   calibrate: { title: 'Calibrate Scale', demo: 'ruler',   desc: 'Draw a line over a known distance on an imported background, then enter its real size to scale the drawing.' },
