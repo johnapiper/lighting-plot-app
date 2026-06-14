@@ -895,7 +895,7 @@ function App() {
               fixtureTypes={allFixtureTypes}
               zoom={zoom} pan={pan}
               onZoomChange={setZoom} onPanChange={setPan}
-              pipeSnap={pipeSnap}
+              snap={snap}
               onToolDone={() => setActiveTool('select')}
               onToolChange={t => { setActiveTool(t); setPendingFixture(null); }}
               dragTargetLayerRef={dragTargetLayerRef}
