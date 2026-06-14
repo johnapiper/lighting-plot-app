@@ -365,8 +365,8 @@ export default function Toolbar({
           <button style={styles.scrollArrow} title="More tools — scroll" onClick={scrollRight}>›</button>
         )}
 
-        {/* Licence holder name */}
-        {userName ? <div style={styles.userName} title="Licensed to">👤 {userName}</div> : null}
+        {/* Licence holder name — click to open My License */}
+        {userName ? <button style={styles.userName} title="View My License" onClick={onUserClick}>👤 {userName}</button> : null}
       </div>
 
       {/* Animated hover hint */}
