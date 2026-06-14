@@ -879,7 +879,7 @@ export default function Canvas({
     // Update cable ghost line while drawing
     if (cableFrom) { setCableGhost({ x: world.x, y: world.y }); }
 
-    if (focusModeId) { setFocusCursor(world); return; }
+    if (focusModeId) { setFocusCursor(snapped); return; }
 
     if (selBoxStart.current && !dragging) {
       const mdx = e.clientX - mouseDownScreen.current.x;
