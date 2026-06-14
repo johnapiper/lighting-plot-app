@@ -193,23 +193,24 @@ export default function Canvas({
       y: (sy - rect.top - oy - pan.y) / zoom,
     };
   }
-  // Snap precedence: Alt bypasses everything; otherwise OSNAP (object snap) wins,
-  // then Shift-ortho constrain to the anchor, then grid. `fromPoint` is the line
-  // anchor (for perpendicular snaps and ortho constraint). Returns {x,y,snapType}.
+  // Snap precedence: Ctrl bypasses everything; otherwise object snap (per the
+  // enabled types) wins, then Shift-ortho constrain to the anchor, then grid
+  // (if grid snap is enabled). `fromPoint` is the line anchor. Returns {x,y,snapType}.
   function getSnapped(sx, sy, fromPoint) {
     const w = screenToWorld(sx, sy);
+    const cfg = snapRef.current || {};
     if (bypassRef.current) return { x: w.x, y: w.y, snapType: null };
-    if (objectSnap) {
-      const os = computeOsnap(w.x, w.y, snapTargets, OSNAP_RADIUS / zoom, fromPoint);
+    if (cfg.enabled) {
+      const os = computeOsnap(w.x, w.y, snapTargets, OSNAP_RADIUS / zoom, fromPoint, cfg);
       if (os) return { x: os.x, y: os.y, snapType: os.type };
     }
     if (shiftRef.current && fromPoint) {
       const c = constrainAngle(fromPoint.x, fromPoint.y, w.x, w.y, 45);
-      const g = snapPointToGrid(c.x, c.y, gridSize);
+      const g = cfg.grid ? snapPointToGrid(c.x, c.y, gridSize) : c;
       return { x: g.x, y: g.y, snapType: 'ortho' };
     }
-    const g = snapPointToGrid(w.x, w.y, gridSize);
-    return { x: g.x, y: g.y, snapType: null };
+    if (cfg.grid) { const g = snapPointToGrid(w.x, w.y, gridSize); return { x: g.x, y: g.y, snapType: null }; }
+    return { x: w.x, y: w.y, snapType: null };
   }
   function findNearestPipe(wx, wy) {
     let best = null, bestDist = Infinity;
