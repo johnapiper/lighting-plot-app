@@ -82,13 +82,17 @@ export default function LibraryPanel({
     <div style={styles.panel} onClick={closeCtx}>
       <div style={styles.header}>Fixture Library</div>
 
-      <button style={styles.importBtn} onClick={() => fileRef.current.click()}>
-        + Import GDTF
-      </button>
-      <button style={{ ...styles.importBtn, background: '#0f2a4a', borderColor: '#2a6090', marginTop: 0 }}
-        onClick={onOpenGdtfBrowser}>
-        🌐 GDTF Share…
-      </button>
+      {canEdit && (
+        <button style={styles.importBtn} onClick={() => fileRef.current.click()}>
+          + Import GDTF
+        </button>
+      )}
+      {onOpenGdtfBrowser && (
+        <button style={{ ...styles.importBtn, background: '#0f2a4a', borderColor: '#2a6090', marginTop: 0 }}
+          onClick={onOpenGdtfBrowser}>
+          🌐 GDTF Share…
+        </button>
+      )}
       <input ref={fileRef} type="file" accept=".gdtf" multiple style={{ display: 'none' }} onChange={handleFileChange} />
 
       <div style={{ padding: '4px 8px', position: 'relative' }}>
