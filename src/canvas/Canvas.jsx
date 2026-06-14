@@ -50,9 +50,13 @@ export default function Canvas({
   onSwapFixture,
   onDuplicateAlongPath,
   canEdit = true,
-  objectSnap = true,
 }) {
   const svgRef = useRef(null);
+  // Unified snap config — defaults all-on. Held in a ref so the canvas mouse
+  // handlers (useCallback) always read the live value, not a stale closure.
+  const snapCfg = snap || { enabled: true, endpoint: true, midpoint: true, center: true, intersection: true, nearest: true, grid: true, pipe: true };
+  const snapRef = useRef(snapCfg);
+  useEffect(() => { snapRef.current = snapCfg; });
   const canEditRef = useRef(canEdit);
   useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
