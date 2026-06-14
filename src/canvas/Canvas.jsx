@@ -1174,7 +1174,7 @@ export default function Canvas({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, selectedIds, drawing]);
+  }, [selectedId, selectedIds, drawing, activeLayerId, meta]);
 
   // ── Zoom to fit all content ──────────────────────────────────────────────
   function fitView() {
