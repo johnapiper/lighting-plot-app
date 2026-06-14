@@ -626,12 +626,16 @@ function App() {
 
   function handleDuplicateAlongPath(id) {
     if (!canEditCanvas) return;
+    if (!activeDrawing?.fixtures?.find(fx => fx.id === id)) return;
+    setDuplicateId(id);
+    setTransformMode('duplicate');
+  }
+  function handleApplyDuplicate({ count, dx, dy }) {
+    setTransformMode(null);
+    const id = duplicateId; setDuplicateId(null);
+    if (!canEditCanvas || !id || !count || count < 1) return;
     const f = activeDrawing?.fixtures?.find(fx => fx.id === id);
     if (!f) return;
-    const count = parseInt(window.prompt('Number of copies:', '4'), 10);
-    if (!count || count < 1) return;
-    const dx = parseInt(window.prompt('Spacing X (mm):', '500'), 10) || 500;
-    const dy = parseInt(window.prompt('Spacing Y (mm):', '0'), 10) || 0;
     commitToActiveDrawing(d => {
       for (let i = 1; i <= count; i++) {
         d.fixtures.push({ ...JSON.parse(JSON.stringify(f)), id: generateId(), x: f.x + dx * i, y: f.y + dy * i, dmxAddress: null, channel: null });
