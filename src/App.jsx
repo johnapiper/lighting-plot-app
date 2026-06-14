@@ -817,6 +817,10 @@ function App() {
         onFit={() => fitViewRef.current?.()}
         showGrid={showGrid} onToggleGrid={() => setShowGrid(v => !v)}
         pipeSnap={pipeSnap} onTogglePipeSnap={() => setPipeSnap(v => !v)}
+        objectSnap={objectSnap} onToggleObjectSnap={() => setObjectSnap(v => !v)}
+        onMirror={handleMirror} onArray={() => setTransformMode('array')}
+        onOffset={handleOffset} onAlign={() => setTransformMode('align')}
+        hasSelection={allSelectedIds.length > 0}
         zoom={zoom}
         onImportPdf={handleImportPdf} onImportImage={handleImportImage}
         onShowPatch={openPatch}
