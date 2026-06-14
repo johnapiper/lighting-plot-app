@@ -903,12 +903,12 @@ export default function Canvas({
       }
 
       if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
-        if (snapRef.current.pipe) {
+        if (snapRef.current.enabled && snapRef.current.pipe) {
           const nearPipe = findNearestPipe(world.x, world.y);
           if (nearPipe) {
+            // Snap exactly onto the pipe line (no grid snap, which would offset it).
             const pp = projectPointOntoLine(world.x, world.y, nearPipe.x1, nearPipe.y1, nearPipe.x2, nearPipe.y2);
-            const s = snapPointToGrid(pp.x, pp.y, gridSize);
-            softUpdateDrawing(d => { const f = d.fixtures.find(f => f.id === dragging.id); if (f) { f.x = s.x; f.y = s.y; f.pipeId = nearPipe.id; f.position = nearPipe.name; f.rotation = pipeAngle(nearPipe) * 180 / Math.PI; } });
+            softUpdateDrawing(d => { const f = d.fixtures.find(f => f.id === dragging.id); if (f) { f.x = pp.x; f.y = pp.y; f.pipeId = nearPipe.id; f.position = nearPipe.name; f.rotation = pipeAngle(nearPipe) * 180 / Math.PI; } });
             setHoveredPipe(nearPipe.id);
             return;
           }
