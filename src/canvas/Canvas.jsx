@@ -1682,24 +1682,30 @@ export default function Canvas({
           // The fixture hangs at rigHeight mm above the floor. tiltAngle (0=straight down,
           // positive = tilting toward the front of the symbol) controls the horizontal throw.
           // We project the cone edge onto the floor plan.
+          // While aiming this fixture (focus mode), preview the beam at the cursor.
+          const focusPreview = (focusModeId === f.id && focusCursor)
+            ? aimAt(f.x, f.y, focusCursor.x, focusCursor.y, rigHeight || 5500) : null;
           const beamEl = (() => {
-            if (!showBeams) return null;
+            if (!showBeams && !focusPreview) return null;
             // Per-fixture override wins, else the fixture type's beam angle.
             const beamDeg = f.beamAngle ?? ftype?.beamAngle ?? 0;
             const halfBeamRad = (beamDeg / 2) * Math.PI / 180;
             if (halfBeamRad <= 0) return null;
-            const tiltRad = (f.tiltAngle ?? 0) * Math.PI / 180; // 0 = straight down
+            const tiltDeg = focusPreview ? focusPreview.tilt : (f.tiltAngle ?? 0);
+            const fxRot   = focusPreview ? focusPreview.rotation : (f.rotation || 0);
+            const tiltRad = tiltDeg * Math.PI / 180; // 0 = straight down
             const h = rigHeight || 5500;                         // throw height (mm) above floor
-            // Project the cone onto the floor. Near/far edges along the tilt axis
-            // (no clamping — at tilt 0 these are symmetric, giving a circle).
+            // Project the cone onto the floor. Near/far edges along the tilt axis.
             const nearDist = h * Math.tan(tiltRad - halfBeamRad);
             const farDist  = h * Math.tan(tiltRad + halfBeamRad);
-            const centreDist = (nearDist + farDist) / 2;
+            // Centre the footprint on the BEAM-AXIS hit point (= where you aim),
+            // not the mean of near/far — so focus lands the beam where you click.
+            const centreDist = h * Math.tan(tiltRad);
             const rMajor = Math.abs(farDist - nearDist) / 2;             // along throw
             const rMinor = (h / Math.cos(tiltRad)) * Math.tan(halfBeamRad); // perpendicular
             // Beam shoots in the direction the symbol points (rotation; +180 so a
             // 0° fixture throws "down" the plan toward the stage).
-            const rotDeg = (f.rotation || 0) + 180;
+            const rotDeg = fxRot + 180;
             const rotRad = rotDeg * Math.PI / 180;
             const dirX = Math.sin(rotRad), dirY = -Math.cos(rotRad);     // throw direction
             const cx = centreDist * dirX, cy = centreDist * dirY;
