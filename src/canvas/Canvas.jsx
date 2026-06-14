@@ -2276,21 +2276,38 @@ export default function Canvas({
 
       {editOverlay}
 
-      {/* Numeric length/angle entry while drawing a line or pipe */}
-      {drawingState && (drawingState.kind === 'line' || drawingState.kind === 'pipe') && (() => {
+      {/* Dynamic numeric input — just start typing a dimension while drawing.
+          Read-only display; the canvas keydown handler captures the digits. */}
+      {drawingState && dynFieldsFor(drawingState.kind).length > 0 && (() => {
+        const ds = drawingState;
         const units = meta?.units || 'mm';
-        const liveLen = distance(drawingState.x1, drawingState.y1, drawingState.x2, drawingState.y2);
-        const liveAng = Math.atan2(-(drawingState.y2 - drawingState.y1), drawingState.x2 - drawingState.x1) * 180 / Math.PI;
-        const di = { width: 70, background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '3px 6px', outline: 'none' };
+        const fields = dynFieldsFor(ds.kind);
+        const live = {
+          length: formatLength(distance(ds.x1, ds.y1, ds.x2, ds.y2), units, { noUnit: true }),
+          angle: (Math.atan2(-(ds.y2 - ds.y1), ds.x2 - ds.x1) * 180 / Math.PI).toFixed(1),
+          width: formatLength(Math.abs(ds.x2 - ds.x1), units, { noUnit: true }),
+          height: formatLength(Math.abs(ds.y2 - ds.y1), units, { noUnit: true }),
+          radius: formatLength(distance(ds.x1, ds.y1, ds.x2, ds.y2), units, { noUnit: true }),
+        };
+        const suffix = { angle: '°', length: UNIT_LABELS[units] || units, width: UNIT_LABELS[units] || units, height: UNIT_LABELS[units] || units, radius: UNIT_LABELS[units] || units };
+        const labels = { length: 'Length', angle: 'Angle', width: 'Width', height: 'Height', radius: 'Radius' };
         return (
-          <div style={{ position: 'fixed', left: '50%', bottom: 44, transform: 'translateX(-50%)', display: 'flex', gap: 6, alignItems: 'center', background: 'rgba(13,27,42,0.96)', border: '1px solid #4a90d9', borderRadius: 6, padding: '6px 10px', zIndex: 200 }}>
-            <span style={{ fontSize: 11, color: '#718096' }}>Length</span>
-            <input autoFocus style={di} value={dynLen} placeholder={formatLength(liveLen, units, { noUnit: true })}
-              onChange={e => setDynLen(e.target.value)} onKeyDown={onDynKey} />
-            <span style={{ fontSize: 11, color: '#718096' }}>{UNIT_LABELS[units] || units} · Angle</span>
-            <input style={di} value={dynAng} placeholder={liveAng.toFixed(1)}
-              onChange={e => setDynAng(e.target.value)} onKeyDown={onDynKey} />
-            <span style={{ fontSize: 10, color: '#4a5568' }}>° · Enter ⏎</span>
+          <div style={{ position: 'fixed', left: '50%', bottom: 44, transform: 'translateX(-50%)', display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(13,27,42,0.97)', border: '1px solid #4a90d9', borderRadius: 6, padding: '6px 12px', zIndex: 200, pointerEvents: 'none' }}>
+            {fields.map((f, i) => {
+              const typed = dynValsRef.current[f];
+              const isActive = dynActiveRef.current === i;
+              return (
+                <span key={f} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 11, color: '#718096' }}>{labels[f]}</span>
+                  <span style={{ minWidth: 46, textAlign: 'right', fontFamily: 'monospace', fontSize: 13,
+                    color: typed ? '#e0e0e0' : '#5a7a9a',
+                    borderBottom: `2px solid ${isActive ? '#4a90d9' : 'transparent'}`, padding: '0 3px' }}>
+                    {typed || live[f]}{suffix[f]}
+                  </span>
+                </span>
+              );
+            })}
+            <span style={{ fontSize: 10, color: '#4a5568' }}>{fields.length > 1 ? 'Tab · ' : ''}Enter ⏎</span>
           </div>
         );
       })()}
