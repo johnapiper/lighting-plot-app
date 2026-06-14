@@ -266,9 +266,6 @@ export default function LicenseGate({ children }) {
               {busy ? 'Verifying…' : 'Activate'}
             </button>
           </form>
-          <p style={S.footer}>
-            License keys can be obtained from your system administrator or project manager.
-          </p>
           {trialInfo?.daysLeft > 0 && (
             <div style={S.trialBox}>
               <span>⏳ Free trial available — {trialInfo.daysLeft} day{trialInfo.daysLeft !== 1 ? 's' : ''} remaining.</span>
