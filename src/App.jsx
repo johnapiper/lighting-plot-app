@@ -25,6 +25,8 @@ import RevisionHistoryModal from './components/RevisionHistoryModal';
 import FixtureSwapModal from './components/FixtureSwapModal';
 import ProjectTemplatesDialog from './components/ProjectTemplatesDialog';
 import DrawingTemplatesModal from './components/DrawingTemplatesModal';
+import TransformModal from './components/TransformModal';
+import { mirrorObject, translateObject, rotateObject, offsetObject, cloneWithId, objectBounds } from './canvas/transforms';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
