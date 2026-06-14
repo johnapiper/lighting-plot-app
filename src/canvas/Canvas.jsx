@@ -2155,6 +2155,25 @@ export default function Canvas({
 
       {editOverlay}
 
+      {/* Numeric length/angle entry while drawing a line or pipe */}
+      {drawingState && (drawingState.kind === 'line' || drawingState.kind === 'pipe') && (() => {
+        const units = meta?.units || 'mm';
+        const liveLen = distance(drawingState.x1, drawingState.y1, drawingState.x2, drawingState.y2);
+        const liveAng = Math.atan2(-(drawingState.y2 - drawingState.y1), drawingState.x2 - drawingState.x1) * 180 / Math.PI;
+        const di = { width: 70, background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '3px 6px', outline: 'none' };
+        return (
+          <div style={{ position: 'absolute', left: '50%', bottom: 30, transform: 'translateX(-50%)', display: 'flex', gap: 6, alignItems: 'center', background: 'rgba(13,27,42,0.96)', border: '1px solid #4a90d9', borderRadius: 6, padding: '6px 10px', zIndex: 200 }}>
+            <span style={{ fontSize: 11, color: '#718096' }}>Length</span>
+            <input autoFocus style={di} value={dynLen} placeholder={formatLength(liveLen, units, { noUnit: true })}
+              onChange={e => setDynLen(e.target.value)} onKeyDown={onDynKey} />
+            <span style={{ fontSize: 11, color: '#718096' }}>{UNIT_LABELS[units] || units} · Angle</span>
+            <input style={di} value={dynAng} placeholder={liveAng.toFixed(1)}
+              onChange={e => setDynAng(e.target.value)} onKeyDown={onDynKey} />
+            <span style={{ fontSize: 10, color: '#4a5568' }}>° · Enter ⏎</span>
+          </div>
+        );
+      })()}
+
       {/* Scale calibration dialog */}
       {calibState?.showDialog && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 800 }}>
