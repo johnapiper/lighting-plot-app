@@ -349,4 +349,14 @@ const S = {
     borderRadius: 4, color: '#fc8181', fontSize: 12, width: '100%', boxSizing: 'border-box',
   },
   footer: { color: '#4a5568', fontSize: 11, marginTop: 20, textAlign: 'center' },
+  trialBox: {
+    marginTop: 16, width: '100%', boxSizing: 'border-box',
+    background: '#2a1a00', border: '1px solid #b7791f', borderRadius: 6,
+    padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8,
+    alignItems: 'center', color: '#f6e05e', fontSize: 12,
+  },
+  trialBtn: {
+    background: 'transparent', border: '1px solid #b7791f', borderRadius: 4,
+    color: '#f6e05e', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '6px 16px',
+  },
 };
