@@ -29,6 +29,19 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
 
+  // Block the DevTools keyboard shortcuts (Ctrl/Cmd+Shift+I, F12, Ctrl+Shift+J/C)
+  // unless the license grants the dev_tools feature.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const key = (input.key || '').toLowerCase();
+    const isDevToolsCombo =
+      key === 'f12' ||
+      ((input.control || input.meta) && input.shift && (key === 'i' || key === 'j' || key === 'c'));
+    if (isDevToolsCombo && !currentLicenseFeatures.includes('dev_tools')) {
+      event.preventDefault();
+    }
+  });
+
   buildMenu();
 }
 
