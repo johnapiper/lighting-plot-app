@@ -621,19 +621,23 @@ function versionAccessSummary(min, max, versions = []) {
 
 // Two dropdowns (min / max) populated from GitHub releases + a live summary.
 function VersionRangePicker({ minVersion, maxVersion, versions, onChangeMin, onChangeMax }) {
+  // Always include any already-saved value so it stays selectable even when the
+  // GitHub fetch returned nothing (offline / rate-limited).
+  const opts = [...new Set([...(versions || []), minVersion, maxVersion].filter(Boolean))]
+    .sort((a, b) => compareVersions(b, a));
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <LabelField label="Min app version">
           <select style={S.inp} value={minVersion || ''} onChange={e => onChangeMin(e.target.value)}>
             <option value="">Any</option>
-            {versions.map(v => <option key={v} value={v}>v{v}</option>)}
+            {opts.map(v => <option key={v} value={v}>v{v}</option>)}
           </select>
         </LabelField>
         <LabelField label="Max app version">
           <select style={S.inp} value={maxVersion || ''} onChange={e => onChangeMax(e.target.value)}>
             <option value="">Any</option>
-            {versions.map(v => <option key={v} value={v}>v{v}</option>)}
+            {opts.map(v => <option key={v} value={v}>v{v}</option>)}
           </select>
         </LabelField>
       </div>
