@@ -441,6 +441,7 @@ export default function Canvas({
   // ─── Mouse handlers ───────────────────────────────────────────────────
   const onMouseDown = useCallback((e) => {
     setContextMenu(null);
+    shiftRef.current = e.shiftKey; bypassRef.current = e.ctrlKey || e.metaKey;
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       isPanning.current = true;
       lastMouse.current = { x: e.clientX, y: e.clientY };
