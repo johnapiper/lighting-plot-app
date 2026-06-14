@@ -518,14 +518,13 @@ export default function Canvas({
     }
 
     if (activeTool === 'dimension') {
-      const cur = drawingRef.current;
-      if (!cur) {
-        setDrawingState({ kind: 'dimension', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      // Transient measurement: 1st click = start, 2nd click = finish (stays on
+      // screen), next click resets and starts a fresh measurement.
+      const cur = measureRef.current;
+      if (!cur || cur.done) {
+        setMeasure({ x1: snapped.x, y1: snapped.y });
       } else {
-        const dim = { id: generateId(), x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, layerId: activeLayerId || 'layer-arch' };
-        commitToDrawing(d => { if (!d.dimensions) d.dimensions = []; d.dimensions.push(dim); }, 'Add dimension');
-        setDrawingState(null);
-        onToolChange?.('select');
+        setMeasure({ x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, done: true });
       }
       return;
     }
