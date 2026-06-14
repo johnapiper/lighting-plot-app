@@ -1770,10 +1770,10 @@ export default function Canvas({
   // ─── Inline text editor ───────────────────────────────────────────────
   // Commit the in-progress shape using its current preview endpoint (which
   // already reflects any typed dimensions). Returns true if committed.
-  function commitDyn() {
+  function commitDyn(refX, refY) {
     const ds = drawingRef.current;
     if (!ds) return false;
-    const end = applyDyn(ds, ds.x2, ds.y2);
+    const end = applyDyn(ds, refX ?? ds.x2, refY ?? ds.y2);
     if (ds.kind === 'line') {
       if (distance(ds.x1, ds.y1, end.x2, end.y2) > 2)
         commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: end.x2, y2: end.y2, layerId: activeLayerId || 'layer-arch' }), 'Add line');
