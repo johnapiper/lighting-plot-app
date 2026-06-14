@@ -1003,7 +1003,7 @@ export default function Canvas({
       // If we were dragging a fixture, explicitly commit pipeId based on final drop position
       if (dragging.kind === 'fixture' && !dragging.groupMembers?.length) {
         const upWorld = screenToWorld(e.clientX, e.clientY);
-        const nearPipe = snapRef.current.pipe ? findNearestPipe(upWorld.x, upWorld.y) : null;
+        const nearPipe = (snapRef.current.enabled && snapRef.current.pipe) ? findNearestPipe(upWorld.x, upWorld.y) : null;
         if (!nearPipe) {
           // Dropped away from any pipe — commit with pipeId cleared
           commitToDrawing(d => {
