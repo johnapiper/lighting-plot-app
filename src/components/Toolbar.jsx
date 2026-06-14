@@ -369,6 +369,9 @@ export default function Toolbar({
         {userName ? <div style={styles.userName} title="Licensed to">👤 {userName}</div> : null}
       </div>
 
+      {/* Animated hover hint */}
+      {hint && <ToolHint id={hint.id} rect={hint.rect} />}
+
       {/* Resize handle (drag to make the ribbon taller — tools wrap to rows) */}
       <div style={styles.resizeHandle} onMouseDown={startResize} title="Drag to resize ribbon" />
 
