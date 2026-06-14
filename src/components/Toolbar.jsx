@@ -31,6 +31,8 @@ export default function Toolbar({
   onDelete, onZoomIn, onZoomOut, onFit,
   showGrid, onToggleGrid,
   pipeSnap, onTogglePipeSnap,
+  objectSnap, onToggleObjectSnap,
+  onMirror, onArray, onOffset, onAlign, hasSelection,
   zoom,
   onImportPdf, onImportImage,
   onShowPatch,
