@@ -94,15 +94,11 @@ function buildMenu() {
         { label: 'Toggle Grid', click: () => mainWindow.webContents.send('menu-toggle-grid') },
         { label: 'Toggle Rulers', click: () => mainWindow.webContents.send('menu-toggle-rulers') },
         { label: 'Toggle Layers', click: () => mainWindow.webContents.send('menu-toggle-layers') },
-        { type: 'separator' },
-        { role: 'toggleDevTools' },
-      ],
-    },
-    {
-      label: 'Reports',
-      submenu: [
-        { label: 'Fixture Schedule', click: () => mainWindow.webContents.send('menu-report-instrument') },
-        { label: 'Channel List', click: () => mainWindow.webContents.send('menu-report-channel') },
+        // Developer Tools only when the license grants the dev_tools feature.
+        ...(currentLicenseFeatures.includes('dev_tools') ? [
+          { type: 'separator' },
+          { role: 'toggleDevTools' },
+        ] : []),
       ],
     },
     {
