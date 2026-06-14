@@ -9,6 +9,7 @@ import CablingLayer from './CablingLayer';
 import { findNearestStructure } from '../cabling/routing';
 import { formatLength, formatCoord, toDisplayValue, UNIT_LABELS, MM_PER_UNIT } from './units';
 import { gatherSnapTargets, computeOsnap, constrainAngle } from './snapping';
+import { useToolHints } from '../components/ToolHint';
 
 const RULER_SIZE = 20;
 const HIT_RADIUS = 8;
