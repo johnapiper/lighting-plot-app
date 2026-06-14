@@ -1761,35 +1761,79 @@ export default function Canvas({
   })();
 
   // ─── Inline text editor ───────────────────────────────────────────────
-  // Commit a line/pipe at a typed length (display units) and angle (° CCW, 0=East).
-  function commitDynamic() {
+  // Commit the in-progress shape using its current preview endpoint (which
+  // already reflects any typed dimensions). Returns true if committed.
+  function commitDyn() {
     const ds = drawingRef.current;
-    if (!ds || (ds.kind !== 'line' && ds.kind !== 'pipe')) return;
-    const units = meta?.units || 'mm';
-    const liveLen = distance(ds.x1, ds.y1, ds.x2, ds.y2);
-    const liveAngDeg = Math.atan2(-(ds.y2 - ds.y1), ds.x2 - ds.x1) * 180 / Math.PI;
-    const lenWorld = dynLen !== '' ? parseFloat(dynLen) * (MM_PER_UNIT[units] || 1) : liveLen;
-    const angDeg = dynAng !== '' ? parseFloat(dynAng) : liveAngDeg;
-    if (!lenWorld || isNaN(lenWorld) || isNaN(angDeg)) return;
-    const rad = angDeg * Math.PI / 180;
-    const ex = ds.x1 + Math.cos(rad) * lenWorld;
-    const ey = ds.y1 - Math.sin(rad) * lenWorld; // screen y is down
+    if (!ds) return false;
+    const end = applyDyn(ds, ds.x2, ds.y2);
     if (ds.kind === 'line') {
-      commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: ex, y2: ey, layerId: activeLayerId || 'layer-arch' }), 'Add line');
+      if (distance(ds.x1, ds.y1, end.x2, end.y2) > 2)
+        commitToDrawing(d => d.lines.push({ id: generateId(), kind: 'line', x1: ds.x1, y1: ds.y1, x2: end.x2, y2: end.y2, layerId: activeLayerId || 'layer-arch' }), 'Add line');
       setDrawingState(null);
-    } else {
-      const np = { id: generateId(), kind: 'pipe', x1: ds.x1, y1: ds.y1, x2: ex, y2: ey, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
+    } else if (ds.kind === 'pipe') {
+      const np = { id: generateId(), kind: 'pipe', x1: ds.x1, y1: ds.y1, x2: end.x2, y2: end.y2, name: 'New Pipe', height: '3.0', layerId: activeLayerId || 'layer-lighting' };
       commitToDrawing(d => d.pipes.push(np), 'Add pipe');
       onSelect({ kind: 'pipe', ...np });
-      setDrawingState({ kind: 'pipe', x1: ex, y1: ey, x2: ex, y2: ey }); // chain
+      setDrawingState({ kind: 'pipe', x1: end.x2, y1: end.y2, x2: end.x2, y2: end.y2 }); // chain
+    } else if (ds.kind === 'rect') {
+      const x = Math.min(ds.x1, end.x2), y = Math.min(ds.y1, end.y2);
+      const w = Math.abs(end.x2 - ds.x1), h = Math.abs(end.y2 - ds.y1);
+      if (w > 2 && h > 2)
+        commitToDrawing(d => d.rectangles.push({ id: generateId(), kind: 'rect', x, y, w, h, layerId: activeLayerId || 'layer-arch' }), 'Add rectangle');
+      setDrawingState(null);
+    } else if (ds.kind === 'circle') {
+      const r = distance(ds.x1, ds.y1, end.x2, end.y2);
+      if (r > 1)
+        commitToDrawing(d => { if (!d.circles) d.circles = []; d.circles.push({ id: generateId(), kind: 'circle', cx: ds.x1, cy: ds.y1, r, layerId: activeLayerId || 'layer-arch' }); }, 'Add circle');
+      setDrawingState(null);
     }
-    setDynLen(''); setDynAng('');
+    resetDyn();
+    return true;
   }
-  const onDynKey = (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); commitDynamic(); }
-    else if (e.key === 'Escape') { setDrawingState(null); setDynLen(''); setDynAng(''); }
-  };
+
+  // Handle a key while a shape is being drawn (digits build a dimension).
+  function handleDynKey(e) {
+    const ds = drawingRef.current;
+    if (!ds) return false;
+    const fields = dynFieldsFor(ds.kind);
+    if (!fields.length) return false;
+    const k = e.key;
+    if (/^[0-9.]$/.test(k) || (k === '-' && !dynValsRef.current[fields[dynActiveRef.current]])) {
+      const f = fields[dynActiveRef.current];
+      dynValsRef.current = { ...dynValsRef.current, [f]: (dynValsRef.current[f] || '') + k };
+      const end = applyDyn(ds, ds.x2, ds.y2);
+      setDrawingState(d => ({ ...d, x2: end.x2, y2: end.y2 }));
+      bumpDyn();
+      return true;
+    }
+    if (k === 'Backspace') {
+      const f = fields[dynActiveRef.current];
+      const cur = dynValsRef.current[f] || '';
+      if (cur) {
+        dynValsRef.current = { ...dynValsRef.current, [f]: cur.slice(0, -1) };
+        const end = applyDyn(ds, ds.x2, ds.y2);
+        setDrawingState(d => ({ ...d, x2: end.x2, y2: end.y2 }));
+        bumpDyn();
+        return true;
+      }
+      return false;
+    }
+    if (k === 'Tab' && fields.length > 1) {
+      dynActiveRef.current = (dynActiveRef.current + 1) % fields.length;
+      bumpDyn();
+      return true;
+    }
+    if (k === 'Enter') {
+      // Rectangle: first Enter after typing width moves focus to height.
+      if (ds.kind === 'rect' && dynActiveRef.current === 0 && dynValsRef.current.width && !dynValsRef.current.height) {
+        dynActiveRef.current = 1; bumpDyn(); return true;
+      }
+      commitDyn();
+      return true;
+    }
+    return false;
+  }
 
   let editOverlay = null;
   if (editingText) {
