@@ -1106,6 +1106,11 @@ export default function Canvas({
 
   useEffect(() => {
     const handler = (e) => {
+      const inInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
+      // Dynamic numeric input takes priority while a shape is being drawn.
+      if (!inInput && drawingRef.current && dynFieldsFor(drawingRef.current.kind).length) {
+        if (handleDynKey(e)) { e.preventDefault(); return; }
+      }
       if (e.key === 'Enter' && polyRef.current && document.activeElement.tagName !== 'INPUT') {
         finishPolyline(false); return;
       }
