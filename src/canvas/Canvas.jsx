@@ -548,6 +548,13 @@ export default function Canvas({
 
     if (activeTool === 'select') {
       const hit = hitTestAll(world.x, world.y);
+      // Ctrl/Cmd-click adds to (or toggles within) the current selection.
+      if (hit && (e.ctrlKey || e.metaKey)) {
+        const cur = new Set([...(selectedIds || []), ...(selectedId ? [selectedId] : [])]);
+        if (cur.has(hit.id)) cur.delete(hit.id); else cur.add(hit.id);
+        onMultiSelect([...cur]);
+        return; // no drag when modifying selection
+      }
       if (hit) {
         const gm = hit.groupId ? getGroupMembersForDrag(hit.groupId, hit.id) : null;
         if (hit.groupId) onMultiSelect(getGroupMemberIds(hit.groupId));
