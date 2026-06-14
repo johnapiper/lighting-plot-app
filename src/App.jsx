@@ -837,9 +837,16 @@ function App() {
                 />
               );
             }
+            // Fixture properties require the fixture_library feature; other
+            // editable objects require cad_edit. Without the relevant permission
+            // there is nothing to show.
+            const isFixtureSel = kind === 'fixture' || selectedIds.length > 0;
+            if (isFixtureSel && !canUseLibrary) return null;
+            if (!isFixtureSel && selectedObj && !canEditCanvas) return null;
             return (
               <InspectorPanel
                 selected={selectedObj}
+                readOnly={!canEditCanvas}
                 onUpdateFixture={handleUpdateFixtureInstance}
                 onUpdatePipe={handleUpdatePipe}
                 onUpdateText={handleUpdateText}
@@ -851,7 +858,7 @@ function App() {
                 groupInfo={groupInfo}
                 onGroup={handleGroup}
                 onUngroup={handleUngroup}
-                onBulkUpdate={handleBulkUpdate}
+                onBulkUpdate={canEditCanvas ? handleBulkUpdate : undefined}
               />
             );
           })()}
