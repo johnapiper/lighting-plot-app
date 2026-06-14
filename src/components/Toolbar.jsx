@@ -82,7 +82,11 @@ export default function Toolbar({
   // Close the snap popover on outside click.
   useEffect(() => {
     if (!snapMenu) return;
-    const h = (e) => { if (snapWrapRef.current && !snapWrapRef.current.contains(e.target)) setSnapMenu(false); };
+    const h = (e) => {
+      if (snapWrapRef.current?.contains(e.target)) return;
+      if (snapPopRef.current?.contains(e.target)) return;
+      setSnapMenu(false);
+    };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [snapMenu]);
