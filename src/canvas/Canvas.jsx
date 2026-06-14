@@ -718,10 +718,20 @@ export default function Canvas({
       return;
     }
 
+    shiftRef.current = e.shiftKey; bypassRef.current = e.ctrlKey || e.metaKey;
     const world = screenToWorld(e.clientX, e.clientY);
-    const snapped = getSnapped(e.clientX, e.clientY);
+    // Anchor for ortho/perpendicular snaps (the point we're drawing from).
+    const ds0 = drawingRef.current;
+    const poly0 = polyRef.current;
+    const anchor = ds0 ? { x: ds0.x1, y: ds0.y1 }
+      : (measureRef.current && !measureRef.current.done) ? { x: measureRef.current.x1, y: measureRef.current.y1 }
+      : (poly0?.points?.length) ? poly0.points[poly0.points.length - 1]
+      : null;
+    const snapped = getSnapped(e.clientX, e.clientY, anchor);
     setCursorPos(snapped);
     setRawCursorPos(world);
+    // Unified snap glyph (object snap / ortho).
+    setSnapPoint(snapped.snapType ? { x: snapped.x, y: snapped.y, type: snapped.snapType } : null);
 
     // Update cable ghost line while drawing
     if (cableFrom) { setCableGhost({ x: world.x, y: world.y }); }
