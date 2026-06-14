@@ -136,6 +136,7 @@ export default function Canvas({
   const mouseDownScreen = useRef(null);
 
   const [contextMenu, setContextMenu] = useState(null);
+  const ctxHints = useToolHints();
   const [focusModeId, setFocusModeId] = useState(null);
   const [focusCursor, setFocusCursor] = useState(null);
   const [editingText, setEditingText] = useState(null);
