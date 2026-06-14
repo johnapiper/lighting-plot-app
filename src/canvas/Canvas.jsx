@@ -80,6 +80,11 @@ export default function Canvas({
   useEffect(() => { arcRef.current = arcDraw; }, [arcDraw]);
   useEffect(() => { if (activeTool !== 'arc') setArcDraw(null); }, [activeTool]);
 
+  // Typed length/angle for precise line/pipe drawing.
+  const [dynLen, setDynLen] = useState('');
+  const [dynAng, setDynAng] = useState('');
+  useEffect(() => { if (!drawingState) { setDynLen(''); setDynAng(''); } }, [drawingState]);
+
   const [dragging, setDragging] = useState(null);
   const draggingRef = useRef(null);
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
