@@ -56,6 +56,18 @@ export default function Canvas({
   useEffect(() => { measureRef.current = measure; }, [measure]);
   useEffect(() => { if (activeTool !== 'dimension') setMeasure(null); }, [activeTool]);
 
+  // Multi-segment polyline in progress: { points: [{x,y}], closed } | null.
+  const [polyDraw, setPolyDraw] = useState(null);
+  const polyRef = useRef(null);
+  useEffect(() => { polyRef.current = polyDraw; }, [polyDraw]);
+  useEffect(() => { if (activeTool !== 'polyline') setPolyDraw(null); }, [activeTool]);
+
+  // Arc construction (center → start → end): { stage, cx, cy, r, a0 } | null.
+  const [arcDraw, setArcDraw] = useState(null);
+  const arcRef = useRef(null);
+  useEffect(() => { arcRef.current = arcDraw; }, [arcDraw]);
+  useEffect(() => { if (activeTool !== 'arc') setArcDraw(null); }, [activeTool]);
+
   const [dragging, setDragging] = useState(null);
   const draggingRef = useRef(null);
   useEffect(() => { draggingRef.current = dragging; }, [dragging]);
