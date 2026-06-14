@@ -886,7 +886,9 @@ export default function Canvas({
         const c = constrainToAngle(drawingState.x1, drawingState.y1, ex, ey, pipePlaceAngle);
         ex = c.x; ey = c.y;
       }
-      setDrawingState(d => ({ ...d, x2: ex, y2: ey }));
+      // Apply any typed dimensions (length/angle/width/height/radius) over the cursor direction.
+      const end = applyDyn(drawingState, ex, ey);
+      setDrawingState(d => ({ ...d, x2: end.x2, y2: end.y2 }));
     }
 
     if (dragging?.handlePoint) {
