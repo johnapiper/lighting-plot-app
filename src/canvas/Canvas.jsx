@@ -569,6 +569,44 @@ export default function Canvas({
       return;
     }
 
+    // Circle: click centre, click again for radius.
+    if (activeTool === 'circle') {
+      const cur = drawingRef.current;
+      if (!cur) {
+        setDrawingState({ kind: 'circle', x1: snapped.x, y1: snapped.y, x2: snapped.x, y2: snapped.y });
+      } else {
+        const r = distance(cur.x1, cur.y1, snapped.x, snapped.y);
+        if (r > 1) commitToDrawing(d => { if (!d.circles) d.circles = []; d.circles.push({ id: generateId(), kind: 'circle', cx: cur.x1, cy: cur.y1, r, layerId: activeLayerId || 'layer-arch' }); }, 'Add circle');
+        setDrawingState(null);
+      }
+      return;
+    }
+
+    // Arc: click centre, click start (radius + start angle), click end angle.
+    if (activeTool === 'arc') {
+      const cur = arcRef.current;
+      if (!cur) {
+        setArcDraw({ stage: 1, cx: snapped.x, cy: snapped.y });
+      } else if (cur.stage === 1) {
+        const r = distance(cur.cx, cur.cy, snapped.x, snapped.y);
+        const a0 = Math.atan2(snapped.y - cur.cy, snapped.x - cur.cx);
+        setArcDraw({ stage: 2, cx: cur.cx, cy: cur.cy, r, a0 });
+      } else {
+        const a1 = Math.atan2(snapped.y - cur.cy, snapped.x - cur.cx);
+        commitToDrawing(d => { if (!d.arcs) d.arcs = []; d.arcs.push({ id: generateId(), kind: 'arc', cx: cur.cx, cy: cur.cy, r: cur.r, a0: cur.a0, a1, layerId: activeLayerId || 'layer-arch' }); }, 'Add arc');
+        setArcDraw(null);
+      }
+      return;
+    }
+
+    // Polyline: click to add vertices; double-click / Enter / Esc finishes.
+    if (activeTool === 'polyline') {
+      const cur = polyRef.current;
+      if (!cur) setPolyDraw({ points: [{ x: snapped.x, y: snapped.y }], closed: false });
+      else setPolyDraw({ ...cur, points: [...cur.points, { x: snapped.x, y: snapped.y }] });
+      return;
+    }
+
     if (activeTool === 'pipe') {
       const cur = drawingRef.current;
       if (!cur) {
