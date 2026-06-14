@@ -868,8 +868,34 @@ export default function Canvas({
         setHoveredPipe(null);
       }
 
+      // Smart alignment guides: snap a single dragged object's centre to other
+      // objects' centres (x and y independently) and draw guide lines.
+      let adx = dx, ady = dy, gx = null, gy = null;
+      if (objectSnap && !shiftRef.current && !bypassRef.current && !dragging.groupMembers?.length) {
+        const cx0 = (dragging.kind === 'pipe' || dragging.kind === 'line')
+          ? (dragging.origX + dragging.origX2) / 2
+          : dragging.kind === 'rect' ? dragging.origX + (dragging.origW || 0) / 2 : dragging.origX;
+        const cy0 = (dragging.kind === 'pipe' || dragging.kind === 'line')
+          ? (dragging.origY + dragging.origY2) / 2
+          : dragging.kind === 'rect' ? dragging.origY + (dragging.origH || 0) / 2 : dragging.origY;
+        const cx = cx0 + dx, cy = cy0 + dy, thr = OSNAP_RADIUS / zoom;
+        let bx = null, bxd = thr, by = null, byd = thr;
+        const consider = (px, py) => {
+          const ax = Math.abs(px - cx); if (ax < bxd) { bxd = ax; bx = px; }
+          const ay = Math.abs(py - cy); if (ay < byd) { byd = ay; by = py; }
+        };
+        fixtures.forEach(f => { if (f.id !== dragging.id) consider(f.x, f.y); });
+        pipes.forEach(p => { if (p.id !== dragging.id) consider((p.x1+p.x2)/2, (p.y1+p.y2)/2); });
+        lines.forEach(l => { if (l.id !== dragging.id) consider((l.x1+l.x2)/2, (l.y1+l.y2)/2); });
+        rectangles.forEach(r => { if (r.id !== dragging.id) consider(r.x+r.w/2, r.y+r.h/2); });
+        circles.forEach(c => { if (c.id !== dragging.id) consider(c.cx, c.cy); });
+        if (bx !== null) { adx += bx - cx; gx = bx; }
+        if (by !== null) { ady += by - cy; gy = by; }
+      }
+      setAlignGuides((gx !== null || gy !== null) ? { vx: gx, hy: gy } : null);
+
       softUpdateDrawing(d => {
-        moveObjectInDrawing(d, dragging.id, dragging.kind, dragging.origX, dragging.origY, dragging.origX2, dragging.origY2, dx, dy);
+        moveObjectInDrawing(d, dragging.id, dragging.kind, dragging.origX, dragging.origY, dragging.origX2, dragging.origY2, adx, ady);
         (dragging.groupMembers || []).forEach(m => moveObjectInDrawing(d, m.id, m.kind, m.origX, m.origY, m.origX2, m.origY2, dx, dy));
         // When a fixture is freely moved (not snapping to a pipe this frame), clear pipeId
         // so cables re-route from the floor position rather than staying tacked to the old truss
