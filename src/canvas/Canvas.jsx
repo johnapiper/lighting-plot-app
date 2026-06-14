@@ -249,6 +249,17 @@ export default function Canvas({
     if (cfg.grid) { const g = snapPointToGrid(w.x, w.y, gridSize); return { x: g.x, y: g.y, snapType: null }; }
     return { x: w.x, y: w.y, snapType: null };
   }
+  // Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
+  // its beam axis at the floor point (tx,ty). Beam direction in the symbol is
+  // (-sin(rot), cos(rot)); tilt is the angle from vertical.
+  function aimAt(fx, fy, tx, ty, h) {
+    const dx = tx - fx, dy = ty - fy;
+    const D = Math.hypot(dx, dy);
+    return {
+      rotation: Math.atan2(-dx, dy) * 180 / Math.PI,
+      tilt: Math.atan2(D, h || 5500) * 180 / Math.PI,
+    };
+  }
   function findNearestPipe(wx, wy) {
     let best = null, bestDist = Infinity;
     for (const p of pipes) {
