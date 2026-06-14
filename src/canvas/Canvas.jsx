@@ -298,6 +298,18 @@ export default function Canvas({
       } else if (k === 'dimension') {
         if (distanceToSegment(wx, wy, obj.x1, obj.y1, obj.x2, obj.y2) < HIT_RADIUS / zoom)
           return { kind: k, ...obj };
+      } else if (k === 'circle') {
+        if (Math.abs(distance(wx, wy, obj.cx, obj.cy) - obj.r) < HIT_RADIUS / zoom)
+          return { kind: k, ...obj };
+      } else if (k === 'arc') {
+        if (Math.abs(distance(wx, wy, obj.cx, obj.cy) - obj.r) < HIT_RADIUS / zoom)
+          return { kind: k, ...obj };
+      } else if (k === 'polyline') {
+        const pts = obj.points || [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          if (distanceToSegment(wx, wy, pts[i].x, pts[i].y, pts[i+1].x, pts[i+1].y) < HIT_RADIUS / zoom)
+            return { kind: k, ...obj };
+        }
       }
     }
     return null;
