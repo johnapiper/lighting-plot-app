@@ -70,7 +70,7 @@ export const TOOL_HINTS = {
   // Context-menu actions
   focus:     { title: 'Set Focus',       demo: 'focus',   desc: 'Click a point on stage to aim the beam — its footprint centres there.' },
   scale:     { title: 'Scale Fixture',   demo: 'scalefx', desc: 'Resize the fixture symbol on the plan.' },
-  distribute:{ title: 'Distribute',      demo: 'align',   desc: 'Space fixtures evenly along the pipe / selection.' },
+  distribute:{ title: 'Distribute Evenly', demo: 'distribute', desc: 'Space the fixtures on this pipe (or the selection) at equal gaps along the line.' },
   swap:      { title: 'Swap Type',       demo: 'swap',    desc: 'Replace the selected fixtures with a different fixture type.' },
   duppath:   { title: 'Duplicate',       demo: 'array',   desc: 'Copy the fixture N times along a vector.' },
   lock:      { title: 'Lock / Unlock',   demo: 'lock',    desc: 'Lock an object so it can’t be moved or edited until unlocked.' },
