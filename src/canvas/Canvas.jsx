@@ -84,10 +84,47 @@ export default function Canvas({
   useEffect(() => { arcRef.current = arcDraw; }, [arcDraw]);
   useEffect(() => { if (activeTool !== 'arc') setArcDraw(null); }, [activeTool]);
 
-  // Typed length/angle for precise line/pipe drawing.
-  const [dynLen, setDynLen] = useState('');
-  const [dynAng, setDynAng] = useState('');
-  useEffect(() => { if (!drawingState) { setDynLen(''); setDynAng(''); } }, [drawingState]);
+  // AutoCAD-style dynamic numeric input. While drawing a line/pipe/rect/circle,
+  // typing a number sets a dimension (length/angle, width/height, or radius),
+  // updates the preview live, and Enter confirms.
+  const dynValsRef = useRef({});   // { length, angle | width, height | radius }
+  const dynActiveRef = useRef(0);  // index of the field currently being typed
+  const [, setDynVersion] = useState(0);
+  const bumpDyn = () => setDynVersion(v => v + 1);
+  function resetDyn() { dynValsRef.current = {}; dynActiveRef.current = 0; bumpDyn(); }
+  useEffect(() => { if (!drawingState) resetDyn(); }, [drawingState]);
+
+  function dynFieldsFor(kind) {
+    if (kind === 'line' || kind === 'pipe') return ['length', 'angle'];
+    if (kind === 'rect') return ['width', 'height'];
+    if (kind === 'circle') return ['radius'];
+    return [];
+  }
+  // Compute the preview endpoint from the anchor, a reference cursor (ex,ey) for
+  // direction, and any typed dimensions.
+  function applyDyn(ds, ex, ey) {
+    const v = dynValsRef.current;
+    const units = meta?.units || 'mm';
+    const toW = (s) => parseFloat(s) * (MM_PER_UNIT[units] || 1);
+    const has = (s) => s !== undefined && s !== '' && !isNaN(parseFloat(s));
+    if (ds.kind === 'line' || ds.kind === 'pipe') {
+      const ang = has(v.angle) ? parseFloat(v.angle) * Math.PI / 180 : Math.atan2(-(ey - ds.y1), ex - ds.x1);
+      const len = has(v.length) ? toW(v.length) : Math.hypot(ex - ds.x1, ey - ds.y1);
+      return { x2: ds.x1 + Math.cos(ang) * len, y2: ds.y1 - Math.sin(ang) * len };
+    }
+    if (ds.kind === 'rect') {
+      const sx = ex >= ds.x1 ? 1 : -1, sy = ey >= ds.y1 ? 1 : -1;
+      const w = has(v.width) ? toW(v.width) : Math.abs(ex - ds.x1);
+      const h = has(v.height) ? toW(v.height) : Math.abs(ey - ds.y1);
+      return { x2: ds.x1 + sx * w, y2: ds.y1 + sy * h };
+    }
+    if (ds.kind === 'circle') {
+      const ang = Math.atan2(ey - ds.y1, ex - ds.x1);
+      const r = has(v.radius) ? toW(v.radius) : Math.hypot(ex - ds.x1, ey - ds.y1);
+      return { x2: ds.x1 + Math.cos(ang) * r, y2: ds.y1 + Math.sin(ang) * r };
+    }
+    return { x2: ex, y2: ey };
+  }
 
   const [dragging, setDragging] = useState(null);
   const draggingRef = useRef(null);
