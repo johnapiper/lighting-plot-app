@@ -620,6 +620,7 @@ function App() {
   }
 
   function handleDuplicateAlongPath(id) {
+    if (!canEditCanvas) return;
     const f = activeDrawing?.fixtures?.find(fx => fx.id === id);
     if (!f) return;
     const count = parseInt(window.prompt('Number of copies:', '4'), 10);
