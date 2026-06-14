@@ -10,8 +10,20 @@ const SECTIONS = [
       ['P', 'Pipe'],
       ['T', 'Text'],
       ['C', 'Calibrate'],
+      ['M', 'Measure'],
       ['R / Right-click', 'Rotate pipe/truss 90° (during placement)'],
+      ['Enter', 'Finish polyline / commit typed length'],
       ['Esc', 'Cancel tool / deselect'],
+    ],
+  },
+  {
+    title: 'Drafting precision',
+    rows: [
+      ['F3', 'Toggle object snap (endpoint / midpoint / centre / intersection)'],
+      ['Shift + draw', 'Constrain to 0 / 45 / 90°'],
+      ['Ctrl + draw', 'Bypass snapping (free placement)'],
+      ['Type length / angle', 'While drawing a line or pipe, then Enter'],
+      ['Drag', 'Smart alignment guides snap to other objects'],
     ],
   },
   {
