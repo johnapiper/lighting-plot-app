@@ -1148,8 +1148,14 @@ export default function Canvas({
     const startY = Math.floor((-pan.y - ro) / zoom / gridSize) * gridSize - gridSize;
     const endX   = startX + (svgW + ro) / zoom + gridSize * 2;
     const endY   = startY + (svgH + ro) / zoom + gridSize * 2;
-    // Adapt step at very low zoom to avoid thousands of lines
-    const step = gridSize * Math.max(1, Math.ceil(1 / (zoom * 2)));
+    // Grid lines are exactly `gridSize` apart so the spacing matches the studio
+    // grid setting (and a measurement between two lines == grid size). Only when
+    // lines would be denser than minPx on screen do we thin them out — and then
+    // only by a whole multiple of gridSize, so spacing stays a clean multiple.
+    const minPx = 8;
+    const screenPx = gridSize * zoom;
+    const mult = screenPx >= minPx ? 1 : Math.ceil(minPx / screenPx);
+    const step = gridSize * mult;
     const v = [], h = [];
     const sx = Math.floor(startX / step) * step;
     const sy = Math.floor(startY / step) * step;
