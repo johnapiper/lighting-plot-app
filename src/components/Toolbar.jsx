@@ -316,7 +316,7 @@ export default function Toolbar({
                 {CABLE_TOOLS.map(t => {
                   const isActive = activeTool === t.id;
                   return (
-                    <button key={t.id} title={t.title}
+                    <button key={t.id} title={t.title} data-hint={t.id}
                       style={{ ...styles.btn, border: `1px solid ${isActive ? t.color : 'rgba(255,255,255,0.08)'}`,
                         background: isActive ? `${t.color}22` : undefined, color: isActive ? t.color : undefined }}
                       onClick={() => onToolChange(isActive ? 'select' : t.id)}>
