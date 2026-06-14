@@ -17,6 +17,7 @@ export function makeDrawing(id, name) {
     id:   id   || ('drawing-' + Math.random().toString(36).slice(2, 8)),
     name: name || 'Plot 1',
     pipes: [], fixtures: [], lines: [], rectangles: [],
+    circles: [], arcs: [], polylines: [],   // CAD curves
     texts: [], images: [],
     pdfBackground: null,
     calibration: null,   // {p1,p2,worldDist,realDist,unit}
