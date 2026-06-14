@@ -7,6 +7,7 @@ export default function LibraryPanel({
   builtinFixtures, customFixtures, pendingFixture,
   onSelectFixture, onImportGdtf, onDeleteCustomFixture,
   onRenameFixture, onUpdateFixture, onOpenGdtfBrowser,
+  canEdit = true,
 }) {
   const fileRef = useRef(null);
   const [ctxMenu, setCtxMenu] = useState(null);
