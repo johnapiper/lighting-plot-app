@@ -105,6 +105,26 @@ export function invalidateCache() {
   localStorage.removeItem('lplot_license_db');
 }
 
+// ── Released versions (from GitHub) ───────────────────────────────────────
+// Lists published release tags so the License Manager can offer version
+// dropdowns. Public repo → works unauthenticated; a token (if provided) just
+// raises the rate limit.
+export async function fetchReleaseVersions(token) {
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (token) headers.Authorization = `token ${token}`;
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=100&t=${Date.now()}`,
+    { headers, cache: 'no-store' }
+  );
+  if (!res.ok) throw new Error(`Could not fetch versions (HTTP ${res.status})`);
+  const data = await res.json();
+  const versions = (Array.isArray(data) ? data : [])
+    .map(r => String(r.tag_name || '').replace(/^v/i, '').trim())
+    .filter(v => /^\d+\.\d+\.\d+/.test(v));
+  // De-dupe and sort newest-first.
+  return [...new Set(versions)].sort((a, b) => compareVersions(b, a));
+}
+
 // ── Coerce legacy string rights to array ──────────────────────────────────
 
 function toRightsArray(rights) {
