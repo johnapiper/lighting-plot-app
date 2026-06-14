@@ -3,6 +3,9 @@ import React from 'react';
 const CAD_EDIT_TOOLS = [
   { id: 'line',      label: 'Line',      icon: '╱', key: 'L' },
   { id: 'rect',      label: 'Rectangle', icon: '▭', key: 'E' },
+  { id: 'polyline',  label: 'Polyline',  icon: '⊿', key: null },
+  { id: 'circle',    label: 'Circle',    icon: '◯', key: null },
+  { id: 'arc',       label: 'Arc',       icon: '◜', key: null },
   { id: 'pipe',      label: 'Pipe',      icon: '━', key: 'P' },
   { id: 'truss',     label: 'Truss',     icon: '⊞', key: null },
   { id: 'text',      label: 'Text',      icon: 'T', key: 'T' },
