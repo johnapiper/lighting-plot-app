@@ -840,7 +840,12 @@ function App() {
         objectSnap={objectSnap} onToggleObjectSnap={() => setObjectSnap(v => !v)}
         onMirror={handleMirror} onArray={() => setTransformMode('array')}
         onOffset={handleOffset} onAlign={() => setTransformMode('align')}
+        onCorner={handleCorner}
         hasSelection={allSelectedIds.length > 0}
+        canCorner={allSelectedIds.length === 2 && allSelectedIds.every(id => {
+          const o = getAllObjectsFromDrawing(activeDrawing || {}).find(x => x.id === id);
+          return o && (o.kind === 'line' || o.kind === 'pipe');
+        })}
         zoom={zoom}
         onImportPdf={handleImportPdf} onImportImage={handleImportImage}
         onShowPatch={openPatch}
