@@ -137,6 +137,9 @@ function migrateProject(loaded) {
       if (!d.infrastructure) d.infrastructure = [];
       if (!d.cables)         d.cables = [];
       if (!d.dimensions)     d.dimensions = [];
+      if (!d.circles)        d.circles = [];
+      if (!d.arcs)           d.arcs = [];
+      if (!d.polylines)      d.polylines = [];
     });
   }
   if (!loaded.revisions) loaded.revisions = [];
