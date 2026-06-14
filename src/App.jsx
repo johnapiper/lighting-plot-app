@@ -285,6 +285,7 @@ function App() {
         e.preventDefault();
         ipcRenderer?.send('toggle-dev-tools');
       }
+      if (e.key === 'F3') { e.preventDefault(); setObjectSnap(v => !v); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
