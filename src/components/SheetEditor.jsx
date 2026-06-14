@@ -1063,17 +1063,17 @@ export default function SheetEditor({
         <div style={{position:'fixed',left:vpCtxMenu.sx,top:vpCtxMenu.sy,background:'#16213e',
           border:'1px solid #0f3460',borderRadius:4,boxShadow:'0 4px 20px rgba(0,0,0,0.6)',zIndex:999,minWidth:190}}
           onMouseLeave={()=>setVpCtxMenu(null)}>
-          <div style={ctxSty.item} onClick={()=>{
+          <div style={ctxSty.item} {...sheetHints.bind('lock')} onClick={()=>{
             commitSheet(s=>{const v=s.viewports.find(v=>v.id===vpCtxMenu.vp.id);if(v)v.locked=!v.locked;});
             setVpCtxMenu(null);
           }}>{vpCtxMenu.vp.locked?'🔓 Unlock Viewport':'🔒 Lock Viewport'}</div>
-          <div style={ctxSty.item} onClick={()=>{zoomVpToExtents(vpCtxMenu.vp);setVpCtxMenu(null);}}>
+          <div style={ctxSty.item} {...sheetHints.bind('fit')} onClick={()=>{zoomVpToExtents(vpCtxMenu.vp);setVpCtxMenu(null);}}>
             📐 Zoom to Extents
           </div>
-          <div style={ctxSty.item} onClick={()=>{startZoomWindow(vpCtxMenu.vp);setVpCtxMenu(null);}}>
+          <div style={ctxSty.item} {...sheetHints.bind('zoomin')} onClick={()=>{startZoomWindow(vpCtxMenu.vp);setVpCtxMenu(null);}}>
             🔍 Zoom to Window…
           </div>
-          <div style={ctxSty.item} onClick={()=>{
+          <div style={ctxSty.item} {...sheetHints.bind('copy')} onClick={()=>{
             const vp=vpCtxMenu.vp;
             setClipboard({...vp,id:Date.now().toString(36),x:vp.x+10,y:vp.y+10,_kind:'viewport'});
             setVpCtxMenu(null);
