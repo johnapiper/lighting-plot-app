@@ -11,6 +11,7 @@ export default function LibraryPanel({
   canEdit = true,
 }) {
   const fileRef = useRef(null);
+  const { bind: hintBind, hintEl } = useToolHints();
   const [ctxMenu, setCtxMenu] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [renameVal, setRenameVal] = useState('');
