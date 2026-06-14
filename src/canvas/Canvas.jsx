@@ -15,6 +15,7 @@ const HIT_RADIUS = 8;
 const PIPE_SNAP_RADIUS = 40;
 const HANDLE_R = 6;
 const BOX_THRESHOLD = 5;
+const OSNAP_RADIUS = 12; // screen px within which object snaps engage
 
 const LAYER_DEFAULTS = {
   fixture: 'layer-lighting', pipe: 'layer-lighting',
