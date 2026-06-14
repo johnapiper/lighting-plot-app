@@ -7,7 +7,7 @@ import {
 import InfraLayer from './InfraLayer';
 import CablingLayer from './CablingLayer';
 import { findNearestStructure } from '../cabling/routing';
-import { formatLength, formatCoord, toDisplayValue, UNIT_LABELS } from './units';
+import { formatLength, formatCoord, toDisplayValue, UNIT_LABELS, MM_PER_UNIT } from './units';
 import { gatherSnapTargets, computeOsnap, constrainAngle } from './snapping';
 
 const RULER_SIZE = 20;
