@@ -382,6 +382,7 @@ function App() {
   function handleGroupToggle() { if (groupInfo) handleUngroup(); else if (canGroup) handleGroup(); }
 
   function handleBulkUpdate(fields) {
+    if (!canUseLibrary) return;
     commitToActiveDrawing(d => {
       allSelectedIds.forEach(id => {
         const f = d.fixtures?.find(f => f.id === id);
