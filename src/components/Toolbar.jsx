@@ -44,7 +44,7 @@ export default function Toolbar({
   onMirror, onArray, onOffset, onAlign, onCorner, hasSelection, canCorner,
   zoom,
   onImportPdf, onImportImage,
-  onShowPatch,
+  onShowPatch, onShow3D,
   onGroup, onUngroup, canGroup, canUngroup,
   activeMode, onSetMode,
   animating, onToggleAnimation,
