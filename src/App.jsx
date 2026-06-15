@@ -856,6 +856,7 @@ function App() {
         zoom={zoom}
         onImportPdf={handleImportPdf} onImportImage={handleImportImage}
         onShowPatch={openPatch}
+        onShow3D={() => setShow3D(true)}
         canGroup={canGroup} canUngroup={canUngroup}
         onGroup={handleGroup} onUngroup={handleUngroup}
         activeMode={activeMode} onSetMode={handleSetMode}
