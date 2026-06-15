@@ -1715,19 +1715,23 @@ export default function Canvas({
         {/* Dimension lines */}
         {(drawing?.dimensions||[]).filter(o => getLayerId(o,'dimension') === layerId).map(d => {
           const sel = allSelected.has(d.id);
-          const ddx = d.x2 - d.x1, ddy = d.y2 - d.y1;
+          const pa = resolveDimPoint(d.a, d.x1, d.y1);
+          const pb = resolveDimPoint(d.b, d.x2, d.y2);
+          const ddx = pb.x - pa.x, ddy = pb.y - pa.y;
           const dlen = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
           const nx = -ddy/dlen, ny = ddx/dlen;
           const tick = 8/zoom;
-          const dlbl = formatLength(dlen, meta?.units || 'mm');
-          const stroke = sel ? '#00aaff' : '#a0c0e0';
+          // Locked dimensions show their constrained value; free ones the live length.
+          const shown = d.locked && d.value != null ? d.value : dlen;
+          const dlbl = (d.locked ? '🔒 ' : '') + formatLength(shown, meta?.units || 'mm');
+          const stroke = sel ? '#00aaff' : d.locked ? '#7fd0a0' : '#a0c0e0';
           return (
             <g key={d.id} style={{ cursor: 'pointer' }} onClick={() => onSelect({ kind: 'dimension', ...d })}>
-              <line x1={d.x1+nx*tick} y1={d.y1+ny*tick} x2={d.x1-nx*tick} y2={d.y1-ny*tick} stroke={stroke} strokeWidth={1/zoom} />
-              <line x1={d.x2+nx*tick} y1={d.y2+ny*tick} x2={d.x2-nx*tick} y2={d.y2-ny*tick} stroke={stroke} strokeWidth={1/zoom} />
-              <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke={stroke} strokeWidth={1/zoom} />
-              <text x={(d.x1+d.x2)/2} y={(d.y1+d.y2)/2 - 5/zoom} textAnchor="middle" fontSize={9/zoom} fill={stroke} style={{ userSelect:'none', pointerEvents:'none' }}>{dlbl}</text>
-              <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="transparent" strokeWidth={8/zoom} />
+              <line x1={pa.x+nx*tick} y1={pa.y+ny*tick} x2={pa.x-nx*tick} y2={pa.y-ny*tick} stroke={stroke} strokeWidth={1/zoom} />
+              <line x1={pb.x+nx*tick} y1={pb.y+ny*tick} x2={pb.x-nx*tick} y2={pb.y-ny*tick} stroke={stroke} strokeWidth={1/zoom} />
+              <line x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke={stroke} strokeWidth={1/zoom} />
+              <text x={(pa.x+pb.x)/2} y={(pa.y+pb.y)/2 - 5/zoom} textAnchor="middle" fontSize={9/zoom} fill={stroke} style={{ userSelect:'none', pointerEvents:'none' }}>{dlbl}</text>
+              <line x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="transparent" strokeWidth={8/zoom} />
             </g>
           );
         })}
