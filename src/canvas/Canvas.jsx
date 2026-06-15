@@ -2385,7 +2385,7 @@ export default function Canvas({
         {renderRulers(3000, 1500)}
         {cursorPos && !focusModeId && !calibState && <text x={ro+8} y={28} fontSize={9} fill="#4a6080">{formatCoord(cursorPos.x, cursorPos.y, meta?.units || 'mm')}</text>}
         {focusModeId && <text x={ro+8} y={28} fontSize={10} fill="#ffaa00">Click to set focus direction — Esc to cancel</text>}
-        {activeTool === 'dimension' && <text x={ro+8} y={28} fontSize={10} fill="#a0c0ff">{measure && !measure.done ? '⟷ Click second point to finish' : measure?.done ? '⟷ Measurement shown — click to measure again, switch tool to clear' : '⟷ Click first point to measure'}</text>}
+        {activeTool === 'dimension' && <text x={ro+8} y={28} fontSize={10} fill="#a0c0ff">{measure && !measure.done ? '⟷ Click second point to set the locked dimension' : measure?.done ? '⟷ Dimension added (🔒 constrained) — click to add another' : '⟷ Click first point to add a constrained dimension'}</text>}
         {activeTool === 'calibrate' && !calibState && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click first calibration point — Esc to cancel</text>}
         {activeTool === 'calibrate' && calibState?.p1 && !calibState?.p2 && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click second calibration point</text>}
         {(activeTool === 'pipe' || activeTool === 'truss') && drawingRef.current && (
