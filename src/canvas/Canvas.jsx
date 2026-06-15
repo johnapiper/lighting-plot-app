@@ -1010,6 +1010,11 @@ export default function Canvas({
           const f = d.fixtures.find(f => f.id === dragging.id);
           if (f) { f.pipeId = null; f.position = ''; }
         }
+        // Move the rest of the connected structure (joined pipes/trusses) too.
+        (dragging.structurePipes || []).forEach(sp => {
+          const p = d.pipes.find(pp => pp.id === sp.id);
+          if (p) { p.x1 = sp.x1 + adx; p.y1 = sp.y1 + ady; p.x2 = sp.x2 + adx; p.y2 = sp.y2 + ady; }
+        });
         // Move fixtures and infra items attached to a dragged pipe/truss
         (dragging.pipeFollowers || []).forEach(f => {
           if (f.kind === 'fixture') {
