@@ -66,8 +66,8 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
               onDragOver={e => handleLayerDragOver(e, idx)}
               onDrop={e => handleLayerDrop(e, idx)}
               onDragEnd={handleLayerDragEnd}
-              onClick={() => onSetActiveLayer && onSetActiveLayer(layer.id)}
-              title={isActive ? 'Active layer (new objects placed here)' : 'Click to set as active layer'}
+              onClick={() => !layer.system && onSetActiveLayer && onSetActiveLayer(layer.id)}
+              title={layer.system ? 'Auto-managed layer (toggle visibility only)' : isActive ? 'Active layer (new objects placed here)' : 'Click to set as active layer'}
               style={{
                 ...styles.row,
                 ...(isActive ? styles.rowActive : {}),
