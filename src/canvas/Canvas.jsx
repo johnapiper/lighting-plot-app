@@ -433,6 +433,16 @@ export default function Canvas({
     if (!canEdit) return;
     e.stopPropagation();
     const w = screenToWorld(e.clientX, e.clientY);
+    // When reshaping a pipe/truss endpoint, capture fixtures attached to it with
+    // their fractional position so they follow the line as it stretches/rotates.
+    let pipeFollowers = null;
+    if (kind === 'pipe') {
+      const dx = obj.x2 - obj.x1, dy = obj.y2 - obj.y1;
+      const len2 = dx*dx + dy*dy || 1;
+      pipeFollowers = fixtures
+        .filter(f => f.pipeId === obj.id || distanceToSegment(f.x, f.y, obj.x1, obj.y1, obj.x2, obj.y2) <= 60)
+        .map(f => ({ id: f.id, frac: ((f.x - obj.x1)*dx + (f.y - obj.y1)*dy) / len2 }));
+    }
     setDragging({
       id: obj.id, kind, handlePoint: point,
       startX: w.x, startY: w.y,
@@ -443,6 +453,7 @@ export default function Canvas({
       origRotation: obj.rotation || 0,
       origScale: obj.scale || 1,
       centerX: cx ?? obj.x, centerY: cy ?? obj.y,
+      pipeFollowers,
     });
   }
 
