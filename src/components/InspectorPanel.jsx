@@ -148,7 +148,7 @@ const statStyles = {
 export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
   allFixtureTypes, dmxConflicts, selectedCount, layers,
-  groupInfo, onGroup, onUngroup, onBulkUpdate, structureStats,
+  groupInfo, onGroup, onUngroup, onBulkUpdate, structureStats, onDeleteSelected,
 }) {
   if (!selected) {
     if (selectedCount > 1) {
