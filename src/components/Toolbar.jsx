@@ -249,6 +249,9 @@ export default function Toolbar({
                   title="Toggle Grid" onClick={onToggleGrid}>
                   <span style={styles.icon}>⊞</span><span style={styles.label}>Grid</span>
                 </button>
+                <button data-hint="view3d" style={styles.btn} title="3D model view (orbit, pan, zoom)" onClick={onShow3D}>
+                  <span style={styles.icon}>🧊</span><span style={styles.label}>3D View</span>
+                </button>
               </div>
 
               {(has('pdf_background') || has('patch_panel')) && (
