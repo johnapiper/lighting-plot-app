@@ -711,12 +711,24 @@ export default function Canvas({
     }
 
     if (activeTool === 'dimension') {
-      // Transient measurement: 1st click = start, 2nd click = finish (stays on
-      // screen), next click resets and starts a fresh measurement.
+      // Two-click dimension: 1st = start point, 2nd = end point. On the second
+      // click we commit a persistent, locked (constrained) dimension. Each end
+      // captures the object it lands on so the constraint follows that object.
       const cur = measureRef.current;
       if (!cur || cur.done) {
-        setMeasure({ x1: snapped.x, y1: snapped.y });
+        setMeasure({ x1: snapped.x, y1: snapped.y, aRef: resolveAnchorRef(snapped.x, snapped.y) });
       } else {
+        const bRef = resolveAnchorRef(snapped.x, snapped.y);
+        const value = Math.hypot(snapped.x - cur.x1, snapped.y - cur.y1);
+        const dim = {
+          id: generateId(), kind: 'dimension',
+          x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y,
+          a: cur.aRef || null, b: bRef || null,
+          locked: true, value,
+          layerId: 'layer-dimensions',
+        };
+        commitToDrawing(d => { (d.dimensions || (d.dimensions = [])).push(dim); }, 'Add dimension');
+        onSelect({ kind: 'dimension', ...dim });
         setMeasure({ x1: cur.x1, y1: cur.y1, x2: snapped.x, y2: snapped.y, done: true });
       }
       return;
