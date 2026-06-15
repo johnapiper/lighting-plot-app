@@ -29,6 +29,7 @@ import TransformModal from './components/TransformModal';
 import { mirrorObject, translateObject, rotateObject, offsetObject, cloneWithId, objectBounds } from './canvas/transforms';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
+import { computeStructureStats } from './canvas/structureStats';
 import { useProjectStore, makeDrawing, makeSheet } from './store/projectStore';
 import { findDmxConflicts } from './components/PatchPanel';
 import { compareVersions } from './license/licenseService';
