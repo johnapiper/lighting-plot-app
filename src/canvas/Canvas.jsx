@@ -1112,6 +1112,14 @@ export default function Canvas({
             if (inf) { inf.x = f.origX + adx; inf.y = f.origY + ady; }
           }
         });
+        // Enforce any locked dimension constraints against the dragged set.
+        if ((d.dimensions || []).some(dm => dm.locked)) {
+          const movedIds = new Set([dragging.id]);
+          (dragging.groupMembers || []).forEach(m => movedIds.add(m.id));
+          (dragging.structurePipes || []).forEach(sp => movedIds.add(sp.id));
+          (dragging.pipeFollowers || []).forEach(f => movedIds.add(f.id));
+          enforceConstraints(d, movedIds);
+        }
       });
     }
 
