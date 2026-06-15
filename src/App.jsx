@@ -1093,6 +1093,14 @@ function App() {
           onClose={() => setShowStudioSettings(false)}
         />
       )}
+      {show3D && (
+        <Viewer3D
+          drawing={activeDrawing}
+          fixtureTypes={allFixtureTypes}
+          meta={project.meta}
+          onClose={() => setShow3D(false)}
+        />
+      )}
       {showAppSettings && (
         <AppSettingsModal
           onClose={() => setShowAppSettings(false)}
