@@ -15,6 +15,7 @@ import AppSettingsModal from './components/AppSettingsModal';
 import CableReport from './components/CableReport';
 import EOSImport from './components/EOSImport';
 import InfraInspector, { CableInspector } from './components/InfraInspector';
+import Viewer3D from './components/Viewer3D';
 import LicenseGate, { useLicense } from './components/LicenseGate';
 import LicenseManager from './components/LicenseManager';
 import MyLicenseModal from './components/MyLicenseModal';
