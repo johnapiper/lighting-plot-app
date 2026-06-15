@@ -267,6 +267,21 @@ export default function Canvas({
     return [...seen];
   }
 
+  // Identify which object (if any) a dimension anchor point lands on, so a locked
+  // dimension can follow that object when it's dragged. Returns {objId,kind,vx} or null.
+  function resolveAnchorRef(x, y) {
+    const tol = 6 / zoom; // mm
+    const near = (ax, ay) => Math.hypot(ax - x, ay - y) <= tol;
+    for (const p of pipes) {
+      if (near(p.x1, p.y1)) return { objId: p.id, kind: 'pipe', vx: 'p1' };
+      if (near(p.x2, p.y2)) return { objId: p.id, kind: 'pipe', vx: 'p2' };
+    }
+    for (const f of fixtures) {
+      if (near(f.x, f.y)) return { objId: f.id, kind: 'fixture', vx: 'c' };
+    }
+    return null;
+  }
+
   // Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
   // its beam axis at the floor point (tx,ty). Beam direction in the symbol is
   // (-sin(rot), cos(rot)); tilt is the angle from vertical.
