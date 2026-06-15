@@ -422,7 +422,7 @@ function App() {
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateObject(id, kind, fields) {
-    const arrMap = { line:'lines', rect:'rectangles', image:'images' };
+    const arrMap = { line:'lines', rect:'rectangles', image:'images', dimension:'dimensions' };
     const arr = arrMap[kind]; if (!arr) return;
     commitToActiveDrawing(d => { const obj = (d[arr]||[]).find(o => o.id === id); if (obj) Object.assign(obj, fields); }, editLabel(kind, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
