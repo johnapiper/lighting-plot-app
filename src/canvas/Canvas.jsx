@@ -503,9 +503,20 @@ export default function Canvas({
       const arr = dg.kind === 'pipe' ? 'pipes' : 'lines';
       softUpdateDrawing(d => {
         const obj = d[arr].find(o => o.id === dg.id);
-        if (obj) {
-          if (hp === 'p1') { obj.x1 = snapped.x; obj.y1 = snapped.y; }
-          else { obj.x2 = snapped.x; obj.y2 = snapped.y; }
+        if (!obj) return;
+        if (hp === 'p1') { obj.x1 = snapped.x; obj.y1 = snapped.y; }
+        else { obj.x2 = snapped.x; obj.y2 = snapped.y; }
+        // Keep attached fixtures on the reshaped pipe at their fractional position.
+        if (dg.kind === 'pipe' && dg.pipeFollowers?.length) {
+          const rot = pipeAngle(obj) * 180 / Math.PI;
+          dg.pipeFollowers.forEach(pf => {
+            const fix = d.fixtures.find(f => f.id === pf.id);
+            if (!fix) return;
+            fix.x = obj.x1 + pf.frac * (obj.x2 - obj.x1);
+            fix.y = obj.y1 + pf.frac * (obj.y2 - obj.y1);
+            fix.rotation = rot;
+            fix.pipeId = obj.id;
+          });
         }
       });
       return;
