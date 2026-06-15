@@ -209,7 +209,7 @@ export function useProjectStore() {
 
   const softUpdate = useCallback((updater) => {
     setProject(prev => {
-      const next = typeof updater === 'function' ? updater(clone(prev)) : clone(updater);
+      const next = syncDimensionsLayer(typeof updater === 'function' ? updater(clone(prev)) : clone(updater));
       history.current[idx.current] = clone(next);
       return next;
     });
