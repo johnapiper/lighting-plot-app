@@ -76,6 +76,75 @@ function ColourField({ colourHex, gelCode, onChangeHex, onChangeGel }) {
   );
 }
 
+function fmtKg(kg) {
+  if (kg == null) return '—';
+  return kg >= 10 ? `${kg.toFixed(0)} kg` : `${kg.toFixed(1)} kg`;
+}
+
+function StructureStats({ stats }) {
+  const s = stats;
+  const lenM = (s.totalLengthMm / 1000);
+  return (
+    <div style={{ borderTop: '2px solid #0f3460' }}>
+      <div style={{ padding: '7px 10px 3px', fontSize: 10, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Structure Summary
+      </div>
+      <div style={statStyles.rowWrap}>
+        <div style={statStyles.row}><span style={statStyles.k}>Sections</span><span style={statStyles.v}>{s.memberCount} · {lenM.toFixed(2)} m</span></div>
+        <div style={statStyles.row}><span style={statStyles.k}>Structure</span><span style={statStyles.v}>{fmtKg(s.structureKg)}</span></div>
+        <div style={statStyles.row}><span style={statStyles.k}>Fixtures ({s.fixtures.length})</span><span style={statStyles.v}>{fmtKg(s.fixtureKg)}</span></div>
+        <div style={statStyles.row}><span style={statStyles.k}>Cabling ({s.cables.length})</span><span style={statStyles.v}>{fmtKg(s.cableKg)}</span></div>
+        <div style={{ ...statStyles.row, borderTop: '1px solid #1a3050', marginTop: 2, paddingTop: 4 }}>
+          <span style={{ ...statStyles.k, color: '#e0e0e0', fontWeight: 700 }}>Total load</span>
+          <span style={{ ...statStyles.v, color: '#68d391', fontWeight: 700 }}>{fmtKg(s.totalKg)}</span>
+        </div>
+      </div>
+
+      {s.fixtures.length > 0 && (
+        <>
+          <div style={statStyles.subhead}>Attached Fixtures</div>
+          <div style={statStyles.list}>
+            {s.fixtures.map(f => (
+              <div key={f.id} style={statStyles.li}>
+                <span style={statStyles.liName}>{f.label}{f.type ? ` · ${f.type}` : ''}</span>
+                <span style={statStyles.liVal}>{fmtKg(f.weightKg)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {s.cables.length > 0 && (
+        <>
+          <div style={statStyles.subhead}>Cables to Structure</div>
+          <div style={statStyles.list}>
+            {s.cables.map(c => (
+              <div key={c.id} style={statStyles.li}>
+                <span style={{ ...statStyles.liName, textTransform: 'capitalize' }}>
+                  {c.type}{c.subtype ? ` ${c.subtype}` : ''} · {(c.lengthMm / 1000).toFixed(1)} m
+                </span>
+                <span style={statStyles.liVal}>{fmtKg(c.weightKg)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const statStyles = {
+  rowWrap: { padding: '2px 10px 6px' },
+  row: { display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '2px 0' },
+  k: { color: '#a0aec0' },
+  v: { color: '#e0e0e0', fontVariantNumeric: 'tabular-nums' },
+  subhead: { padding: '5px 10px 2px', fontSize: 9, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid #0f3460' },
+  list: { padding: '0 10px 6px', maxHeight: 160, overflowY: 'auto' },
+  li: { display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11, padding: '2px 0', borderBottom: '1px solid #0f2440' },
+  liName: { color: '#cbd5e0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  liVal: { color: '#a0aec0', flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
+};
+
 export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
   allFixtureTypes, dmxConflicts, selectedCount, layers,
