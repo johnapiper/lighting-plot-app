@@ -79,7 +79,7 @@ function ColourField({ colourHex, gelCode, onChangeHex, onChangeGel }) {
 export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
   allFixtureTypes, dmxConflicts, selectedCount, layers,
-  groupInfo, onGroup, onUngroup, onBulkUpdate,
+  groupInfo, onGroup, onUngroup, onBulkUpdate, structureStats,
 }) {
   if (!selected) {
     if (selectedCount > 1) {
