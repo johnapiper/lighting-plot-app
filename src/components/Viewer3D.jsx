@@ -177,6 +177,7 @@ export default function Viewer3D({ drawing, fixtureTypes = [], meta = {}, onClos
         <svg
           width={W} height={H} style={styles.canvas}
           onMouseDown={onDown} onMouseMove={onMove} onWheel={onWheel}
+          onContextMenu={e => e.preventDefault()}
         >
           <rect x={0} y={0} width={W} height={H} fill="#0b1422" />
           {els.map(e => e.el)}
