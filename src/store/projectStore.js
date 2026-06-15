@@ -194,7 +194,7 @@ export function useProjectStore() {
 
   const commit = useCallback((updater, label) => {
     setProject(prev => {
-      const next = typeof updater === 'function' ? updater(clone(prev)) : clone(updater);
+      const next = syncDimensionsLayer(typeof updater === 'function' ? updater(clone(prev)) : clone(updater));
       history.current = history.current.slice(0, idx.current + 1);
       labels.current  = labels.current.slice(0, idx.current + 1);
       history.current.push(clone(next));
