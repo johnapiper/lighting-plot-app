@@ -96,8 +96,8 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
                   }}
                 />
               ) : (
-                <span style={styles.name} onDoubleClick={() => startRename(layer)} title="Double-click to rename">
-                  {layer.name}
+                <span style={styles.name} onDoubleClick={() => !layer.system && startRename(layer)} title={layer.system ? 'Auto-managed' : 'Double-click to rename'}>
+                  {layer.name}{layer.system && <span style={styles.sysBadge} title="Auto-managed layer">AUTO</span>}
                 </span>
               )}
 
@@ -109,14 +109,16 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
               >
                 {layer.visible ? EYE_ON : '🚫'}
               </button>
-              <button
-                style={styles.iconBtn}
-                title={layer.locked ? 'Unlock layer' : 'Lock layer'}
-                onClick={() => onUpdateLayer(layer.id, { locked: !layer.locked })}
-              >
-                {layer.locked ? LOCK_CLOSED : LOCK_OPEN}
-              </button>
-              {layers.length > 1 && (
+              {!layer.system && (
+                <button
+                  style={styles.iconBtn}
+                  title={layer.locked ? 'Unlock layer' : 'Lock layer'}
+                  onClick={() => onUpdateLayer(layer.id, { locked: !layer.locked })}
+                >
+                  {layer.locked ? LOCK_CLOSED : LOCK_OPEN}
+                </button>
+              )}
+              {layers.length > 1 && !layer.system && (
                 <button
                   style={{ ...styles.iconBtn, color: '#fc8181' }}
                   title="Delete layer"
