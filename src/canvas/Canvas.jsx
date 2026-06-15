@@ -251,6 +251,22 @@ export default function Canvas({
     if (cfg.grid) { const g = snapPointToGrid(w.x, w.y, gridSize); return { x: g.x, y: g.y, snapType: null }; }
     return { x: w.x, y: w.y, snapType: null };
   }
+  // All pipes/trusses joined to `startId` through shared endpoints (a structure).
+  function getConnectedPipes(startId) {
+    const eps = 2; // mm — snapped endpoints coincide exactly; small tolerance
+    const meet = (p, q) => {
+      const m = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by) <= eps;
+      return m(p.x1,p.y1,q.x1,q.y1) || m(p.x1,p.y1,q.x2,q.y2) || m(p.x2,p.y2,q.x1,q.y1) || m(p.x2,p.y2,q.x2,q.y2);
+    };
+    const seen = new Set([startId]); const queue = [startId];
+    while (queue.length) {
+      const p = pipes.find(pp => pp.id === queue.shift());
+      if (!p) continue;
+      for (const q of pipes) if (!seen.has(q.id) && meet(p, q)) { seen.add(q.id); queue.push(q.id); }
+    }
+    return [...seen];
+  }
+
   // Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
   // its beam axis at the floor point (tx,ty). Beam direction in the symbol is
   // (-sin(rot), cos(rot)); tilt is the angle from vertical.
