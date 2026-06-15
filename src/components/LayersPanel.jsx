@@ -218,6 +218,11 @@ const styles = {
     whiteSpace: 'nowrap',
     cursor: 'grab',
   },
+  sysBadge: {
+    fontSize: 7, fontWeight: 700, letterSpacing: '0.06em',
+    background: '#0f3460', color: '#7fa8d0', borderRadius: 2,
+    padding: '1px 3px', marginLeft: 5, verticalAlign: 'middle',
+  },
   nameInput: {
     flex: 1,
     background: '#0d1b2a',
