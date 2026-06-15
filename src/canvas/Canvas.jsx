@@ -650,13 +650,19 @@ export default function Canvas({
         else onSelect(hit);
         // View-only (no edit rights): allow selection, but never start a drag.
         if (!canEdit) return;
-        // Collect fixtures/infra snapped to this pipe/truss so they move with it
+        // Pipe/truss: moving one section moves the whole connected structure
+        // (all pipes joined at endpoints) plus every fixture/infra on it.
         let pipeFollowers = null;
+        let structurePipes = null;
         if (hit.kind === 'pipe') {
+          const connected = getConnectedPipes(hit.id);
+          const connSet = new Set(connected);
+          structurePipes = pipes.filter(p => p.id !== hit.id && connSet.has(p.id))
+            .map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2 }));
           pipeFollowers = [
-            ...fixtures.filter(f => f.pipeId === hit.id || f.onStructureId === hit.id)
+            ...fixtures.filter(f => connSet.has(f.pipeId) || connSet.has(f.onStructureId))
               .map(f => ({ id: f.id, kind: 'fixture', origX: f.x, origY: f.y })),
-            ...(drawing?.infrastructure || []).filter(i => i.onStructureId === hit.id)
+            ...(drawing?.infrastructure || []).filter(i => connSet.has(i.onStructureId))
               .map(i => ({ id: i.id, kind: 'infra', origX: i.x, origY: i.y })),
           ];
         }
@@ -669,6 +675,7 @@ export default function Canvas({
           origW: hit.w, origH: hit.h,
           groupMembers: gm,
           pipeFollowers,
+          structurePipes,
         });
       } else {
         // Also check direct infra hit (already covered by hitTestAll now)
