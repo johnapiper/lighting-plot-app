@@ -344,6 +344,35 @@ export default function InspectorPanel({
     );
   }
 
+  if (selected.kind === 'dimension') {
+    const dm = selected;
+    return (
+      <div style={styles.panel}>
+        <div style={styles.header}>Dimension {dm.locked && '🔒'}</div>
+        <div style={{ padding: '6px 10px', fontSize: 10, color: dm.locked ? '#7fd0a0' : '#718096', lineHeight: 1.4 }}>
+          {dm.locked
+            ? 'Constrained: dragging an attached object keeps this measurement fixed.'
+            : 'Reference dimension (not constrained).'}
+        </div>
+        <Field label="Locked length (mm)" value={dm.value != null ? Math.round(dm.value) : ''} type="number"
+          onChange={v => { const n = Number(v); if (n > 0) onUpdateObject && onUpdateObject(dm.id, 'dimension', { value: n }); }} />
+        <div style={styles.field}>
+          <label style={styles.label}>Constraint</label>
+          <button style={{ ...styles.btn, marginTop: 0 }}
+            onClick={() => onUpdateObject && onUpdateObject(dm.id, 'dimension', { locked: !dm.locked })}>
+            {dm.locked ? 'Unlock (make reference)' : 'Lock as constraint'}
+          </button>
+        </div>
+        <div style={{ padding: '8px 10px' }}>
+          <button style={{ ...styles.btn, color: '#fc8181', borderColor: '#7a2a2a', width: '100%' }}
+            onClick={() => onDeleteSelected && onDeleteSelected()}>
+            🗑 Delete dimension (unconstrain)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return <div style={styles.panel}><div style={styles.header}>Inspector</div><div style={styles.empty}>Select an object</div></div>;
 }
 
