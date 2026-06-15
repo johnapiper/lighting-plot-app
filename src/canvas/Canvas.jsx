@@ -297,6 +297,51 @@ export default function Canvas({
     return { x: fx, y: fy };
   }
 
+  // Resolve a dimension anchor inside a mutable drawing draft `d`.
+  function resolveDimPointIn(d, ref, fx, fy) {
+    if (ref) {
+      if (ref.kind === 'pipe') {
+        const p = d.pipes.find(pp => pp.id === ref.objId);
+        if (p) return ref.vx === 'p2' ? { x: p.x2, y: p.y2 } : { x: p.x1, y: p.y1 };
+      } else if (ref.kind === 'fixture') {
+        const f = d.fixtures.find(ff => ff.id === ref.objId);
+        if (f) return { x: f.x, y: f.y };
+      }
+    }
+    return { x: fx, y: fy };
+  }
+  // Rigidly translate any object (pipe / fixture / infra) inside a draft by (dx,dy).
+  function translateAnyObject(d, id, dx, dy) {
+    const p = d.pipes.find(o => o.id === id);
+    if (p) { p.x1 += dx; p.y1 += dy; p.x2 += dx; p.y2 += dy; return; }
+    const f = d.fixtures.find(o => o.id === id);
+    if (f) { f.x += dx; f.y += dy; return; }
+    const i = (d.infrastructure || []).find(o => o.id === id);
+    if (i) { i.x += dx; i.y += dy; }
+  }
+  // Enforce locked dimension constraints after a drag move. For each locked
+  // dimension where exactly one anchor's object is in the moved set, slide the
+  // entire moved group along the constraint line so the measured distance to the
+  // fixed anchor stays equal to the locked value. (Delete the dimension to free it.)
+  function enforceConstraints(d, movedIds) {
+    const dims = (d.dimensions || []).filter(dm => dm.locked && dm.value != null && dm.a && dm.b);
+    for (const dm of dims) {
+      const aMoved = movedIds.has(dm.a.objId);
+      const bMoved = movedIds.has(dm.b.objId);
+      if (aMoved === bMoved) continue; // both or neither moved → distance unaffected
+      const A = resolveDimPointIn(d, dm.a, dm.x1, dm.y1);
+      const B = resolveDimPointIn(d, dm.b, dm.x2, dm.y2);
+      const cur = Math.hypot(B.x - A.x, B.y - A.y);
+      if (cur < 1e-6) continue;
+      const scale = dm.value / cur;
+      const fixed = aMoved ? B : A;
+      const movedPt = aMoved ? A : B;
+      const cdx = fixed.x + (movedPt.x - fixed.x) * scale - movedPt.x;
+      const cdy = fixed.y + (movedPt.y - fixed.y) * scale - movedPt.y;
+      movedIds.forEach(id => translateAnyObject(d, id, cdx, cdy));
+    }
+  }
+
   // Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
   // its beam axis at the floor point (tx,ty). Beam direction in the symbol is
   // (-sin(rot), cos(rot)); tilt is the angle from vertical.
