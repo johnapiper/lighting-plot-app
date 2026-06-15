@@ -212,6 +212,7 @@ export default function InspectorPanel({
         <Field label="Name" value={p.name} onChange={v => onUpdatePipe(p.id, { name: v })} />
         <Field label="Height above stage (m)" value={p.height} onChange={v => onUpdatePipe(p.id, { height: v })} />
         <LayerField layerId={p.layerId} layers={layers} onChange={layerId => onUpdatePipe(p.id, { layerId })} />
+        {structureStats && <StructureStats stats={structureStats} />}
       </div>
     );
   }
