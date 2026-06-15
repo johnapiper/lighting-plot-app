@@ -21,7 +21,7 @@ const OSNAP_RADIUS = 12; // screen px within which object snaps engage
 const LAYER_DEFAULTS = {
   fixture: 'layer-lighting', pipe: 'layer-lighting',
   line: 'layer-arch', rect: 'layer-arch', text: 'layer-arch',
-  image: 'layer-bg', annotation: 'layer-arch', dimension: 'layer-arch',
+  image: 'layer-bg', annotation: 'layer-arch', dimension: 'layer-dimensions',
   circle: 'layer-arch', arc: 'layer-arch', polyline: 'layer-arch',
 };
 
