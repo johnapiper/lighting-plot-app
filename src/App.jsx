@@ -997,6 +997,9 @@ function App() {
             const isFixtureSel = kind === 'fixture' || selectedIds.length > 0;
             if (isFixtureSel && !canUseLibrary) return null;
             if (!isFixtureSel && selectedObj && !canEditCanvas) return null;
+            const structureStats = (kind === 'pipe')
+              ? computeStructureStats(selectedObj, activeDrawing, allFixtureTypes, project.meta?.rigHeight || 5500)
+              : null;
             return (
               <InspectorPanel
                 selected={selectedObj}
@@ -1012,6 +1015,7 @@ function App() {
                 onGroup={handleGroup}
                 onUngroup={handleUngroup}
                 onBulkUpdate={handleBulkUpdate}
+                structureStats={structureStats}
               />
             );
           })()}
