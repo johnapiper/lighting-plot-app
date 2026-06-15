@@ -282,6 +282,21 @@ export default function Canvas({
     return null;
   }
 
+  // Current world position of a dimension anchor: follows its referenced object
+  // (pipe endpoint / fixture centre) if one is set, else the stored coordinate.
+  function resolveDimPoint(ref, fx, fy) {
+    if (ref) {
+      if (ref.kind === 'pipe') {
+        const p = pipes.find(pp => pp.id === ref.objId);
+        if (p) return ref.vx === 'p2' ? { x: p.x2, y: p.y2 } : { x: p.x1, y: p.y1 };
+      } else if (ref.kind === 'fixture') {
+        const f = fixtures.find(ff => ff.id === ref.objId);
+        if (f) return { x: f.x, y: f.y };
+      }
+    }
+    return { x: fx, y: fy };
+  }
+
   // Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
   // its beam axis at the floor point (tx,ty). Beam direction in the symbol is
   // (-sin(rot), cos(rot)); tilt is the angle from vertical.
