@@ -232,7 +232,7 @@ export function useProjectStore() {
   }, []);
 
   const loadProject = useCallback((p) => {
-    const loaded = migrateProject({ ...clone(initialProject), ...clone(p) });
+    const loaded = syncDimensionsLayer(migrateProject({ ...clone(initialProject), ...clone(p) }));
     history.current = [loaded]; labels.current = ['Opened project']; idx.current = 0;
     setProject(loaded); setCanUndo(false); setCanRedo(false);
     setHistoryVersion(v => v + 1);
