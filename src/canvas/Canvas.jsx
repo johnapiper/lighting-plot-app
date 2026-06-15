@@ -1308,19 +1308,20 @@ export default function Canvas({
     const onPipe = fixtures.filter(f => f.pipeId === pipeId
       || distanceToSegment(f.x, f.y, pipe.x1, pipe.y1, pipe.x2, pipe.y2) <= tol);
     if (onPipe.length < 2) return;
+    // Keep existing left→right order, but spread across the WHOLE pipe with equal
+    // gaps (half-gap margins at each end), not just between the current extremes.
     const withT = onPipe.map(f => ({ f, t: (f.x - pipe.x1)*ux + (f.y - pipe.y1)*uy }))
       .sort((a, b) => a.t - b.t);
-    const tMin = withT[0].t, tMax = withT[withT.length-1].t;
-    const step = (tMax - tMin) / (withT.length - 1);
+    const n = withT.length;
     const rot = pipeAngle(pipe) * 180 / Math.PI;
     commitToDrawing(d => {
       withT.forEach(({ f: orig }, i) => {
         const fix = d.fixtures.find(fx => fx.id === orig.id);
         if (!fix) return;
-        const t = tMin + i * step;
+        const t = len * (i + 0.5) / n;   // evenly along the full pipe
         fix.x = pipe.x1 + t*ux;          // sit exactly on the pipe line
         fix.y = pipe.y1 + t*uy;
-        fix.pipeId = pipeId;              // (re-)attach to the pipe
+        fix.pipeId = pipeId;             // (re-)attach to the pipe
         fix.position = pipe.name;
         fix.rotation = rot;
       });
