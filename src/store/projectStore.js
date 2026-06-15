@@ -10,6 +10,28 @@ export const DEFAULT_LAYERS = [
   { id: 'layer-lighting', name: 'Lighting',     color: '#e0c060', visible: true,  locked: false },
 ];
 
+// The Dimensions layer is auto-managed: it appears whenever any dimension exists
+// in the project and disappears when none remain. It is a system layer — the user
+// can toggle its visibility but cannot rename, lock, delete, or draw onto it.
+export const DIMENSIONS_LAYER_ID = 'layer-dimensions';
+
+export function syncDimensionsLayer(proj) {
+  if (!proj || !proj.drawings) return proj;
+  const hasDims = proj.drawings.some(d => (d.dimensions || []).length > 0);
+  const layers = proj.layers || [];
+  const existing = layers.find(l => l.id === DIMENSIONS_LAYER_ID);
+  if (hasDims && !existing) {
+    proj.layers = [...layers, {
+      id: DIMENSIONS_LAYER_ID, name: 'Dimensions', color: '#a0c0e0',
+      visible: true, locked: false, system: true,
+    }];
+  } else if (!hasDims && existing) {
+    proj.layers = layers.filter(l => l.id !== DIMENSIONS_LAYER_ID);
+    if (proj.activeLayerId === DIMENSIONS_LAYER_ID) proj.activeLayerId = 'layer-lighting';
+  }
+  return proj;
+}
+
 // ── CAD drawing / plot (model space) ────────────────────────────────────────
 // UI calls these "Plots" to distinguish from Drawing (sheet) mode.
 export function makeDrawing(id, name) {
