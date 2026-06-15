@@ -127,6 +127,7 @@ function App() {
   const [showStudioSettings, setShowStudioSettings] = useState(false);
   const [showAppSettings, setShowAppSettings]       = useState(false);
   const [showCableReport, setShowCableReport]       = useState(false);
+  const [show3D, setShow3D]                         = useState(false);
   const [showEOSImport, setShowEOSImport]           = useState(false);
   const [showLicenseManager, setShowLicenseManager] = useState(false);
   const [showMyLicense, setShowMyLicense]           = useState(false);
