@@ -1017,6 +1017,7 @@ function App() {
                 onUngroup={handleUngroup}
                 onBulkUpdate={handleBulkUpdate}
                 structureStats={structureStats}
+                onDeleteSelected={handleDelete}
               />
             );
           })()}
