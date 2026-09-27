@@ -88,7 +88,7 @@ export default function LicenseGate({ children }) {
     setTrialDaysLeft(info.daysLeft);
     setLicense({ valid: true, features: info.features, trial: true, maxVersion: null });
     setStatus('trial');
-    ipcRenderer.send('license-features', { features: info.features });
+    ipcRenderer.send('license-features', { features: info.features, trial: true });
   }
 
   // Apply a verified license result, enforcing the minimum-version requirement.
@@ -99,12 +99,12 @@ export default function LicenseGate({ children }) {
       setLicense(result);
       setBlockedInfo({ minVersion: min });
       setStatus('blocked');
-      ipcRenderer.send('license-features', { features: [] });
+      ipcRenderer.send('license-features', { features: [], trial: false });
       return;
     }
     setLicense(result);
     setStatus('valid');
-    ipcRenderer.send('license-features', { features: result.features || [] });
+    ipcRenderer.send('license-features', { features: result.features || [], trial: false });
   }
 
   async function bootCheck() {
@@ -173,7 +173,7 @@ export default function LicenseGate({ children }) {
 
   function handleDeactivate() {
     ipcRenderer.invoke('license-clear-key');
-    ipcRenderer.send('license-features', { features: [] });
+    ipcRenderer.send('license-features', { features: [], trial: false });
     localStorage.removeItem('lplot_license_result');
     setLicense(null);
     setInputKey('');

@@ -54,8 +54,17 @@ export default function Toolbar({
   onAppSettings,
   onReportFixture, onReportChannel,
   features = [],
+  onLockedClick,
 }) {
   const has = (f) => features.includes(f);
+  // Features the license doesn't include are shown dimmed with a lock rather
+  // than hidden, so users can discover them. Clicking opens My License.
+  const lockedTitle = (name) => `${name} — not included in your license. Click to see your license details.`;
+  const LockedBtn = ({ icon, label, name }) => (
+    <button style={{ ...styles.btn, ...styles.locked }} title={lockedTitle(name || label)} onClick={onLockedClick}>
+      <span style={styles.icon}>{icon}</span><span style={styles.label}>🔒 {label}</span>
+    </button>
+  );
   const [snapMenu, setSnapMenu] = useState(false);
   const [snapAnchor, setSnapAnchor] = useState({ top: 0, left: 0 });
   const [barHeight, setBarHeight] = useState(DEFAULT_BAR_HEIGHT);
@@ -137,15 +146,19 @@ export default function Toolbar({
           <button title="CAD — place fixtures, pipes, lines"
             style={{ ...styles.modeBtn, ...(activeMode === 'cad' ? styles.modeBtnActive : {}) }}
             onClick={() => onSetMode('cad')}>CAD</button>
-          {has('cable_routing') && (
+          {has('cable_routing') ? (
             <button title="Cabling — place infrastructure and draw cables"
               style={{ ...styles.modeBtn, ...(activeMode === 'cable' ? styles.modeBtnActiveCable : {}) }}
               onClick={() => onSetMode('cable')}>Cable</button>
+          ) : (
+            <button title={lockedTitle('Cable routing mode')} style={{ ...styles.modeBtn, ...styles.locked }} onClick={onLockedClick}>🔒 Cable</button>
           )}
-          {has('sheet_editor') && (
+          {has('sheet_editor') ? (
             <button title="Drawing — compose viewports, annotations, title block"
               style={{ ...styles.modeBtn, ...(activeMode === 'sheet' ? styles.modeBtnActiveSheet : {}) }}
               onClick={() => onSetMode('sheet')}>Drawing</button>
+          ) : (
+            <button title={lockedTitle('Drawing sheet editor')} style={{ ...styles.modeBtn, ...styles.locked }} onClick={onLockedClick}>🔒 Drawing</button>
           )}
         </div>
 
@@ -254,42 +267,44 @@ export default function Toolbar({
                 </button>
               </div>
 
-              {(has('pdf_background') || has('patch_panel')) && (
-                <>
-                  <div style={styles.divider} />
-                  <div style={styles.group}>
-                    {has('pdf_background') && (
-                      <>
-                        <button data-hint="pdf" style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
-                          <span style={styles.icon}>📄</span><span style={styles.label}>PDF Bg</span>
-                        </button>
-                        <button data-hint="image" style={styles.btn} title="Place image" onClick={onImportImage}>
-                          <span style={styles.icon}>🖼</span><span style={styles.label}>Image</span>
-                        </button>
-                      </>
-                    )}
-                    {has('patch_panel') && (
-                      <button data-hint="patch" style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
-                        <span style={styles.icon}>⚡</span><span style={styles.label}>Patch</span>
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
+              <div style={styles.divider} />
+              <div style={styles.group}>
+                {has('pdf_background') ? (
+                  <>
+                    <button data-hint="pdf" style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
+                      <span style={styles.icon}>📄</span><span style={styles.label}>PDF Bg</span>
+                    </button>
+                    <button data-hint="image" style={styles.btn} title="Place image" onClick={onImportImage}>
+                      <span style={styles.icon}>🖼</span><span style={styles.label}>Image</span>
+                    </button>
+                  </>
+                ) : (
+                  <LockedBtn icon="📄" label="PDF Bg" name="PDF / image backgrounds" />
+                )}
+                {has('patch_panel') ? (
+                  <button data-hint="patch" style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
+                    <span style={styles.icon}>⚡</span><span style={styles.label}>Patch</span>
+                  </button>
+                ) : (
+                  <LockedBtn icon="⚡" label="Patch" name="DMX patch panel" />
+                )}
+              </div>
 
-              {has('reports') && (
-                <>
-                  <div style={styles.divider} />
-                  <div style={styles.group}>
+              <div style={styles.divider} />
+              <div style={styles.group}>
+                {has('reports') ? (
+                  <>
                     <button data-hint="fixtures" style={styles.btn} title="Fixture Schedule report" onClick={onReportFixture}>
                       <span style={styles.icon}>📋</span><span style={styles.label}>Fixtures</span>
                     </button>
                     <button data-hint="channels" style={styles.btn} title="Channel List report" onClick={onReportChannel}>
                       <span style={styles.icon}>🔢</span><span style={styles.label}>Channels</span>
                     </button>
-                  </div>
-                </>
-              )}
+                  </>
+                ) : (
+                  <LockedBtn icon="📋" label="Reports" name="Fixture & channel reports" />
+                )}
+              </div>
 
               <div style={styles.divider} />
               <div style={styles.group}>
@@ -339,10 +354,12 @@ export default function Toolbar({
                 <button data-hint="report" title="Cable Report" style={styles.btn} onClick={onShowCableReport}>
                   <span style={styles.icon}>📋</span><span style={styles.label}>Report</span>
                 </button>
-                {has('eos_import') && (
+                {has('eos_import') ? (
                   <button data-hint="eos" title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
                     <span style={styles.icon}>🎛</span><span style={styles.label}>EOS Import</span>
                   </button>
+                ) : (
+                  <LockedBtn icon="🎛" label="EOS Import" name="EOS patch import" />
                 )}
               </div>
 
@@ -459,6 +476,7 @@ const styles = {
   snapHint: { fontSize: 10, color: '#4a5568', marginTop: 8, paddingTop: 6, borderTop: '1px solid #0f3460', lineHeight: 1.4 },
   active:   { background: '#0f3460', border: '1px solid #00aaff', color: '#00aaff' },
   disabled: { opacity: 0.4, cursor: 'not-allowed' },
+  locked:   { opacity: 0.45, cursor: 'help' },
   icon:     { fontSize: 15, lineHeight: 1 },
   label:    { fontSize: 9, marginTop: 2, letterSpacing: '0.05em' },
   zoomLabel:{ color: '#a0aec0', fontSize: 11, minWidth: 38, textAlign: 'center' },

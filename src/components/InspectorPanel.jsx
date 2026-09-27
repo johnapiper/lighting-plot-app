@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-function Field({ label, value, onChange, readOnly, type = 'text', children }) {
+function Field({ label, value, onChange, readOnly, type = 'text', placeholder, title, children }) {
   return (
-    <div style={styles.field}>
+    <div style={styles.field} title={title}>
       <label style={styles.label}>{label}</label>
       {children || (
         <input
           style={{ ...styles.input, ...(readOnly ? styles.readOnly : {}) }}
-          value={value ?? ''} type={type}
+          value={value ?? ''} type={type} placeholder={placeholder}
           onChange={e => onChange && onChange(e.target.value)}
           readOnly={readOnly}
         />
@@ -16,25 +16,230 @@ function Field({ label, value, onChange, readOnly, type = 'text', children }) {
   );
 }
 
+// Numeric input that lets the user type freely and only parses / clamps on
+// Enter or blur. Escape reverts. ↑/↓ (or the mouse wheel while focused) step
+// the value; Shift ×10, Alt ×0.1. `value` null/undefined shows the
+// placeholder (used for "Mixed" in multi-select).
+function NumberField({ label, value, onCommit, min = -Infinity, max = Infinity, step = 1, decimals = 2, placeholder, title }) {
+  const fmt = v => (v == null || v === '' || isNaN(v)) ? '' : String(Number(Number(v).toFixed(decimals)));
+  const [draft, setDraft] = useState(fmt(value));
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef(null);
+  useEffect(() => { if (!focused) setDraft(fmt(value)); }, [value, focused]);
+
+  const trimmed = draft.trim();
+  const invalid = trimmed !== '' && !/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmed) && !/^[-+.]$/.test(trimmed);
+  const outOfRange = !invalid && trimmed !== '' && isFinite(Number(trimmed)) && (Number(trimmed) < min || Number(trimmed) > max);
+  const clamp = n => Math.max(min, Math.min(max, n));
+
+  function commitDraft() {
+    const n = Number(trimmed);
+    if (trimmed === '' || !isFinite(n) || invalid) { setDraft(fmt(value)); return; } // revert
+    const c = clamp(n);
+    setDraft(fmt(c));
+    if (c !== Number(value)) onCommit(c);
+  }
+  function stepBy(dir, e) {
+    const mult = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+    const base = isFinite(Number(trimmed)) && trimmed !== '' ? Number(trimmed) : (Number(value) || 0);
+    const c = clamp(Number((base + dir * step * mult).toFixed(decimals)));
+    setDraft(fmt(c));
+    onCommit(c);
+  }
+  // Wheel needs a non-passive listener to be able to preventDefault.
+  useEffect(() => {
+    const el = inputRef.current; if (!el) return;
+    const onWheel = (e) => {
+      if (document.activeElement !== el) return;
+      e.preventDefault();
+      stepBy(e.deltaY < 0 ? 1 : -1, e);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  });
+
+  return (
+    <div style={styles.field} title={title}>
+      <label style={styles.label}>{label}</label>
+      <input
+        ref={inputRef}
+        style={{ ...styles.input, ...(invalid || outOfRange ? styles.inputError : {}) }}
+        value={draft} inputMode="decimal" placeholder={placeholder}
+        onFocus={e => { setFocused(true); e.target.select(); }}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { setFocused(false); commitDraft(); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { commitDraft(); e.target.blur(); }
+          else if (e.key === 'Escape') { setDraft(fmt(value)); setFocused(false); e.target.blur(); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); stepBy(1, e); }
+          else if (e.key === 'ArrowDown') { e.preventDefault(); stepBy(-1, e); }
+          e.stopPropagation();
+        }}
+      />
+      {invalid && <div style={styles.errText}>Enter a number</div>}
+      {outOfRange && <div style={styles.errText}>Will be clamped to {min}–{max}</div>}
+    </div>
+  );
+}
+
 function parseDmx(str) {
   if (!str) return null;
-  const parts = str.split('/');
+  const parts = String(str).split('/');
   if (parts.length !== 2) return null;
   const u = parseInt(parts[0], 10), c = parseInt(parts[1], 10);
   if (isNaN(u) || isNaN(c)) return null;
   return { universe: u, channel: c };
 }
 
-function DmxField({ value, onChange }) {
-  function handleBlur(e) {
-    const raw = e.target.value.trim();
-    if (!raw) { onChange(''); return; }
-    const parsed = parseDmx(raw);
-    if (!parsed) { alert('DMX address must be Universe/Channel, e.g. 1/1'); return; }
-    if (parsed.channel < 1 || parsed.channel > 512) { alert('Channel must be 1–512'); return; }
-    onChange(`${parsed.universe}/${parsed.channel}`);
+function validateDmx(raw) {
+  if (!raw) return null;
+  const parsed = parseDmx(raw);
+  if (!parsed) return 'Use Universe/Channel, e.g. 1/1';
+  if (parsed.universe < 1) return 'Universe must be 1 or more';
+  if (parsed.channel < 1 || parsed.channel > 512) return 'Channel must be 1–512';
+  return null;
+}
+
+// DMX address: edited as a local draft, validated inline, committed on
+// Enter / blur only when valid. Escape reverts.
+function DmxField({ value, onChange, placeholder = 'e.g. 1/1' }) {
+  const [draft, setDraft] = useState(value ?? '');
+  const [focused, setFocused] = useState(false);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => { if (!focused) { setDraft(value ?? ''); setTouched(false); } }, [value, focused]);
+  const error = touched ? validateDmx(draft.trim()) : null;
+
+  function commitDraft() {
+    const raw = draft.trim();
+    setTouched(true);
+    if (validateDmx(raw)) return false;
+    const p = parseDmx(raw);
+    const next = p ? `${p.universe}/${p.channel}` : '';
+    if (next !== (value ?? '')) onChange(next);
+    setTouched(false);
+    return true;
   }
-  return <input style={styles.input} value={value ?? ''} onChange={e => onChange(e.target.value)} onBlur={handleBlur} placeholder="e.g. 1/1" />;
+  return (
+    <>
+      <input style={{ ...styles.input, ...(error ? styles.inputError : {}) }} value={draft} placeholder={placeholder}
+        onFocus={() => setFocused(true)}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { setFocused(false); commitDraft(); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { if (commitDraft()) e.target.blur(); }
+          else if (e.key === 'Escape') { setDraft(value ?? ''); setTouched(false); e.target.blur(); }
+          e.stopPropagation();
+        }} />
+      {error && <div style={styles.errText}>{error} — not saved</div>}
+    </>
+  );
+}
+
+// Common value across items, or undefined when they differ ("Mixed").
+function shared(items, key) {
+  if (!items.length) return undefined;
+  const first = items[0][key] ?? '';
+  return items.every(i => (i[key] ?? '') === first) ? first : undefined;
+}
+
+const ALIGN_BUTTONS = [
+  ['left', '⇤', 'Align left edges'], ['centerH', '↔', 'Align horizontal centres'], ['right', '⇥', 'Align right edges'],
+  ['top', '⤒', 'Align top edges'], ['centerV', '↕', 'Align vertical centres'], ['bottom', '⤓', 'Align bottom edges'],
+  ['distH', '⋯', 'Distribute horizontally (equal centre spacing)'], ['distV', '⋮', 'Distribute vertically (equal centre spacing)'],
+];
+
+function MultiSelectInspector({
+  selectedCount, selectedFixtures = [], layers, groupInfo, onGroup, onUngroup,
+  onBulkUpdate, onAlign, onPatchSequential, suggestStartAddress,
+}) {
+  const fx = selectedFixtures;
+  const [startAddr, setStartAddr] = useState('');
+  const [addrErr, setAddrErr] = useState(null);
+  const mixedText = key => { const v = shared(fx, key); return v === undefined ? { value: '', placeholder: 'Mixed' } : { value: v, placeholder: '' }; };
+  const rot = shared(fx, 'rotation');
+  const layer = shared(fx, 'layerId');
+  const hex = shared(fx, 'colourHex');
+
+  return (
+    <div style={styles.panel}>
+      <div style={styles.header}>{selectedCount} selected{fx.length && fx.length !== selectedCount ? ` · ${fx.length} fixtures` : ''}</div>
+
+      <div style={styles.section}>
+        {groupInfo ? (
+          <button style={styles.btnWide} onClick={onUngroup}>Ungroup ({groupInfo.memberCount} members) · Ctrl+G</button>
+        ) : (
+          <button style={styles.btnWide} onClick={onGroup}>Group · Ctrl+G</button>
+        )}
+      </div>
+
+      {onAlign && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>Align & distribute</div>
+          <div style={styles.alignGrid}>
+            {ALIGN_BUTTONS.map(([mode, icon, tip]) => (
+              <button key={mode} style={styles.alignBtn} title={tip} onClick={() => onAlign(mode)}
+                disabled={(mode === 'distH' || mode === 'distV') && selectedCount < 3}>{icon}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {onBulkUpdate && fx.length > 0 && (
+        <>
+          <div style={{ ...styles.sectionTitle, padding: '8px 10px 2px' }}>Shared fixture properties</div>
+          <Field label="Position" {...mixedText('position')} onChange={v => onBulkUpdate({ position: v })} />
+          <Field label="Colour (gel)" {...mixedText('colour')} onChange={v => onBulkUpdate({ colour: v })} />
+          <div style={styles.field}>
+            <label style={styles.label}>Colour swatch</label>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="color" value={hex || '#ffffff'}
+                style={{ width: 32, height: 24, padding: 0, border: '1px solid #0f3460', borderRadius: 3, cursor: 'pointer', background: 'none' }}
+                onChange={e => onBulkUpdate({ colourHex: e.target.value })} />
+              <span style={{ fontSize: 11, color: '#718096' }}>{hex === undefined ? 'Mixed' : (hex || 'None')}</span>
+            </div>
+          </div>
+          <Field label="Gobo" {...mixedText('gobo')} onChange={v => onBulkUpdate({ gobo: v })} />
+          <Field label="Purpose" {...mixedText('purpose')} onChange={v => onBulkUpdate({ purpose: v })} />
+          <NumberField label="Rotation°" value={rot === undefined ? null : (rot || 0)} placeholder="Mixed" step={15} decimals={1}
+            onCommit={v => onBulkUpdate({ rotation: v })} />
+          {layers?.length > 0 && (
+            <div style={styles.field}>
+              <label style={styles.label}>Layer</label>
+              <select style={styles.input} value={layer === undefined ? '__mixed' : (layer || '')}
+                onChange={e => { if (e.target.value !== '__mixed') onBulkUpdate({ layerId: e.target.value || null }); }}>
+                {layer === undefined && <option value="__mixed">Mixed</option>}
+                <option value="">— default —</option>
+                {layers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+          )}
+          {onPatchSequential && (
+            <div style={styles.field}>
+              <label style={styles.label}>Patch sequentially</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <input style={{ ...styles.input, flex: 1, ...(addrErr ? styles.inputError : {}) }}
+                  value={startAddr} placeholder={`start e.g. ${suggestStartAddress?.() || '1/1'}`}
+                  onFocus={() => { if (!startAddr && suggestStartAddress) setStartAddr(suggestStartAddress()); }}
+                  onChange={e => { setStartAddr(e.target.value); setAddrErr(null); }}
+                  onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') e.currentTarget.nextSibling?.click(); }} />
+                <button style={{ ...styles.btn, marginTop: 0 }}
+                  title="Assign consecutive DMX addresses (and channels) in plot order: top→bottom, left→right, stepping by each fixture's footprint"
+                  onClick={() => {
+                    const err = validateDmx(startAddr.trim()) || (!startAddr.trim() ? 'Enter a start address' : null);
+                    if (err) { setAddrErr(err); return; }
+                    onPatchSequential(startAddr.trim());
+                  }}>Apply</button>
+              </div>
+              {addrErr
+                ? <div style={styles.errText}>{addrErr}</div>
+                : <div style={styles.hintText}>Order: top→bottom, left→right. Free start suggested.</div>}
+            </div>
+          )}
+        </>
+      )}
+      <div style={{ ...styles.hintText, padding: '8px 10px' }}>Arrow keys nudge (Shift = grid, Alt = 1 mm) · Del removes</div>
+    </div>
+  );
 }
 
 function LayerField({ layerId, layers, onChange }) {
@@ -147,49 +352,19 @@ const statStyles = {
 
 export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
-  allFixtureTypes, dmxConflicts, selectedCount, layers,
-  groupInfo, onGroup, onUngroup, onBulkUpdate, structureStats, onDeleteSelected,
+  allFixtureTypes, dmxConflicts, selectedCount, selectedFixtures, layers,
+  groupInfo, onGroup, onUngroup, onBulkUpdate, onAlign, onPatchSequential, suggestStartAddress,
+  onAssignFreeAddress, onNextConflict, structureStats, onDeleteSelected,
 }) {
   if (!selected) {
     if (selectedCount > 1) {
       return (
-        <div style={styles.panel}>
-          <div style={styles.header}>Inspector</div>
-          <div style={styles.multi}>
-            <div style={{ marginBottom: 8 }}>{selectedCount} items selected</div>
-            {groupInfo ? (
-              <div style={{ marginBottom: 8 }}>
-                <span style={{ fontSize: 10, color: '#a0aec0' }}>Group ({groupInfo.memberCount} members)</span>
-                <br /><button style={{ ...styles.btn, marginTop: 4 }} onClick={onUngroup}>Ungroup</button>
-              </div>
-            ) : (
-              <div style={{ marginBottom: 8 }}>
-                <button style={styles.btn} onClick={onGroup}>Group (Ctrl+G)</button>
-              </div>
-            )}
-            {onBulkUpdate && (
-              <div style={{ borderTop: '1px solid #0f3460', paddingTop: 8 }}>
-                <div style={{ fontSize: 10, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Bulk Edit</div>
-                <div style={styles.field}>
-                  <label style={styles.label}>Colour</label>
-                  <input type="color" defaultValue="#ffffff"
-                    style={{ width: 32, height: 24, padding: 0, border: '1px solid #0f3460', borderRadius: 3, cursor: 'pointer', background: 'none' }}
-                    onChange={e => onBulkUpdate({ colourHex: e.target.value })} />
-                </div>
-                {layers?.length > 0 && (
-                  <div style={styles.field}>
-                    <label style={styles.label}>Layer</label>
-                    <select style={styles.input} defaultValue="" onChange={e => { if (e.target.value) onBulkUpdate({ layerId: e.target.value }); }}>
-                      <option value="">— apply layer —</option>
-                      {layers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
-            <div style={{ fontSize: 10, color: '#718096', marginTop: 4 }}>Del to remove</div>
-          </div>
-        </div>
+        <MultiSelectInspector
+          selectedCount={selectedCount} selectedFixtures={selectedFixtures} layers={layers}
+          groupInfo={groupInfo} onGroup={onGroup} onUngroup={onUngroup}
+          onBulkUpdate={onBulkUpdate} onAlign={onAlign}
+          onPatchSequential={onPatchSequential} suggestStartAddress={suggestStartAddress}
+        />
       );
     }
     return <div style={styles.panel}><div style={styles.header}>Inspector</div><div style={styles.empty}>Nothing selected</div></div>;
@@ -203,7 +378,20 @@ export default function InspectorPanel({
     return (
       <div style={styles.panel}>
         <div style={styles.header}>Fixture {f.locked && '🔒'}</div>
-        {conflict && <div style={styles.conflict}>⚠ DMX address conflict</div>}
+        {conflict && (
+          <div style={styles.conflict}>
+            <div>⚠ DMX address overlaps another fixture</div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              {onAssignFreeAddress && (
+                <button style={styles.conflictBtn} onClick={() => onAssignFreeAddress(f.id)}
+                  title="Move this fixture to the first free range in its universe">Use next free address</button>
+              )}
+              {onNextConflict && (
+                <button style={styles.conflictBtn} onClick={onNextConflict} title="Jump to the next conflicting fixture">Next ›</button>
+              )}
+            </div>
+          </div>
+        )}
         <Field label="Type" value={f.type} readOnly />
         {hasModes && (
           <Field label="DMX Mode">
@@ -227,10 +415,10 @@ export default function InspectorPanel({
         />
         <Field label="Gobo" value={f.gobo} onChange={v => onUpdateFixture(f.id, { gobo: v })} />
         <Field label="Purpose" value={f.purpose} onChange={v => onUpdateFixture(f.id, { purpose: v })} />
-        <Field label="Rotation°" value={f.rotation ?? 0} type="number" onChange={v => onUpdateFixture(f.id, { rotation: Number(v) })} />
-        <Field label="Tilt°" value={f.tiltAngle ?? 0} type="number" onChange={v => onUpdateFixture(f.id, { tiltAngle: Math.max(-89, Math.min(89, Number(v))) })}
+        <NumberField label="Rotation°" value={f.rotation ?? 0} step={15} decimals={1} onCommit={v => onUpdateFixture(f.id, { rotation: v })} />
+        <NumberField label="Tilt°" value={f.tiltAngle ?? 0} min={-89} max={89} step={5} decimals={1} onCommit={v => onUpdateFixture(f.id, { tiltAngle: v })}
           title="Degrees from vertical (0 = straight down). Affects beam footprint on plan." />
-        <Field label="Scale" value={(f.scale || 1).toFixed(2)} type="number" onChange={v => onUpdateFixture(f.id, { scale: Math.max(0.1, Number(v)) })} />
+        <NumberField label="Scale" value={f.scale || 1} min={0.1} max={20} step={0.1} decimals={2} onCommit={v => onUpdateFixture(f.id, { scale: v })} />
         <LayerField layerId={f.layerId} layers={layers} onChange={layerId => onUpdateFixture(f.id, { layerId })} />
         {/* Symbol override */}
         <Field label="Symbol">
@@ -292,8 +480,8 @@ export default function InspectorPanel({
       <div style={styles.panel}>
         <div style={styles.header}>Text {t.locked && '🔒'}</div>
         <Field label="Label" value={t.label} onChange={v => onUpdateText && onUpdateText(t.id, { label: v })} />
-        <Field label="Font Size" value={t.fontSize || 14} type="number" onChange={v => onUpdateText && onUpdateText(t.id, { fontSize: Number(v) })} />
-        <Field label="Rotation°" value={t.rotation ?? 0} type="number" onChange={v => onUpdateText && onUpdateText(t.id, { rotation: Number(v) })} />
+        <NumberField label="Font Size" value={t.fontSize || 14} min={1} max={500} decimals={1} onCommit={v => onUpdateText && onUpdateText(t.id, { fontSize: v })} />
+        <NumberField label="Rotation°" value={t.rotation ?? 0} step={15} decimals={1} onCommit={v => onUpdateText && onUpdateText(t.id, { rotation: v })} />
         <LayerField layerId={t.layerId} layers={layers} onChange={layerId => onUpdateText && onUpdateText(t.id, { layerId })} />
         <div style={{ padding: '6px 10px', fontSize: 10, color: '#718096' }}>Double-click on canvas to edit inline</div>
       </div>
@@ -306,8 +494,8 @@ export default function InspectorPanel({
       <div style={styles.panel}>
         <div style={styles.header}>Annotation {a.locked && '🔒'}</div>
         <Field label="Note text" value={a.label} onChange={v => onUpdateText && onUpdateText(a.id, { label: v })} />
-        <Field label="Width" value={a.w || 120} type="number" onChange={v => onUpdateObject && onUpdateObject(a.id, 'annotation', { w: Number(v) })} />
-        <Field label="Height" value={a.h || 50} type="number" onChange={v => onUpdateObject && onUpdateObject(a.id, 'annotation', { h: Number(v) })} />
+        <NumberField label="Width" value={a.w || 120} min={10} step={10} decimals={0} onCommit={v => onUpdateObject && onUpdateObject(a.id, 'annotation', { w: v })} />
+        <NumberField label="Height" value={a.h || 50} min={10} step={10} decimals={0} onCommit={v => onUpdateObject && onUpdateObject(a.id, 'annotation', { h: v })} />
         <LayerField layerId={a.layerId} layers={layers} onChange={layerId => onUpdateObject && onUpdateObject(a.id, 'annotation', { layerId })} />
         <div style={{ padding: '6px 10px', fontSize: 10, color: '#718096' }}>Double-click on canvas to edit inline. Drag corner to resize.</div>
       </div>
@@ -327,7 +515,7 @@ export default function InspectorPanel({
     return (
       <div style={styles.panel}>
         <div style={styles.header}>Rectangle {selected.locked && '🔒'}</div>
-        <Field label="Rotation°" value={selected.rotation ?? 0} type="number" onChange={v => onUpdateObject && onUpdateObject(selected.id, 'rect', { rotation: Number(v) })} />
+        <NumberField label="Rotation°" value={selected.rotation ?? 0} step={15} decimals={1} onCommit={v => onUpdateObject && onUpdateObject(selected.id, 'rect', { rotation: v })} />
         <LayerField layerId={selected.layerId} layers={layers} onChange={layerId => onUpdateObject && onUpdateObject(selected.id, 'rect', { layerId })} />
       </div>
     );
@@ -337,8 +525,8 @@ export default function InspectorPanel({
     return (
       <div style={styles.panel}>
         <div style={styles.header}>Image {selected.locked && '🔒'}</div>
-        <Field label="Rotation°" value={selected.rotation ?? 0} type="number" onChange={v => onUpdateObject && onUpdateObject(selected.id, 'image', { rotation: Number(v) })} />
-        <Field label="Opacity" value={selected.opacity ?? 1} type="number" onChange={v => onUpdateObject && onUpdateObject(selected.id, 'image', { opacity: Math.max(0, Math.min(1, Number(v))) })} />
+        <NumberField label="Rotation°" value={selected.rotation ?? 0} step={15} decimals={1} onCommit={v => onUpdateObject && onUpdateObject(selected.id, 'image', { rotation: v })} />
+        <NumberField label="Opacity" value={selected.opacity ?? 1} min={0} max={1} step={0.05} decimals={2} onCommit={v => onUpdateObject && onUpdateObject(selected.id, 'image', { opacity: v })} />
         <LayerField layerId={selected.layerId} layers={layers} onChange={layerId => onUpdateObject && onUpdateObject(selected.id, 'image', { layerId })} />
       </div>
     );
@@ -354,8 +542,8 @@ export default function InspectorPanel({
             ? 'Constrained: dragging an attached object keeps this measurement fixed.'
             : 'Reference dimension (not constrained).'}
         </div>
-        <Field label="Locked length (mm)" value={dm.value != null ? Math.round(dm.value) : ''} type="number"
-          onChange={v => { const n = Number(v); if (n > 0) onUpdateObject && onUpdateObject(dm.id, 'dimension', { value: n }); }} />
+        <NumberField label="Locked length (mm)" value={dm.value != null ? Math.round(dm.value) : null} min={1} step={10} decimals={0}
+          onCommit={v => onUpdateObject && onUpdateObject(dm.id, 'dimension', { value: v })} />
         <div style={styles.field}>
           <label style={styles.label}>Constraint</label>
           <button style={{ ...styles.btn, marginTop: 0 }}
@@ -380,7 +568,15 @@ const styles = {
   panel: { width: '100%', background: '#16213e', display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: '1 1 auto', minHeight: 180 },
   header: { padding: '8px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a90d9', borderBottom: '1px solid #0f3460', flexShrink: 0 },
   conflict: { padding: '6px 10px', background: '#3a1a1a', color: '#fc8181', fontSize: 11, borderBottom: '1px solid #7a2a2a' },
-  multi: { padding: '14px 12px', color: '#4a90d9', fontSize: 12, textAlign: 'center', lineHeight: 1.8 },
+  conflictBtn: { background: '#4a1a1a', border: '1px solid #e53e3e', borderRadius: 3, color: '#fc8181', cursor: 'pointer', fontSize: 10, padding: '2px 6px' },
+  section: { padding: '8px 10px', borderBottom: '1px solid #0f3460' },
+  sectionTitle: { fontSize: 9, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 },
+  btnWide: { width: '100%', background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 4, color: '#90cdf4', cursor: 'pointer', fontSize: 11, padding: '4px 8px' },
+  alignGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 },
+  alignBtn: { background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 3, color: '#a0aec0', cursor: 'pointer', fontSize: 13, padding: '3px 0' },
+  inputError: { borderColor: '#e53e3e' },
+  errText: { fontSize: 10, color: '#fc8181', marginTop: 2 },
+  hintText: { fontSize: 10, color: '#4a5568', marginTop: 2 },
   btn: { background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 11, padding: '3px 10px', marginTop: 4 },
   iconBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#718096', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 },
   empty: { padding: 16, color: '#4a5568', fontSize: 12, textAlign: 'center' },

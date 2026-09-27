@@ -3,6 +3,7 @@ import { FixturePreview } from '../fixtures/FixtureSymbol';
 import { parseGdtf } from '../library/GdtfImporter';
 import FixturePropertiesModal from './FixturePropertiesModal';
 import { useToolHints } from './ToolHint';
+import { toast } from './Toast';
 
 export default function LibraryPanel({
   builtinFixtures, customFixtures, pendingFixture,
@@ -34,7 +35,7 @@ export default function LibraryPanel({
         const ft = await parseGdtf(buf, file.name);
         onImportGdtf(ft);
       } catch (err) {
-        alert(`Failed to import ${file.name}:\n${err.message}`);
+        toast(`Failed to import ${file.name}: ${err.message}`, 'error');
       }
     }
     e.target.value = '';

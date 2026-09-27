@@ -11,6 +11,7 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { parseGdtf } from '../library/GdtfImporter';
+import { toast } from './Toast';
 
 const { ipcRenderer } = require('electron');
 
@@ -189,7 +190,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
   // ── Import ─────────────────────────────────────────────────────────────────
   async function handleImport(row) {
     const id = fRid(row);
-    if (id == null) { alert('Cannot determine revision ID for this fixture.'); return; }
+    if (id == null) { toast('Cannot determine revision ID for this fixture.', 'error'); return; }
     setImporting(String(id));
     try {
       const { status, body } = await httpsGet(`/apis/public/downloadFile.php?rid=${id}`);
@@ -202,7 +203,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
       setImporting('done:' + id);
       setTimeout(onClose, 900);
     } catch (err) {
-      alert(`Import failed: ${err.message}`);
+      toast(`GDTF import failed: ${err.message}`, 'error');
       setImporting(null);
     }
   }
@@ -220,7 +221,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
       const ft = await parseGdtf(ab, filename);
       setPreview({ row, ft });
     } catch (err) {
-      alert(`Preview failed: ${err.message}`);
+      toast(`Preview failed: ${err.message}`, 'error');
     } finally {
       setPrevBusy(null);
     }

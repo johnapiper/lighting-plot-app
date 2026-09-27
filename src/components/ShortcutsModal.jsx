@@ -24,6 +24,7 @@ const SECTIONS = [
       ['Ctrl + draw', 'Bypass snapping (free placement)'],
       ['Type length / angle', 'While drawing a line or pipe, then Enter'],
       ['Drag', 'Smart alignment guides snap to other objects'],
+      ['Arrow keys', 'Nudge selection 10 mm (Alt = 1 mm, Shift = one grid step)'],
     ],
   },
   {

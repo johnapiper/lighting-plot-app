@@ -27,6 +27,8 @@ import FixtureSwapModal from './components/FixtureSwapModal';
 import ProjectTemplatesDialog from './components/ProjectTemplatesDialog';
 import DrawingTemplatesModal from './components/DrawingTemplatesModal';
 import TransformModal from './components/TransformModal';
+import ToastHost, { toast } from './components/Toast';
+import RecoveryDialog from './components/RecoveryDialog';
 import { mirrorObject, translateObject, rotateObject, offsetObject, cloneWithId, objectBounds } from './canvas/transforms';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
@@ -147,11 +149,19 @@ function App() {
   const [currentFile, setCurrentFile]   = useState(null);
   const [dirty, setDirty]               = useState(false);
   const [updateBanner, setUpdateBanner] = useState(null); // { version }
+  const [recovery, setRecovery]         = useState(null); // { savedAt, currentFile, project } pending restore decision
 
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
   const activeDrawingRef   = useRef(null);
   const fitViewRef         = useRef(null); // Canvas exposes its fitView() here
+  const centerViewRef      = useRef(null); // Canvas exposes centerOn(x, y) here
+  const conflictCursorRef  = useRef(-1);
+  // Live mirrors for async IPC handlers (they can outlive the render that created them).
+  const dirtyRef       = useRef(false);
+  const currentFileRef = useRef(null);
+  const projectRef     = useRef(project);
+  dirtyRef.current = dirty; currentFileRef.current = currentFile; projectRef.current = project;
 
   // ── Derived state ────────────────────────────────────────────────────────
   const activeMode    = project.activeMode    || 'cad';
@@ -166,7 +176,7 @@ function App() {
     ...fixtureTypesData.map(f => customById[f.id] || f),
     ...(project.customFixtureTypes || []).filter(f => !fixtureTypesData.some(b => b.id === f.id)),
   ];
-  const dmxConflicts    = findDmxConflicts(activeDrawing?.fixtures || []);
+  const dmxConflicts    = [...findDmxConflicts(activeDrawing?.fixtures || [])];
 
   const allSelectedIds = [...new Set([...(selectedIds||[]), ...(selectedId ? [selectedId] : [])])];
   const groupInfo = (() => {
@@ -188,8 +198,39 @@ function App() {
   const isTrial    = !!license?.trial;
   const maxVersion = license?.maxVersion || null;
   function blockIfTrial() {
-    if (isTrial) { alert('Saving, loading, exporting and importing are disabled in trial mode. Activate a license to enable them.'); return true; }
+    if (isTrial) { toast('Saving, loading, exporting and importing are disabled in trial mode. Activate a license to enable them.', 'warn'); return true; }
     return false;
+  }
+  function requireFeature(feature, what) {
+    if (license?.hasFeature(feature)) return true;
+    toast(`Your license does not include ${what}.`, 'warn');
+    return false;
+  }
+
+  // ── Unsaved-changes guard ────────────────────────────────────────────────
+  // Resolves true when it's OK to replace/close the current project.
+  async function guardUnsaved() {
+    if (!dirtyRef.current || !ipcRenderer) return true;
+    const choice = await ipcRenderer.invoke('unsaved-prompt', {
+      fileName: currentFileRef.current?.split(/[\\/]/).pop(), trial: isTrial,
+    });
+    if (choice === 'cancel') return false;
+    if (choice === 'save') return saveInteractive();
+    ipcRenderer.invoke('autosave-clear'); // user explicitly discarded
+    return true;
+  }
+  async function saveInteractive() {
+    if (blockIfTrial()) return false;
+    let fp = currentFileRef.current;
+    if (!fp) fp = await ipcRenderer.invoke('save-as-dialog');
+    if (!fp) return false;
+    saveToFile(fp);
+    return true;
+  }
+  // Load a project that should count as "clean" (opened from disk / new).
+  function openProject(proj, filePath) {
+    suppressDirtyRef.current = true;
+    loadProject(proj); setCurrentFile(filePath || null); setDirty(false); clearSelection();
   }
 
   // ── IPC ──────────────────────────────────────────────────────────────────
@@ -206,25 +247,32 @@ function App() {
       'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
       'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
-      'menu-new':    () => { resetProject(); setCurrentFile(null); setDirty(false); clearSelection(); },
+      'menu-new':    async () => {
+        if (!(await guardUnsaved())) return;
+        suppressDirtyRef.current = true;
+        resetProject(); setCurrentFile(null); setDirty(false); clearSelection();
+      },
       'menu-save':   handleSave,
       'save-file-as': (e, fp) => saveToFile(fp),
-      'load-file':   (e, { filePath, data }) => {
+      'close-requested': async () => { if (await guardUnsaved()) ipcRenderer.send('close-confirmed'); },
+      'load-file':   async (e, { filePath, data }) => {
         if (blockIfTrial()) return;
-        try { loadProject(JSON.parse(data)); setCurrentFile(filePath); setDirty(false); clearSelection(); }
-        catch (err) { alert('Failed to load: ' + err.message); }
+        if (!(await guardUnsaved())) return;
+        try { openProject(JSON.parse(data), filePath); }
+        catch (err) { toast('Failed to load: ' + err.message, 'error'); }
       },
       'open-recent': async (e, fp) => {
         if (blockIfTrial()) return;
+        if (!(await guardUnsaved())) return;
         try {
           if (fp.toLowerCase().endsWith('.mvr')) {
             const buf = require('fs').readFileSync(fp);
             const proj = await importMVR(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
-            loadProject(proj); setCurrentFile(fp); setDirty(false); clearSelection();
+            openProject(proj, fp);
           } else {
-            loadProject(JSON.parse(require('fs').readFileSync(fp, 'utf8'))); setCurrentFile(fp); setDirty(false);
+            openProject(JSON.parse(require('fs').readFileSync(fp, 'utf8')), fp);
           }
-        } catch (err) { alert('Could not open: ' + err.message); }
+        } catch (err) { toast('Could not open: ' + err.message, 'error'); }
       },
       'menu-undo': undo, 'menu-redo': redo,
       'menu-delete': handleDelete,
@@ -233,35 +281,33 @@ function App() {
       'menu-fit':      () => { fitViewRef.current?.() || (setZoom(1) || setPan({ x: 100, y: 100 })); },
       'menu-toggle-grid':   () => setShowGrid(v => !v),
       'menu-toggle-rulers': () => setShowRulers(v => !v),
-      'menu-export-png':    () => { if (blockIfTrial()) return; license?.hasFeature('mvr_export') ? handleExportPNG() : alert('Your license does not include export features.'); },
-      'menu-export-svg':    () => { if (blockIfTrial()) return; license?.hasFeature('mvr_export') ? handleExportSVG() : alert('Your license does not include export features.'); },
-      'menu-report-instrument': () => license?.hasFeature('reports') ? setReport({ type: 'instrument' }) : alert('Your license does not include reports.'),
-      'menu-report-channel':    () => license?.hasFeature('reports') ? setReport({ type: 'channel' })     : alert('Your license does not include reports.'),
+      'menu-export-png':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportPNG(); },
+      'menu-export-svg':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportSVG(); },
+      'menu-report-instrument': () => { if (requireFeature('reports', 'reports')) setReport({ type: 'instrument' }); },
+      'menu-report-channel':    () => { if (requireFeature('reports', 'reports')) setReport({ type: 'channel' }); },
       'pdf-opened':   (e, { dataUrl }) => license?.hasFeature('pdf_background') ? handlePdfData(dataUrl) : null,
       'image-opened': (e, { dataUrl, fileName }) => license?.hasFeature('pdf_background') ? handleImageData(dataUrl, fileName) : null,
       'load-mvr-file': async (e, { filePath, buffer }) => {
         if (blockIfTrial()) return;
-        if (!license?.hasFeature('mvr_import')) { alert('Your license does not include MVR import.'); return; }
+        if (!requireFeature('mvr_import', 'MVR import')) return;
+        if (!(await guardUnsaved())) return;
         try {
-          const proj = await importMVR(buffer);
-          loadProject(proj);
-          setCurrentFile(filePath);
-          setDirty(false);
-          clearSelection();
-        } catch (err) { alert('Failed to import MVR: ' + err.message); }
+          openProject(await importMVR(buffer), filePath);
+        } catch (err) { toast('Failed to import MVR: ' + err.message, 'error'); }
       },
       'export-mvr-request': async (e, filePath) => {
         if (blockIfTrial()) return;
-        if (!license?.hasFeature('mvr_export')) { alert('Your license does not include MVR export.'); return; }
+        if (!requireFeature('mvr_export', 'MVR export')) return;
         try {
           const buf = await exportMVR(project, allFixtureTypes);
           ipcRenderer.send('save-mvr-data', { filePath, buffer: Array.from(buf) });
-        } catch (err) { alert('Failed to export MVR: ' + err.message); }
+          toast(`Exported ${filePath.split(/[\\/]/).pop()}`, 'success');
+        } catch (err) { toast('Failed to export MVR: ' + err.message, 'error'); }
       },
     };
     Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.on(ch, fn));
     return () => Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.removeListener(ch, fn));
-  }, [project, currentFile, undo, redo, license]);
+  }, [project, currentFile, undo, redo, license, isTrial]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -290,13 +336,26 @@ function App() {
         ipcRenderer?.send('toggle-dev-tools');
       }
       if (e.key === 'F3') { e.preventDefault(); setSnap(s => ({ ...s, enabled: !s.enabled })); }
+      // Arrow keys nudge the selection: 10 mm, Alt = 1 mm, Shift = one grid step.
+      const ARROWS = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
+      if (ARROWS[k] && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
+        e.preventDefault();
+        const step = e.shiftKey ? (project.meta?.gridSize || 20) : e.altKey ? 1 : 10;
+        handleNudge(ARROWS[k][0] * step, ARROWS[k][1] * step);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentFile, project, undo, redo, allSelectedIds, groupInfo, activeMode]);
+  }, [currentFile, project, undo, redo, allSelectedIds, groupInfo, activeMode, license]);
 
-  const isFirst = useRef(true);
-  useEffect(() => { if (isFirst.current) { isFirst.current = false; return; } setDirty(true); }, [project]);
+  // Opening / creating a project sets suppressDirtyRef so the resulting
+  // project change doesn't count as an edit.
+  const suppressDirtyRef = useRef(true);
+  useEffect(() => {
+    if (suppressDirtyRef.current) { suppressDirtyRef.current = false; return; }
+    setDirty(true);
+  }, [project]);
+  useEffect(() => { ipcRenderer?.send('set-dirty', dirty); }, [dirty]);
 
   // After interacting with the native menu / dialogs, the renderer's webContents
   // can lose keyboard focus, leaving text inputs un-clickable. Whenever an
@@ -311,30 +370,53 @@ function App() {
   useEffect(() => {
     if (!ipcRenderer) return;
     ipcRenderer.invoke('get-pref', 'autoSaveEnabled').then(v => { if (v !== null) setAutoSaveEnabled(v); });
-    // Recovery check on startup
-    ipcRenderer.invoke('autosave-read').then(data => {
-      if (!data) return;
-      if (window.confirm('An unsaved session was found. Restore it?')) {
-        try { loadProject(JSON.parse(data)); } catch {}
-      }
-      ipcRenderer.invoke('autosave-clear');
+    // Recovery check on startup. The file is kept until the user explicitly
+    // discards it (or saves), so a misclick can't lose it.
+    ipcRenderer.invoke('autosave-read').then(raw => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        // v2 wraps the project with metadata; older files are the bare project.
+        setRecovery(parsed?.autosaveVersion === 2 ? parsed : { savedAt: null, currentFile: null, project: parsed });
+      } catch { ipcRenderer.invoke('autosave-clear'); }
     });
   }, []);
 
-  // ── Auto-save interval (every 2 minutes when enabled & licensed) ────────
+  function handleRestoreRecovery() {
+    const rec = recovery; setRecovery(null);
+    try {
+      loadProject(rec.project); setCurrentFile(rec.currentFile || null); clearSelection();
+      toast('Recovered your unsaved work. Save it to keep it.', 'success');
+    } catch (err) { toast('Could not restore: ' + err.message, 'error'); }
+  }
+  function handleDiscardRecovery() {
+    setRecovery(null);
+    ipcRenderer?.invoke('autosave-clear');
+  }
+
+  // ── Auto-save: ~5 s after the last change, while there are unsaved edits ─
   useEffect(() => {
-    // No persistence in trial mode — everything stays temporary.
-    if (isTrial || !autoSaveEnabled || !ipcRenderer || !license?.hasFeature('auto_save')) return;
-    const id = setInterval(() => {
-      ipcRenderer.invoke('autosave-write', JSON.stringify(project));
-    }, 2 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [project, autoSaveEnabled, license]);
+    // No persistence in trial mode — everything stays temporary. Paused while a
+    // recovery decision is pending so it can't overwrite the recovered copy.
+    if (isTrial || !autoSaveEnabled || !ipcRenderer || !license?.hasFeature('auto_save') || !dirty || recovery) return;
+    const id = setTimeout(() => {
+      ipcRenderer.invoke('autosave-write', JSON.stringify({
+        autosaveVersion: 2, savedAt: new Date().toISOString(), currentFile, project,
+      }));
+    }, 5000);
+    return () => clearTimeout(id);
+  }, [project, dirty, currentFile, autoSaveEnabled, license, recovery]);
 
 
   function clearSelection() { setSelectedId(null); setSelectedObj(null); setSelectedIds([]); }
-  function handleSave() { if (blockIfTrial()) return; if (currentFile) saveToFile(currentFile); else if (ipcRenderer) ipcRenderer.send('save-as-request'); }
-  function saveToFile(fp) { if (blockIfTrial()) return; if (!fp || !ipcRenderer) return; ipcRenderer.send('save-data', { filePath: fp, data: JSON.stringify(project, null, 2) }); setCurrentFile(fp); setDirty(false); }
+  function handleSave() { saveInteractive(); }
+  function saveToFile(fp) {
+    if (blockIfTrial()) return; if (!fp || !ipcRenderer) return;
+    ipcRenderer.send('save-data', { filePath: fp, data: JSON.stringify(projectRef.current, null, 2) });
+    setCurrentFile(fp); setDirty(false);
+    ipcRenderer.invoke('autosave-clear'); // saved copy is now the source of truth
+    toast(`Saved ${fp.split(/[\\/]/).pop()}`, 'success', { duration: 2000 });
+  }
   function handleSelect(obj) { setSelectedId(obj?.id||null); setSelectedObj(obj||null); if (obj) setSelectedIds([]); }
   function handleMultiSelect(ids) { setSelectedIds(ids); setSelectedId(null); setSelectedObj(null); }
 
@@ -354,12 +436,12 @@ function App() {
     clearSelection();
   }
 
-  function commitToActiveDrawing(updater, label) {
+  function commitToActiveDrawing(updater, label, opts) {
     commit(proj => {
       const d = proj.drawings.find(d => d.id === proj.activeDrawingId) || proj.drawings[0];
       if (d) updater(d);
       return proj;
-    }, label);
+    }, label, opts);
   }
 
   // ── Mode ─────────────────────────────────────────────────────────────────
@@ -397,7 +479,7 @@ function App() {
         const f = d.fixtures?.find(f => f.id === id);
         if (f) Object.assign(f, fields);
       });
-    }, `Edit ${allSelectedIds.length} fixtures`);
+    }, `Edit ${allSelectedIds.length} fixtures`, coalesce('bulk', allSelectedIds.join(','), fields));
   }
 
   // Build a short "Edit X" label from the changed field names.
@@ -405,28 +487,32 @@ function App() {
     const keys = Object.keys(fields || {});
     return keys.length ? `Edit ${noun} ${keys[0]}` : `Edit ${noun}`;
   }
+  // Repeated edits to the same field(s) of the same object merge into one undo step.
+  function coalesce(noun, id, fields) {
+    return { coalesceKey: `${noun}:${id}:${Object.keys(fields || {}).sort().join(',')}` };
+  }
 
   // ── Object updates ───────────────────────────────────────────────────────
   function handleUpdateFixtureInstance(id, rawFields) {
     const cur = activeDrawing?.fixtures?.find(f => f.id === id);
     const fields = syncFields(rawFields, cur);
-    commitToActiveDrawing(d => { const f = d.fixtures.find(f => f.id === id); if (f) Object.assign(f, fields); }, editLabel('fixture', rawFields));
+    commitToActiveDrawing(d => { const f = d.fixtures.find(f => f.id === id); if (f) Object.assign(f, fields); }, editLabel('fixture', rawFields), coalesce('fixture', id, rawFields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdatePipe(id, fields) {
-    commitToActiveDrawing(d => { const p = d.pipes.find(p => p.id === id); if (p) Object.assign(p, fields); }, editLabel('pipe', fields));
+    commitToActiveDrawing(d => { const p = d.pipes.find(p => p.id === id); if (p) Object.assign(p, fields); }, editLabel('pipe', fields), coalesce('pipe', id, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateText(id, fields) {
     commitToActiveDrawing(d => {
       const t = d.texts.find(t => t.id === id); if (t) Object.assign(t, fields);
-    }, editLabel('text', fields));
+    }, editLabel('text', fields), coalesce('text', id, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateObject(id, kind, fields) {
-    const arrMap = { line:'lines', rect:'rectangles', image:'images', dimension:'dimensions' };
+    const arrMap = { line:'lines', rect:'rectangles', image:'images', dimension:'dimensions', annotation:'annotations' };
     const arr = arrMap[kind]; if (!arr) return;
-    commitToActiveDrawing(d => { const obj = (d[arr]||[]).find(o => o.id === id); if (obj) Object.assign(obj, fields); }, editLabel(kind, fields));
+    commitToActiveDrawing(d => { const obj = (d[arr]||[]).find(o => o.id === id); if (obj) Object.assign(obj, fields); }, editLabel(kind, fields), coalesce(kind, id, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
 
@@ -434,15 +520,113 @@ function App() {
     commitToActiveDrawing(d => {
       const item = (d.infrastructure||[]).find(i => i.id === id);
       if (item) Object.assign(item, fields);
-    }, editLabel('infrastructure', fields));
+    }, editLabel('infrastructure', fields), coalesce('infra', id, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
   }
   function handleUpdateCable(id, fields) {
     commitToActiveDrawing(d => {
       const cable = (d.cables||[]).find(c => c.id === id);
       if (cable) Object.assign(cable, fields);
-    }, editLabel('cable', fields));
+    }, editLabel('cable', fields), coalesce('cable', id, fields));
     setSelectedObj(prev => prev?.id === id ? { ...prev, ...fields } : prev);
+  }
+
+  // ── Nudge (arrow keys) ───────────────────────────────────────────────────
+  function handleNudge(dx, dy) {
+    if (!canEditCanvas || !allSelectedIds.length) return;
+    const layers = project.layers || [];
+    const layerLocked = id => !!layers.find(l => l.id === id)?.locked;
+    const selSet = new Set(allSelectedIds);
+    let movedAny = false;
+    commitToActiveDrawing(d => {
+      const movedPipes = new Set();
+      allSelectedIds.forEach(id => {
+        const f = findObjKind(d, id); if (!f) return;
+        if (f.obj.locked || layerLocked(f.obj.layerId)) return;
+        const i = d[f.arrName].findIndex(o => o.id === id);
+        d[f.arrName][i] = translateObject(f.obj, f.kind, dx, dy);
+        movedAny = true;
+        if (f.kind === 'pipe') movedPipes.add(id);
+      });
+      // Fixtures hung on a nudged pipe travel with it.
+      (d.fixtures || []).forEach(fx => {
+        if (movedPipes.has(fx.pipeId) && !selSet.has(fx.id) && !fx.locked) { fx.x += dx; fx.y += dy; }
+      });
+    }, 'Nudge selection', { coalesceKey: `nudge:${allSelectedIds.join(',')}` });
+    setSelectedObj(prev => (prev && selSet.has(prev.id) && !prev.locked && !layerLocked(prev.layerId))
+      ? { ...translateObject(prev, prev.kind, dx, dy), kind: prev.kind } : prev);
+    return movedAny;
+  }
+
+  // ── DMX conflict navigation / fixing ─────────────────────────────────────
+  function selectFixtureOnCanvas(f) {
+    handleSelect({ kind: 'fixture', ...f });
+    centerViewRef.current?.(f.x, f.y);
+  }
+  function handleNextConflict() {
+    const byAddr = (activeDrawing?.fixtures || [])
+      .filter(f => dmxConflicts.includes(f.id))
+      .sort((a, b) => {
+        const pa = parseDmx(a.dmxAddress), pb = parseDmx(b.dmxAddress);
+        return (pa.universe - pb.universe) || (pa.channel - pb.channel);
+      });
+    if (!byAddr.length) return;
+    conflictCursorRef.current = (conflictCursorRef.current + 1) % byAddr.length;
+    selectFixtureOnCanvas(byAddr[conflictCursorRef.current]);
+  }
+  function footprintOf(f) {
+    const t = allFixtureTypes.find(t => t.id === f.fixtureTypeId);
+    const mode = t?.modes?.find(m => m.name === (f.dmxMode || t.defaultMode)) || t?.modes?.[0];
+    return f.dmxChannelCount || mode?.channelCount || (typeof t?.channels === 'number' ? t.channels : 0) || 1;
+  }
+  // First gap that fits `size` channels, starting in `startUniverse`.
+  function findFreeAddress(size, startUniverse, excludeIds = new Set(), extraTaken = []) {
+    const taken = {};
+    [...(activeDrawing?.fixtures || []).filter(f => !excludeIds.has(f.id)).map(f => {
+      const p = parseDmx(f.dmxAddress); return p && { u: p.universe, s: p.channel, e: p.channel + footprintOf(f) - 1 };
+    }), ...extraTaken].forEach(r => { if (r) (taken[r.u] = taken[r.u] || []).push(r); });
+    for (let u = startUniverse; u < startUniverse + 64; u++) {
+      const ranges = (taken[u] || []).sort((a, b) => a.s - b.s);
+      let c = 1;
+      for (const r of ranges) { if (c + size - 1 < r.s) break; c = Math.max(c, r.e + 1); }
+      if (c + size - 1 <= 512) return { universe: u, channel: c };
+    }
+    return null;
+  }
+  function handleAssignFreeAddress(id) {
+    const f = activeDrawing?.fixtures?.find(f => f.id === id); if (!f) return;
+    const cur = parseDmx(f.dmxAddress);
+    const free = findFreeAddress(footprintOf(f), cur?.universe || 1, new Set([id]));
+    if (!free) { toast('No free DMX range found.', 'error'); return; }
+    handleUpdateFixtureInstance(id, { dmxAddress: `${free.universe}/${free.channel}` });
+    toast(`Moved to ${free.universe}/${free.channel}`, 'success', { duration: 2500 });
+  }
+
+  // ── Multi-select fixture numbering ───────────────────────────────────────
+  // Plot reading order: rows top→bottom (100 mm bands), then left→right.
+  function selectedFixturesInReadingOrder() {
+    const sel = new Set(allSelectedIds);
+    return (activeDrawing?.fixtures || []).filter(f => sel.has(f.id))
+      .sort((a, b) => (Math.round(a.y / 100) - Math.round(b.y / 100)) || (a.x - b.x));
+  }
+  // Channel and DMX address are kept in sync (see syncFields), so sequential
+  // patching sets both, stepping by each fixture's channel footprint.
+  function handlePatchSequential(startAddr) {
+    const p = parseDmx(startAddr);
+    if (!p || p.channel < 1 || p.channel > 512) { toast('Start address must be Universe/Channel, e.g. 1/1', 'error'); return; }
+    const ordered = selectedFixturesInReadingOrder();
+    let u = p.universe, c = p.channel;
+    const assign = new Map();
+    for (const f of ordered) {
+      const size = footprintOf(f);
+      if (c + size - 1 > 512) { u++; c = 1; }
+      assign.set(f.id, `${u}/${c}`);
+      c += size;
+    }
+    commitToActiveDrawing(d => {
+      (d.fixtures || []).forEach(f => { if (assign.has(f.id)) Object.assign(f, syncFields({ dmxAddress: assign.get(f.id) }, f)); });
+    }, `Patch ${ordered.length} fixtures from ${startAddr}`);
+    toast(`Patched ${ordered.length} fixtures from ${p.universe}/${p.channel}`, 'success', { duration: 2500 });
   }
   function handleDeleteCable(id) {
     commitToActiveDrawing(d => { d.cables = (d.cables||[]).filter(c => c.id !== id); });
@@ -514,7 +698,7 @@ function App() {
     try {
       const { dataUrl: img, w, h } = await renderPdfToDataUrl(dataUrl);
       commitToActiveDrawing(d => { d.pdfBackground = { dataUrl: img, x: 0, y: 0, w, h, opacity: 0.4, layerId: 'layer-bg' }; });
-    } catch (err) { alert('Failed to render PDF: ' + err.message); }
+    } catch (err) { toast('Failed to render PDF: ' + err.message, 'error'); }
   }
 
   // ── Images ────────────────────────────────────────────────────────────────
@@ -870,6 +1054,7 @@ function App() {
         onReportFixture={() => license?.hasFeature('reports') ? setReport({ type: 'instrument' }) : null}
         onReportChannel={() => license?.hasFeature('reports') ? setReport({ type: 'channel' }) : null}
         features={license?.license?.features || []}
+        onLockedClick={() => setShowMyLicense(true)}
       />
 
       <div style={styles.main}>
@@ -913,7 +1098,8 @@ function App() {
               animating={animating}
               activeMode={activeMode}
               fitRef={fitViewRef}
-              dmxConflicts={[...dmxConflicts]}
+              centerRef={centerViewRef}
+              dmxConflicts={dmxConflicts}
               onSwapFixture={(canEditCanvas && license?.hasFeature('fixture_swap')) ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
               canEdit={canEditCanvas}
@@ -1012,13 +1198,24 @@ function App() {
                 onUpdateText={handleUpdateText}
                 onUpdateObject={handleUpdateObject}
                 allFixtureTypes={allFixtureTypes}
-                dmxConflicts={[...dmxConflicts]}
+                dmxConflicts={dmxConflicts}
                 selectedCount={selectedIds.length}
+                selectedFixtures={(activeDrawing?.fixtures || []).filter(f => selectedIds.includes(f.id))}
                 layers={project.layers||[]}
                 groupInfo={groupInfo}
                 onGroup={handleGroup}
                 onUngroup={handleUngroup}
-                onBulkUpdate={handleBulkUpdate}
+                onBulkUpdate={canUseLibrary ? handleBulkUpdate : null}
+                onAlign={canEditCanvas ? handleAlign : null}
+                onPatchSequential={canUseLibrary ? handlePatchSequential : null}
+                suggestStartAddress={() => {
+                  const sel = new Set(selectedIds);
+                  const size = (activeDrawing?.fixtures || []).filter(f => sel.has(f.id)).reduce((n, f) => n + footprintOf(f), 0);
+                  const free = findFreeAddress(Math.min(size, 512), 1, sel);
+                  return free ? `${free.universe}/${free.channel}` : '1/1';
+                }}
+                onAssignFreeAddress={handleAssignFreeAddress}
+                onNextConflict={dmxConflicts.length > 1 ? handleNextConflict : null}
                 structureStats={structureStats}
                 onDeleteSelected={handleDelete}
               />
@@ -1053,7 +1250,10 @@ function App() {
             {conflictCount > 0 && (
               <>
                 <span style={styles.statusSep}>|</span>
-                <span style={{ ...styles.statusItem, color: '#fc8181' }}>DMX conflicts: <strong>{conflictCount}</strong></span>
+                <button style={styles.conflictBtn} onClick={handleNextConflict}
+                  title="Jump to the next fixture with an overlapping DMX address (click again to cycle)">
+                  ⚠ DMX conflicts: <strong>{conflictCount}</strong> — show next ›
+                </button>
               </>
             )}
             <span style={styles.statusSep}>|</span>
@@ -1216,6 +1416,10 @@ function App() {
           }}
         />
       )}
+      {recovery && (
+        <RecoveryDialog recovery={recovery} onRestore={handleRestoreRecovery} onDiscard={handleDiscardRecovery} />
+      )}
+      <ToastHost />
     </div>
   );
 }
@@ -1238,5 +1442,6 @@ const styles = {
   statusItem: { color: '#a0aec0' },
   statusSep: { color: '#2d3748' },
   statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px' },
+  conflictBtn: { background:'#3a1a1a', border:'1px solid #7a2a2a', borderRadius:3, color:'#fc8181', cursor:'pointer', fontSize:11, padding:'1px 8px' },
   statusSelect: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
 };

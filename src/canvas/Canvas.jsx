@@ -47,6 +47,7 @@ export default function Canvas({
   animating,
   activeMode = 'cad',
   fitRef,
+  centerRef,
   dmxConflicts = [],
   onSwapFixture,
   onDuplicateAlongPath,
@@ -1370,6 +1371,18 @@ export default function Canvas({
 
   // Expose fitView to parent via ref
   useEffect(() => { if (fitRef) fitRef.current = fitView; });
+
+  // Pan (zooming in if very far out) so a world point sits at the viewport centre.
+  function centerOn(x, y) {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const ro = showRulers ? RULER_SIZE : 0;
+    const z = Math.max(zoom, 0.5);
+    const vpW = svgEl.clientWidth - ro, vpH = svgEl.clientHeight - ro;
+    if (z !== zoom) onZoomChange(z);
+    onPanChange({ x: vpW / 2 - x * z, y: vpH / 2 - y * z });
+  }
+  useEffect(() => { if (centerRef) centerRef.current = centerOn; });
 
   // ─── Copy / Paste / Duplicate ─────────────────────────────────────────
   function copySelection(ids) {

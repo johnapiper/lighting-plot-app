@@ -7,14 +7,19 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
   const [scale,      setScale]      = useState(String(meta?.scale      ?? 50));
   const [title,      setTitle]      = useState(meta?.title ?? '');
 
+  const gh = parseFloat(gridHeight);
+  const rh = parseFloat(rigHeight);
+  const errors = {
+    gridHeight: isNaN(gh) || gh <= 0 ? 'Must be a positive number' : null,
+    rigHeight:  isNaN(rh) || rh <= 0 ? 'Must be a positive number'
+              : (!isNaN(gh) && rh > gh ? 'Must be ≤ grid height' : null),
+  };
+  const hasErrors = Object.values(errors).some(Boolean);
+
   function handleSave() {
-    const gh = parseFloat(gridHeight);
-    const rh = parseFloat(rigHeight);
+    if (hasErrors) return;
     const gs = parseInt(gridSize, 10);
     const sc = parseInt(scale, 10);
-    if (isNaN(gh) || gh <= 0) { alert('Grid height must be a positive number'); return; }
-    if (isNaN(rh) || rh <= 0) { alert('Rig height must be a positive number'); return; }
-    if (rh > gh) { alert('Rig height must be ≤ grid height'); return; }
     onSave({ gridHeight: gh, rigHeight: rh, gridSize: isNaN(gs) ? 1372 : gs, scale: isNaN(sc) ? 50 : sc, title });
   }
 
@@ -40,6 +45,7 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
               value={gridHeight}
               onChange={setGridHeight}
               type="number"
+              error={errors.gridHeight}
               hint="Height of the lighting grid / ceiling void (default 6000mm = 6m)"
             />
             <Field
@@ -47,6 +53,7 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
               value={rigHeight}
               onChange={setRigHeight}
               type="number"
+              error={errors.rigHeight}
               hint="Trim height of trusses / bar hangs (default 5500mm = 5.5m)"
             />
             <div style={styles.note}>
@@ -58,7 +65,9 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
 
         <div style={styles.footer}>
           <button style={styles.cancelBtn} onClick={onClose}>Cancel</button>
-          <button style={styles.saveBtn}   onClick={handleSave}>Save Settings</button>
+          <button style={{ ...styles.saveBtn, ...(hasErrors ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }}
+            disabled={hasErrors} title={hasErrors ? 'Fix the highlighted fields first' : undefined}
+            onClick={handleSave}>Save Settings</button>
         </div>
       </div>
     </div>
@@ -77,17 +86,18 @@ function Section({ title, children }) {
   );
 }
 
-function Field({ label, value, onChange, type = 'text', hint }) {
+function Field({ label, value, onChange, type = 'text', hint, error }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <label style={{ display: 'block', fontSize: 11, color: '#a0aec0', marginBottom: 3 }}>{label}</label>
       <input
         type={type}
-        style={{ width: '100%', background: '#0d1b2a', border: '1px solid #0f3460',
+        style={{ width: '100%', background: '#0d1b2a', border: `1px solid ${error ? '#e53e3e' : '#0f3460'}`,
           borderRadius: 4, color: '#e0e0e0', fontSize: 13, padding: '6px 8px', outline: 'none', boxSizing: 'border-box' }}
         value={value}
         onChange={e => onChange(e.target.value)}
       />
+      {error && <div style={{ fontSize: 10, color: '#fc8181', marginTop: 3 }}>{error}</div>}
       {hint && <div style={{ fontSize: 10, color: '#718096', marginTop: 3 }}>{hint}</div>}
     </div>
   );

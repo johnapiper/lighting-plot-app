@@ -14,8 +14,20 @@ try {
 
 let mainWindow;
 let currentLicenseFeatures = [];
+let currentIsTrial = false;
+let rendererDirty = false;   // renderer reports unsaved changes via 'set-dirty'
+let forceClose = false;      // set once the renderer has resolved unsaved changes
+
+const hasFeature = (f) => currentLicenseFeatures.includes(f);
+// Menu label suffix + enabled flag for license-gated items.
+function gated(label, feature, { trialBlocked = true } = {}) {
+  if (trialBlocked && currentIsTrial) return { label: `${label}  (not available in trial)`, enabled: false };
+  if (feature && !hasFeature(feature)) return { label: `${label}  🔒 not in your license`, enabled: false };
+  return { label, enabled: true };
+}
 
 function createWindow() {
+  forceClose = false; rendererDirty = false;
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -28,6 +40,14 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+
+  // Unsaved-changes guard: hand the decision to the renderer, which shows
+  // Save / Don't Save / Cancel and replies with 'close-confirmed'.
+  mainWindow.on('close', (e) => {
+    if (forceClose || !rendererDirty) return;
+    e.preventDefault();
+    mainWindow.webContents.send('close-requested');
+  });
 
   // Block the DevTools keyboard shortcuts (Ctrl/Cmd+Shift+I, F12, Ctrl+Shift+J/C)
   // unless the license grants the dev_tools feature.
@@ -72,17 +92,17 @@ function buildMenu() {
       label: 'File',
       submenu: [
         { label: 'New', accelerator: 'CmdOrCtrl+N', click: () => mainWindow.webContents.send('menu-new') },
-        { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: menuOpen },
+        { ...gated('Open…'), accelerator: 'CmdOrCtrl+O', click: menuOpen },
         { type: 'separator' },
-        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => mainWindow.webContents.send('menu-save') },
-        { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: menuSaveAs },
+        { ...gated('Save'), accelerator: 'CmdOrCtrl+S', click: () => mainWindow.webContents.send('menu-save') },
+        { ...gated('Save As…'), accelerator: 'CmdOrCtrl+Shift+S', click: menuSaveAs },
         { type: 'separator' },
-        { label: 'Recent Files', submenu: recentMenuItems },
+        { label: 'Recent Files', submenu: recentMenuItems, enabled: !currentIsTrial },
         { type: 'separator' },
-        { label: 'Export PNG…', click: () => mainWindow.webContents.send('menu-export-png') },
-        { label: 'Export SVG…', click: () => mainWindow.webContents.send('menu-export-svg') },
-        { label: 'Export MVR…', click: menuExportMVR },
-        { label: 'Import MVR…', click: menuOpenMVR },
+        { ...gated('Export PNG…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-png') },
+        { ...gated('Export SVG…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-svg') },
+        { ...gated('Export MVR…', 'mvr_export'), click: menuExportMVR },
+        { ...gated('Import MVR…', 'mvr_import'), click: menuOpenMVR },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -296,9 +316,44 @@ ipcMain.on('set-title', (event, title) => {
 
 ipcMain.handle('get-app-version', () => app.getVersion());
 
-ipcMain.on('license-features', (event, { features }) => {
+ipcMain.on('license-features', (event, { features, trial }) => {
   currentLicenseFeatures = features || [];
+  if (trial !== undefined) currentIsTrial = !!trial;
   buildMenu();
+});
+
+// ── Unsaved-changes handling ─────────────────────────────────────────────
+ipcMain.on('set-dirty', (event, dirty) => { rendererDirty = !!dirty; });
+ipcMain.on('close-confirmed', () => {
+  forceClose = true;
+  mainWindow?.close();
+});
+// Returns 'save' | 'discard' | 'cancel'.
+ipcMain.handle('unsaved-prompt', async (event, { fileName, trial }) => {
+  const name = fileName || 'Untitled';
+  const buttons = trial ? ['Discard Changes', 'Cancel'] : ['Save', "Don't Save", 'Cancel'];
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Unsaved changes',
+    message: `Do you want to save the changes to "${name}"?`,
+    detail: trial
+      ? 'Saving is disabled in trial mode. Your changes will be lost.'
+      : "Your changes will be lost if you don't save them.",
+    buttons,
+    defaultId: 0,
+    cancelId: buttons.length - 1,
+    noLink: true,
+  });
+  if (trial) return response === 0 ? 'discard' : 'cancel';
+  return ['save', 'discard', 'cancel'][response];
+});
+// Save-as dialog that returns the chosen path (used when saving before close/new).
+ipcMain.handle('save-as-dialog', async () => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    filters: [{ name: 'Lighting Plot', extensions: ['lightplot'] }],
+    defaultPath: 'untitled.lightplot',
+  });
+  return result.canceled ? null : result.filePath;
 });
 
 ipcMain.on('toggle-dev-tools', () => { mainWindow?.webContents.toggleDevTools(); });
