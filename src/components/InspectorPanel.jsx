@@ -25,6 +25,9 @@ function NumberField({ label, value, onCommit, min = -Infinity, max = Infinity, 
   const [draft, setDraft] = useState(fmt(value));
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
+  // Set on Escape so the blur that follows skips its commit — the blur
+  // handler still sees the typed draft because setDraft hasn't re-rendered yet.
+  const cancelledRef = useRef(false);
   useEffect(() => { if (!focused) setDraft(fmt(value)); }, [value, focused]);
 
   const trimmed = draft.trim();
@@ -67,10 +70,14 @@ function NumberField({ label, value, onCommit, min = -Infinity, max = Infinity, 
         value={draft} inputMode="decimal" placeholder={placeholder}
         onFocus={e => { setFocused(true); e.target.select(); }}
         onChange={e => setDraft(e.target.value)}
-        onBlur={() => { setFocused(false); commitDraft(); }}
+        onBlur={() => {
+          setFocused(false);
+          if (cancelledRef.current) { cancelledRef.current = false; return; }
+          commitDraft();
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter') { commitDraft(); e.target.blur(); }
-          else if (e.key === 'Escape') { setDraft(fmt(value)); setFocused(false); e.target.blur(); }
+          else if (e.key === 'Escape') { cancelledRef.current = true; setDraft(fmt(value)); setFocused(false); e.target.blur(); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); stepBy(1, e); }
           else if (e.key === 'ArrowDown') { e.preventDefault(); stepBy(-1, e); }
           e.stopPropagation();
@@ -106,6 +113,7 @@ function DmxField({ value, onChange, placeholder = 'e.g. 1/1' }) {
   const [draft, setDraft] = useState(value ?? '');
   const [focused, setFocused] = useState(false);
   const [touched, setTouched] = useState(false);
+  const cancelledRef = useRef(false); // Escape → skip the commit on the following blur
   useEffect(() => { if (!focused) { setDraft(value ?? ''); setTouched(false); } }, [value, focused]);
   const error = touched ? validateDmx(draft.trim()) : null;
 
@@ -124,10 +132,14 @@ function DmxField({ value, onChange, placeholder = 'e.g. 1/1' }) {
       <input style={{ ...styles.input, ...(error ? styles.inputError : {}) }} value={draft} placeholder={placeholder}
         onFocus={() => setFocused(true)}
         onChange={e => setDraft(e.target.value)}
-        onBlur={() => { setFocused(false); commitDraft(); }}
+        onBlur={() => {
+          setFocused(false);
+          if (cancelledRef.current) { cancelledRef.current = false; return; }
+          commitDraft();
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter') { if (commitDraft()) e.target.blur(); }
-          else if (e.key === 'Escape') { setDraft(value ?? ''); setTouched(false); e.target.blur(); }
+          else if (e.key === 'Escape') { cancelledRef.current = true; setDraft(value ?? ''); setTouched(false); e.target.blur(); }
           e.stopPropagation();
         }} />
       {error && <div style={styles.errText}>{error} — not saved</div>}
