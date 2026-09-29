@@ -391,10 +391,13 @@ function App() {
   useEffect(() => {
     if (!ipcRenderer) return;
     ipcRenderer.invoke('get-pref', 'autoSaveEnabled').then(v => { if (v !== null) setAutoSaveEnabled(v); });
+    ipcRenderer.invoke('get-pref', 'theme').then(v => { if (v) setTheme(v); });
+    const welcomePref = ipcRenderer.invoke('get-pref', 'showWelcome').then(v => { const on = v !== false; setWelcomeEnabled(on); return on; });
     // Recovery check on startup. The file is kept until the user explicitly
     // discards it (or saves), so a misclick can't lose it.
-    ipcRenderer.invoke('autosave-read').then(raw => {
-      if (!raw) return;
+    ipcRenderer.invoke('autosave-read').then(async raw => {
+      // No recovery pending → greet with the start screen (unless turned off).
+      if (!raw) { if (await welcomePref) setShowWelcome(true); return; }
       try {
         const parsed = JSON.parse(raw);
         // v2 wraps the project with metadata; older files are the bare project.
