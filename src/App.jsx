@@ -1479,6 +1479,8 @@ function App() {
           onChangeAutoSave={v => { setAutoSaveEnabled(v); ipcRenderer?.invoke('set-pref', 'autoSaveEnabled', v); }}
           pendingUpdateVersion={updateBanner?.version || null}
           maxVersion={maxVersion}
+          theme={theme} onChangeTheme={changeTheme}
+          welcomeEnabled={welcomeEnabled} onChangeWelcome={changeWelcomeEnabled}
         /></ModalA11y>
       )}
       {showMyLicense && (
