@@ -18,7 +18,7 @@ export default function ModalA11y({ onClose, label, children }) {
     const token = {};
     stack.push(token);
     const prevFocus = document.activeElement;
-    const focusables = () => [...(ref.current?.querySelectorAll(FOCUSABLE) || [])].filter(el => el.offsetParent !== null || el === document.activeElement);
+    const focusables = () => [...(ref.current?.querySelectorAll(FOCUSABLE) || [])].filter(el => el.getClientRects().length > 0);
 
     // Focus the preferred element (data-autofocus), an existing autofocus, or the first control.
     const t = setTimeout(() => {
