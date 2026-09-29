@@ -48,6 +48,9 @@ export default function Canvas({
   activeMode = 'cad',
   fitRef,
   centerRef,
+  viewRef,            // parent gets { zoomAtCenter(z), zoomToBounds(b) }
+  cursorReadoutRef,   // DOM node the parent shows cursor coords in (written directly, no re-render)
+  onFixturePick,      // when set, clicking a fixture calls this instead of selecting/dragging it
   dmxConflicts = [],
   onSwapFixture,
   onDuplicateAlongPath,
@@ -59,6 +62,8 @@ export default function Canvas({
   const snapCfg = snap || { enabled: true, endpoint: true, midpoint: true, center: true, intersection: true, nearest: true, grid: true, pipe: true };
   const snapRef = useRef(snapCfg);
   useEffect(() => { snapRef.current = snapCfg; });
+  const fixturePickRef = useRef(onFixturePick);
+  fixturePickRef.current = onFixturePick;
   const canEditRef = useRef(canEdit);
   useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
@@ -191,6 +196,8 @@ export default function Canvas({
   const cables = drawing?.cables || [];
   const pdfBackground = drawing?.pdfBackground || null;
   const { meta, layers } = project;
+  const unitsRef = useRef('mm');
+  unitsRef.current = meta?.units || 'mm'; // read by the (memoised) mouse-move handler
   const gridSize = meta?.gridSize || 20;
   const rigHeight = meta?.rigHeight || 5500;
   const gridHeight = meta?.gridHeight || 6000;
@@ -713,6 +720,11 @@ export default function Canvas({
 
     if (activeTool === 'select') {
       const hit = hitTestAll(world.x, world.y);
+      // Pick mode (e.g. click-to-number): fixtures are picked, nothing is selected or dragged.
+      if (fixturePickRef.current) {
+        if (hit?.kind === 'fixture') fixturePickRef.current(hit);
+        return;
+      }
       // Ctrl/Cmd-click adds to (or toggles within) the current selection.
       if (hit && (e.ctrlKey || e.metaKey)) {
         const cur = new Set([...(selectedIds || []), ...(selectedId ? [selectedId] : [])]);
@@ -1008,6 +1020,7 @@ export default function Canvas({
     const snapped = getSnapped(e.clientX, e.clientY, anchor);
     setCursorPos(snapped);
     setRawCursorPos(world);
+    if (cursorReadoutRef?.current) cursorReadoutRef.current.textContent = formatCoord(snapped.x, snapped.y, unitsRef.current);
     // Unified snap glyph (object snap / ortho).
     setSnapPoint(snapped.snapType ? { x: snapped.x, y: snapped.y, type: snapped.snapType } : null);
 
@@ -1232,7 +1245,10 @@ export default function Canvas({
 
   const onWheel = useCallback((e) => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    // Proportional to the scroll distance so trackpads and high-resolution wheels
+    // zoom smoothly; pinch gestures arrive as ctrl+wheel with small deltas.
+    const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    const factor = Math.exp(-Math.max(-100, Math.min(100, px)) * (e.ctrlKey ? 0.01 : 0.001)); // one 100px wheel notch ≈ 10%
     const rect = svgRef.current.getBoundingClientRect();
     const ox = showRulers ? RULER_SIZE : 0, oy = showRulers ? RULER_SIZE : 0;
     const mx = e.clientX - rect.left - ox, my = e.clientY - rect.top - oy;
@@ -1383,6 +1399,30 @@ export default function Canvas({
     onPanChange({ x: vpW / 2 - x * z, y: vpH / 2 - y * z });
   }
   useEffect(() => { if (centerRef) centerRef.current = centerOn; });
+
+  // Zoom keeping the viewport centre fixed (typed zoom level in the status bar).
+  function zoomAtCenter(nz) {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    nz = Math.max(0.02, Math.min(20, nz));
+    const ro = showRulers ? RULER_SIZE : 0;
+    const cx = ro + (svgEl.clientWidth - ro) / 2, cy = ro + (svgEl.clientHeight - ro) / 2;
+    onZoomChange(nz);
+    onPanChange({ x: cx - (cx - pan.x) * (nz / zoom), y: cy - (cy - pan.y) * (nz / zoom) });
+  }
+  // Fit a world-space box ({minX,minY,maxX,maxY}) to the viewport.
+  function zoomToBounds(b) {
+    const svgEl = svgRef.current;
+    if (!svgEl || !isFinite(b?.minX)) return;
+    const PAD = 400;
+    const w = Math.max(b.maxX - b.minX, 1) + PAD * 2, h = Math.max(b.maxY - b.minY, 1) + PAD * 2;
+    const ro = showRulers ? RULER_SIZE : 0;
+    const vpW = svgEl.clientWidth - ro, vpH = svgEl.clientHeight - ro;
+    const nz = Math.max(0.02, Math.min(10, Math.min(vpW / w, vpH / h)));
+    onZoomChange(nz);
+    onPanChange({ x: ro + vpW / 2 - ((b.minX + b.maxX) / 2) * nz, y: ro + vpH / 2 - ((b.minY + b.maxY) / 2) * nz });
+  }
+  useEffect(() => { if (viewRef) viewRef.current = { zoomAtCenter, zoomToBounds }; });
 
   // ─── Copy / Paste / Duplicate ─────────────────────────────────────────
   function copySelection(ids) {
@@ -2086,7 +2126,7 @@ export default function Canvas({
     if (onToolDone) onToolDone();
   }
 
-  const cursorStyle = focusModeId ? 'crosshair' : activeTool === 'calibrate' ? 'crosshair' : pendingFixture ? 'crosshair'
+  const cursorStyle = (focusModeId || onFixturePick) ? 'crosshair' : activeTool === 'calibrate' ? 'crosshair' : pendingFixture ? 'crosshair'
     : activeTool === 'select' ? (dragging && !dragging.handlePoint ? 'grabbing' : 'default')
     : 'crosshair';
 
@@ -2096,7 +2136,7 @@ export default function Canvas({
         style={{ flex: 1, display: 'block', background: '#0d1117', cursor: cursorStyle, userSelect: 'none' }}
         onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
         onDoubleClick={onDblClick} onContextMenu={onContextMenu}
-        onMouseLeave={() => { setCursorPos(null); setFocusCursor(null); if (dragTargetLayerRef) dragTargetLayerRef.current = null; }}
+        onMouseLeave={() => { setCursorPos(null); setFocusCursor(null); if (cursorReadoutRef?.current) cursorReadoutRef.current.textContent = ''; if (dragTargetLayerRef) dragTargetLayerRef.current = null; }}
       >
         <g transform={`translate(${ro},${ro})`}>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
@@ -2396,7 +2436,7 @@ export default function Canvas({
         </g>
 
         {renderRulers(3000, 1500)}
-        {cursorPos && !focusModeId && !calibState && <text x={ro+8} y={28} fontSize={9} fill="#4a6080">{formatCoord(cursorPos.x, cursorPos.y, meta?.units || 'mm')}</text>}
+        {cursorPos && !focusModeId && !calibState && !cursorReadoutRef && <text x={ro+8} y={28} fontSize={9} fill="#4a6080">{formatCoord(cursorPos.x, cursorPos.y, meta?.units || 'mm')}</text>}
         {focusModeId && <text x={ro+8} y={28} fontSize={10} fill="#ffaa00">Click to set focus direction — Esc to cancel</text>}
         {activeTool === 'dimension' && <text x={ro+8} y={28} fontSize={10} fill="#a0c0ff">{measure && !measure.done ? '⟷ Click second point to set the locked dimension' : measure?.done ? '⟷ Dimension added (🔒 constrained) — click to add another' : '⟷ Click first point to add a constrained dimension'}</text>}
         {activeTool === 'calibrate' && !calibState && <text x={ro+8} y={28} fontSize={10} fill="#a0e0a0">📐 Click first calibration point — Esc to cancel</text>}

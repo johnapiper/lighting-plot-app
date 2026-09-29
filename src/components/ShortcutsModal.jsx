@@ -11,6 +11,7 @@ const SECTIONS = [
       ['T', 'Text'],
       ['C', 'Calibrate'],
       ['M', 'Measure'],
+      ['N', 'Click-to-number fixtures (channel / unit)'],
       ['R / Right-click', 'Rotate pipe/truss 90° (during placement)'],
       ['Enter', 'Finish polyline / commit typed length'],
       ['Esc', 'Cancel tool / deselect'],
@@ -52,6 +53,8 @@ const SECTIONS = [
     rows: [
       ['+ / −', 'Zoom in / out'],
       ['Scroll wheel', 'Zoom at cursor'],
+      ['Z', 'Zoom to selection (or fit when nothing is selected)'],
+      ['Ctrl + F', 'Find fixture by channel, unit, address, type…'],
       ['Middle mouse / Space + drag', 'Pan'],
     ],
   },

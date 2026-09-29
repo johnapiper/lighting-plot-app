@@ -434,6 +434,44 @@ ipcMain.handle('autosave-write', (e, data) => { try { fs.writeFileSync(autoSaveP
 ipcMain.handle('autosave-read',  () => { try { return fs.readFileSync(autoSavePath(), 'utf8'); } catch { return null; } });
 ipcMain.handle('autosave-clear', () => { try { fs.unlinkSync(autoSavePath()); } catch {} });
 
+// ── User templates (project / drawing) ───────────────────────────────────
+// Kept as JSON files in userData so they survive cache clears and reinstalls.
+const TEMPLATE_FILES = { project: 'lplot-templates-project.json', drawing: 'lplot-templates-drawing.json' };
+function templatesPath(kind) { return path.join(app.getPath('userData'), TEMPLATE_FILES[kind]); }
+// Resolves null when no file exists yet (the renderer then migrates from localStorage).
+ipcMain.handle('templates-read', (e, kind) => {
+  if (!TEMPLATE_FILES[kind]) return null;
+  try { return JSON.parse(fs.readFileSync(templatesPath(kind), 'utf8')); } catch { return null; }
+});
+ipcMain.handle('templates-write', (e, kind, list) => {
+  if (!TEMPLATE_FILES[kind] || !Array.isArray(list)) return false;
+  // Write-then-rename so a crash mid-write can't corrupt the existing file.
+  const fp = templatesPath(kind), tmp = fp + '.tmp';
+  try { fs.writeFileSync(tmp, JSON.stringify(list), 'utf8'); fs.renameSync(tmp, fp); return true; }
+  catch { return false; }
+});
+ipcMain.handle('templates-export', async (e, { kind, templates }) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export Templates',
+    defaultPath: `${kind}-templates.lplottemplates`,
+    filters: [{ name: 'Lighting Plot Templates', extensions: ['lplottemplates'] }, { name: 'JSON', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return null;
+  fs.writeFileSync(result.filePath, JSON.stringify({ lplotTemplates: 1, kind, templates }, null, 2), 'utf8');
+  return result.filePath;
+});
+ipcMain.handle('templates-import', async (e, kind) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import Templates', properties: ['openFile'],
+    filters: [{ name: 'Lighting Plot Templates', extensions: ['lplottemplates', 'json'] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const data = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf8'));
+  if (!data || data.lplotTemplates !== 1 || !Array.isArray(data.templates)) throw new Error('Not a Lighting Plot templates file');
+  if (data.kind !== kind) throw new Error(`This file contains ${data.kind} templates, not ${kind} templates`);
+  return data.templates;
+});
+
 // ── App-level preferences (electron-store) ───────────────────────────────
 ipcMain.handle('get-pref', (e, key)        => store?.get(key) ?? null);
 ipcMain.handle('set-pref', (e, key, value) => { store?.set(key, value); });

@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { generateId } from '../canvas/geometry';
 import { BUILT_IN_TEMPLATES } from '../templates/builtinTemplates';
-
-function getUserTemplates() {
-  try { return JSON.parse(localStorage.getItem('lplot-user-templates') || '[]'); } catch { return []; }
-}
+import { useUserTemplates } from '../templates/userTemplates';
 
 export default function ProjectTemplatesDialog({ currentProject, onSelect, onClose }) {
   const [saveName, setSaveName] = useState('');
-  const [userTemplates, setUserTemplates] = useState(getUserTemplates);
+  const { templates: userTemplates, setTemplates: setUserTemplates, exportAll, importFile, canTransfer } = useUserTemplates('project');
 
   function saveCurrentAsTemplate() {
     if (!saveName.trim() || !currentProject) return;
@@ -18,16 +15,12 @@ export default function ProjectTemplatesDialog({ currentProject, onSelect, onClo
       savedAt: new Date().toISOString(),
       snapshot: JSON.parse(JSON.stringify(currentProject)),
     };
-    const updated = [...userTemplates, t];
-    localStorage.setItem('lplot-user-templates', JSON.stringify(updated));
-    setUserTemplates(updated);
+    setUserTemplates([...userTemplates, t]);
     setSaveName('');
   }
 
   function deleteUserTemplate(id) {
-    const updated = userTemplates.filter(t => t.id !== id);
-    localStorage.setItem('lplot-user-templates', JSON.stringify(updated));
-    setUserTemplates(updated);
+    setUserTemplates(userTemplates.filter(t => t.id !== id));
   }
 
   return (
@@ -35,6 +28,9 @@ export default function ProjectTemplatesDialog({ currentProject, onSelect, onClo
       <div style={S.modal}>
         <div style={S.header}>
           <span>📁 Project Templates</span>
+          <span style={{ flex:1 }} />
+          {canTransfer && <button style={S.hdrBtn} onClick={importFile} title="Add templates from a .lplottemplates file">Import…</button>}
+          {canTransfer && <button style={S.hdrBtn} onClick={exportAll} disabled={!userTemplates.length} title="Save your templates to a file (backup or share with another machine)">Export…</button>}
           <button style={S.closeBtn} onClick={onClose}>✕</button>
         </div>
 
@@ -87,7 +83,8 @@ const S = {
   overlay: { position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1200 },
   modal: { background:'#16213e', border:'1px solid #0f3460', borderRadius:8, width:480, maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 16px 48px rgba(0,0,0,0.9)' },
   header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid #0f3460', fontSize:13, fontWeight:700, color:'#e0e0e0' },
-  closeBtn: { background:'none', border:'none', color:'#718096', cursor:'pointer', fontSize:16 },
+  closeBtn: { background:'none', border:'none', color:'#718096', cursor:'pointer', fontSize:16, marginLeft:6 },
+  hdrBtn: { padding:'3px 10px', marginLeft:6, background:'transparent', border:'1px solid #0f3460', borderRadius:4, color:'#a0aec0', cursor:'pointer', fontSize:11, fontWeight:400 },
   saveRow: { display:'flex', gap:8, padding:'12px 16px', borderBottom:'1px solid #0f3460' },
   input: { flex:1, background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:4, color:'#e0e0e0', padding:'6px 10px', fontSize:12, outline:'none' },
   saveBtn: { padding:'6px 14px', background:'#0f3460', border:'1px solid #4a90d9', borderRadius:4, color:'#4a90d9', cursor:'pointer', fontSize:12, fontWeight:600 },

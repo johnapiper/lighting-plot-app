@@ -29,6 +29,8 @@ import DrawingTemplatesModal from './components/DrawingTemplatesModal';
 import TransformModal from './components/TransformModal';
 import ToastHost, { toast } from './components/Toast';
 import RecoveryDialog from './components/RecoveryDialog';
+import FindFixtureModal from './components/FindFixtureModal';
+import NumberingBar from './components/NumberingBar';
 import { mirrorObject, translateObject, rotateObject, offsetObject, cloneWithId, objectBounds } from './canvas/transforms';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
@@ -150,12 +152,16 @@ function App() {
   const [dirty, setDirty]               = useState(false);
   const [updateBanner, setUpdateBanner] = useState(null); // { version }
   const [recovery, setRecovery]         = useState(null); // { savedAt, currentFile, project } pending restore decision
+  const [showFind, setShowFind]         = useState(false);
+  const [numbering, setNumbering]       = useState(null); // click-to-number: { field, next, step, count, ids, warning }
 
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
   const activeDrawingRef   = useRef(null);
   const fitViewRef         = useRef(null); // Canvas exposes its fitView() here
   const centerViewRef      = useRef(null); // Canvas exposes centerOn(x, y) here
+  const viewRef            = useRef(null); // Canvas exposes { zoomAtCenter, zoomToBounds } here
+  const cursorReadoutRef   = useRef(null); // status-bar coordinate readout, written by Canvas
   const conflictCursorRef  = useRef(-1);
   // Live mirrors for async IPC handlers (they can outlive the render that created them).
   const dirtyRef       = useRef(false);
@@ -309,44 +315,56 @@ function App() {
     return () => Object.entries(handlers).forEach(([ch, fn]) => ipcRenderer.removeListener(ch, fn));
   }, [project, currentFile, undo, redo, license, isTrial]);
 
+  // Registered once and called through a ref. Re-registering on every render
+  // (allSelectedIds is a new array each time) meant that when Canvas's keydown
+  // listener ran first and triggered a render, this listener was removed
+  // mid-dispatch and silently missed the key — e.g. Esc.
+  const keyHandlerRef = useRef(null);
   useEffect(() => {
-    const handler = (e) => {
-      const tag = document.activeElement.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      const k = e.key.toLowerCase();
-      if (!e.ctrlKey && !e.metaKey) {
-        const canEdit = license?.hasFeature('cad_edit');
-        if (k === 'v') setActiveTool('select');
-        if (canEdit && k === 'l') setActiveTool('line');
-        if (canEdit && k === 'e') setActiveTool('rect');
-        if (canEdit && k === 'p') setActiveTool('pipe');
-        if (canEdit && k === 't') setActiveTool('text');
-        if (canEdit && license?.hasFeature('dimensioning') && k === 'm') setActiveTool('dimension');
-        if (canEdit && k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
-        if (k === 'escape') setPendingFixture(null);
-        if (k === '?' || (e.shiftKey && k === '/')) { e.preventDefault(); setShowShortcuts(true); }
-        if (k === 'u' && license?.hasFeature('universe_view')) setShowUniverse(v => !v);
-      }
-      if ((e.ctrlKey||e.metaKey) && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if ((e.ctrlKey||e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
-      if ((e.ctrlKey||e.metaKey) && k === 's') { e.preventDefault(); handleSave(); }
-      if ((e.ctrlKey||e.metaKey) && k === 'g') { e.preventDefault(); handleGroupToggle(); }
-      if (e.key === 'F12' && license?.hasFeature('dev_tools')) {
-        e.preventDefault();
-        ipcRenderer?.send('toggle-dev-tools');
-      }
-      if (e.key === 'F3') { e.preventDefault(); setSnap(s => ({ ...s, enabled: !s.enabled })); }
-      // Arrow keys nudge the selection: 10 mm, Alt = 1 mm, Shift = one grid step.
-      const ARROWS = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
-      if (ARROWS[k] && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
-        e.preventDefault();
-        const step = e.shiftKey ? (project.meta?.gridSize || 20) : e.altKey ? 1 : 10;
-        handleNudge(ARROWS[k][0] * step, ARROWS[k][1] * step);
-      }
-    };
+    const handler = e => keyHandlerRef.current?.(e);
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentFile, project, undo, redo, allSelectedIds, groupInfo, activeMode, license]);
+  }, []);
+  keyHandlerRef.current = (e) => {
+    const tag = document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const k = e.key.toLowerCase();
+    if (!e.ctrlKey && !e.metaKey) {
+      const canEdit = license?.hasFeature('cad_edit');
+      if (k === 'v') setActiveTool('select');
+      if (canEdit && k === 'l') setActiveTool('line');
+      if (canEdit && k === 'e') setActiveTool('rect');
+      if (canEdit && k === 'p') setActiveTool('pipe');
+      if (canEdit && k === 't') setActiveTool('text');
+      if (canEdit && license?.hasFeature('dimensioning') && k === 'm') setActiveTool('dimension');
+      if (canEdit && k === 'c' && activeMode === 'cad') setActiveTool('calibrate');
+      if (k === 'escape') { setPendingFixture(null); setNumbering(null); }
+      if (k === 'n' && activeMode === 'cad') toggleNumbering();
+      if (k === 'z' && (activeMode === 'cad' || activeMode === 'cable')) handleZoomToSelection();
+      if (k === '?' || (e.shiftKey && k === '/')) { e.preventDefault(); setShowShortcuts(true); }
+      if (k === 'u' && license?.hasFeature('universe_view')) setShowUniverse(v => !v);
+    }
+    if ((e.ctrlKey||e.metaKey) && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    if ((e.ctrlKey||e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    if ((e.ctrlKey||e.metaKey) && k === 's') { e.preventDefault(); handleSave(); }
+    if ((e.ctrlKey||e.metaKey) && k === 'g') { e.preventDefault(); handleGroupToggle(); }
+    if ((e.ctrlKey||e.metaKey) && k === 'f' && (activeMode === 'cad' || activeMode === 'cable')) { e.preventDefault(); setShowFind(true); }
+    if (e.key === 'F12' && license?.hasFeature('dev_tools')) {
+      e.preventDefault();
+      ipcRenderer?.send('toggle-dev-tools');
+    }
+    if (e.key === 'F3') { e.preventDefault(); setSnap(s => ({ ...s, enabled: !s.enabled })); }
+    // Arrow keys nudge the selection: 10 mm, Alt = 1 mm, Shift = one grid step.
+    const ARROWS = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
+    if (ARROWS[k] && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
+      e.preventDefault();
+      const step = e.shiftKey ? (project.meta?.gridSize || 20) : e.altKey ? 1 : 10;
+      handleNudge(ARROWS[k][0] * step, ARROWS[k][1] * step);
+    }
+  };
+
+  // Click-to-number only makes sense on the CAD canvas.
+  useEffect(() => { if (activeMode !== 'cad') setNumbering(null); }, [activeMode]);
 
   // Opening / creating a project sets suppressDirtyRef so the resulting
   // project change doesn't count as an edit.
@@ -628,6 +646,61 @@ function App() {
     }, `Patch ${ordered.length} fixtures from ${startAddr}`);
     toast(`Patched ${ordered.length} fixtures from ${p.universe}/${p.channel}`, 'success', { duration: 2500 });
   }
+  // Several fixtures edited in one undo step (patch panel paste).
+  function handleUpdateMany(updates, label) {
+    if (!canUseLibrary || !updates.length) return;
+    commitToActiveDrawing(d => {
+      updates.forEach(({ id, fields }) => {
+        const f = d.fixtures?.find(f => f.id === id);
+        if (f) Object.assign(f, syncFields(fields, f));
+      });
+    }, label || `Edit ${updates.length} fixtures`);
+  }
+
+  // ── Click-to-number ──────────────────────────────────────────────────────
+  function toggleNumbering() {
+    if (numbering) { setNumbering(null); return; }
+    if (!canUseLibrary || !canEditCanvas) { toast('Your license does not allow editing fixtures.', 'warn'); return; }
+    const used = (activeDrawing?.fixtures || []).map(f => parseInt(f.channel, 10)).filter(n => !isNaN(n));
+    setActiveTool('select'); setPendingFixture(null); clearSelection();
+    setNumbering({ field: 'channel', next: used.length ? Math.max(...used) + 1 : 1, step: 1, count: 0, ids: [], warning: null });
+  }
+  function describeFixture(f) {
+    return [f.type || 'fixture', f.position && `on ${f.position}`, f.unit && `#${f.unit}`].filter(Boolean).join(' ');
+  }
+  function handleNumberPick(f) {
+    const n = numbering; if (!n) return;
+    const next = Number(n.next), step = Number(n.step) || 1;
+    if (!Number.isFinite(next) || next < 1) { toast('Enter the next number to assign first.', 'warn'); return; }
+    if (f.locked) { toast('That fixture is locked.', 'warn'); return; }
+    const value = String(next);
+    const dup = (activeDrawing?.fixtures || []).find(o => o.id !== f.id && String(o[n.field] ?? '').trim() === value);
+    handleUpdateFixtureInstance(f.id, { [n.field]: value });
+    const ids = [...n.ids.filter(id => id !== f.id), f.id];
+    handleMultiSelect(ids); // numbered fixtures stay highlighted
+    setNumbering({
+      ...n, next: next + step, count: n.count + 1, ids,
+      warning: dup ? `${n.field === 'channel' ? 'Channel' : 'Unit'} ${value} is also used by ${describeFixture(dup)}` : null,
+    });
+  }
+  function handleNumberBack() {
+    const n = numbering; if (!n?.count) return;
+    undo();
+    const ids = n.ids.slice(0, -1);
+    handleMultiSelect(ids);
+    setNumbering({ ...n, next: Number(n.next) - (Number(n.step) || 1), count: n.count - 1, ids, warning: null });
+  }
+
+  // ── View ─────────────────────────────────────────────────────────────────
+  function handleZoomToSelection() {
+    if (!allSelectedIds.length || !activeDrawing) { fitViewRef.current?.(); return; }
+    viewRef.current?.zoomToBounds(selectionBounds(activeDrawing));
+  }
+  function handleShowOnPlot(f) {
+    closePatch();
+    selectFixtureOnCanvas(f);
+  }
+
   function handleDeleteCable(id) {
     commitToActiveDrawing(d => { d.cables = (d.cables||[]).filter(c => c.id !== id); });
     clearSelection();
@@ -1099,11 +1172,21 @@ function App() {
               activeMode={activeMode}
               fitRef={fitViewRef}
               centerRef={centerViewRef}
+              viewRef={viewRef}
+              cursorReadoutRef={cursorReadoutRef}
+              onFixturePick={numbering ? handleNumberPick : undefined}
               dmxConflicts={dmxConflicts}
               onSwapFixture={(canEditCanvas && license?.hasFeature('fixture_swap')) ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
               canEdit={canEditCanvas}
             />
+            {numbering && (
+              <NumberingBar state={numbering}
+                onChange={fields => setNumbering(n => ({ ...n, ...fields }))}
+                onSkip={() => setNumbering(n => ({ ...n, next: Number(n.next) + (Number(n.step) || 1), warning: null }))}
+                onBack={handleNumberBack}
+                onDone={() => setNumbering(null)} />
+            )}
             {license?.hasFeature('multi_drawing') && (
               <DrawingTabs
                 drawings={project.drawings||[]}
@@ -1235,7 +1318,7 @@ function App() {
       </div>
 
       {/* ── Status bar ──────────────────────────────────────────────────── */}
-      {activeMode === 'cad' && (() => {
+      {(activeMode === 'cad' || activeMode === 'cable') && (() => {
         const fixtures = activeDrawing?.fixtures || [];
         const typeCount = new Set(fixtures.map(f => f.fixtureTypeId || f.type)).size;
         const channelsUsed = new Set(fixtures.map(f => f.channel).filter(Boolean)).size;
@@ -1269,7 +1352,29 @@ function App() {
               <option value="ft">ft</option>
               <option value="in">in</option>
             </select>
+            {allSelectedIds.length > 0 && (
+              <>
+                <span style={styles.statusSep}>|</span>
+                <span style={styles.statusItem}>Selected: <strong>{allSelectedIds.length}</strong></span>
+              </>
+            )}
+            <span style={styles.statusSep}>|</span>
+            <span ref={cursorReadoutRef} style={styles.coords} title="Cursor position" />
             <span style={{ flex:1 }} />
+            <button style={{ ...styles.statusToggle, ...(snap.enabled ? styles.statusToggleOn : {}) }}
+              onClick={() => setSnap(s => ({ ...s, enabled: !s.enabled }))} title="Object snap on/off (F3)">
+              Snap {snap.enabled ? 'on' : 'off'}
+            </button>
+            <ZoomInput zoom={zoom} onSet={z => viewRef.current?.zoomAtCenter(z)} />
+            <button style={styles.statusBtn} onClick={() => fitViewRef.current?.()} title="Fit whole plot to window">Fit</button>
+            <button style={styles.statusBtn} onClick={handleZoomToSelection} disabled={!allSelectedIds.length}
+              title="Zoom to selection (Z)">⤢ Selection</button>
+            <span style={styles.statusSep}>|</span>
+            <button style={styles.statusBtn} onClick={() => setShowFind(true)} title="Find a fixture by channel, unit, address, type… (Ctrl+F)">🔍 Find</button>
+            {activeMode === 'cad' && canUseLibrary && canEditCanvas && (
+              <button style={{ ...styles.statusBtn, ...(numbering ? { color:'#90cdf4' } : {}) }} onClick={toggleNumbering}
+                title="Click fixtures in order to number their channels or units (N)">🔢 Number</button>
+            )}
             {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>}
             {license?.hasFeature('revisions') && <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>}
             {license?.hasFeature('undo_history') && <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>}
@@ -1282,7 +1387,9 @@ function App() {
       {report && license?.hasFeature('reports') && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
       {showPatch && license?.hasFeature('patch_panel') && (
         <PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
-          onUpdateFixture={handleUpdateFixtureInstance} onClose={closePatch} />
+          selectedIds={allSelectedIds}
+          onUpdateFixture={handleUpdateFixtureInstance} onUpdateMany={handleUpdateMany}
+          onShowOnPlot={handleShowOnPlot} onClose={closePatch} />
       )}
       {showGdtfBrowser && license?.hasFeature('gdtf_browser') && (
         <GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} />
@@ -1416,11 +1523,48 @@ function App() {
           }}
         />
       )}
+      {showFind && (
+        <FindFixtureModal
+          fixtures={activeDrawing?.fixtures || []}
+          onGoTo={selectFixtureOnCanvas}
+          onSelectAll={list => { handleMultiSelect(list.map(f => f.id)); viewRef.current?.zoomToBounds(boundsOfFixtures(list)); }}
+          onClose={() => setShowFind(false)}
+        />
+      )}
       {recovery && (
         <RecoveryDialog recovery={recovery} onRestore={handleRestoreRecovery} onDiscard={handleDiscardRecovery} />
       )}
       <ToastHost />
     </div>
+  );
+}
+
+function boundsOfFixtures(list) {
+  const xs = list.map(f => f.x), ys = list.map(f => f.y);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
+// Status-bar zoom level: shows the live zoom, accepts a typed percentage.
+function ZoomInput({ zoom, onSet }) {
+  const shown = `${Math.round(zoom * 100)}%`;
+  const [draft, setDraft] = useState(null); // null = not editing
+  function apply() {
+    if (draft === null) return;
+    const n = parseFloat(String(draft).replace('%', ''));
+    if (Number.isFinite(n) && n > 0) onSet(n / 100);
+    setDraft(null);
+  }
+  return (
+    <input style={styles.zoomInput} value={draft ?? shown} aria-label="Zoom level"
+      title="Zoom level — type a percentage and press Enter"
+      onFocus={e => { setDraft(String(Math.round(zoom * 100))); const el = e.target; setTimeout(() => el.select(), 0); }}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={apply}
+      onKeyDown={e => {
+        if (e.key === 'Enter') e.target.blur();
+        else if (e.key === 'Escape') { setDraft(null); const el = e.target; setTimeout(() => el.blur(), 0); }
+        e.stopPropagation();
+      }} />
   );
 }
 
@@ -1432,16 +1576,21 @@ const styles = {
     fontSize: 12, color: '#e0e0e0', gap: 4, flexShrink: 0,
   },
   main: { display:'flex', flex:1, overflow:'hidden' },
-  canvasColumn: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden' },
+  canvasColumn: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden', position:'relative' },
   rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid #0f3460', overflow:'hidden', flexShrink:0 },
   statusBar: {
     display: 'flex', alignItems: 'center', padding: '3px 14px',
     background: '#0d1b2a', borderTop: '1px solid #0f3460',
     fontSize: 11, color: '#718096', gap: 6, flexShrink: 0,
+    whiteSpace: 'nowrap', flexWrap: 'wrap', rowGap: 2, // narrow windows: whole items wrap, labels don't
   },
   statusItem: { color: '#a0aec0' },
   statusSep: { color: '#2d3748' },
-  statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px' },
+  statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px', whiteSpace:'nowrap' },
   conflictBtn: { background:'#3a1a1a', border:'1px solid #7a2a2a', borderRadius:3, color:'#fc8181', cursor:'pointer', fontSize:11, padding:'1px 8px' },
+  coords: { color:'#718096', fontVariantNumeric:'tabular-nums', minWidth:120 },
+  statusToggle: { background:'none', border:'1px solid #2d3748', borderRadius:3, color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px', whiteSpace:'nowrap' },
+  statusToggleOn: { borderColor:'#2a5a8a', color:'#90cdf4' },
+  zoomInput: { width:48, background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', textAlign:'right', outline:'none' },
   statusSelect: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
 };
