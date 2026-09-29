@@ -3,7 +3,7 @@ import { compareVersions } from '../license/licenseService';
 
 const { ipcRenderer } = require('electron');
 
-export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null, maxVersion = null }) {
+export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null, maxVersion = null, theme = 'dark', onChangeTheme, welcomeEnabled = true, onChangeWelcome }) {
   const [appVersion, setAppVersion] = useState('—');
   // An update is only offered if it's within the license's allowed ceiling.
   const allowed = (v) => !maxVersion || (v && compareVersions(v, maxVersion) <= 0);
