@@ -409,13 +409,15 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                   .map(([k, v]) => ({ key: k, label: v.label }));
                 const pending = pendingSubtype[r.id];
 
-                function commitSubtypeChange() {
+                async function commitSubtypeChange() {
                   if (!pending || !onUpdateCable) return;
                   const newSpec = CABLE_TYPES[pending.subtype];
                   const newLabel = newSpec?.label || pending.subtype;
-                  const confirmed = window.confirm(
-                    `Change cable type between ${r.from} and ${r.to}\nto: ${newLabel}\nfrom: ${r.subtype}?`
-                  );
+                  const confirmed = await confirmDialog({
+                    title: 'Change cable type',
+                    message: `Change cable type between ${r.from} and ${r.to}\nto: ${newLabel}\nfrom: ${r.subtype}?`,
+                    confirmLabel: 'Change',
+                  });
                   if (confirmed) {
                     onUpdateCable(r.id, { cableType: pending.cableType, subtype: pending.subtype });
                     setPendingSubtype(p => { const n = {...p}; delete n[r.id]; return n; });

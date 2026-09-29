@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { confirmDialog } from './ConfirmDialog';
 import {
   fetchDatabase, writeDatabase,
   addLicense, revokeLicense, updateLicense, deleteLicense, invalidateCache,
@@ -120,7 +121,7 @@ export default function LicenseManager({ onClose }) {
   // ── License: revoke / delete ──────────────────────────────────────────────
   async function handleRevoke(key, name) {
     if (!token) { setErrMsg('Save a GitHub token first (Token tab).'); return; }
-    if (!confirm(`Revoke license for "${name}"?`)) return;
+    if (!(await confirmDialog({ title: 'Revoke license', message: `Revoke license for "${name}"?`, confirmLabel: 'Revoke', danger: true }))) return;
     setBusy(true); setErrMsg('');
     try {
       const newDb = revokeLicense(db, key);
@@ -143,7 +144,7 @@ export default function LicenseManager({ onClose }) {
 
   async function handleDeleteLicense(key, name) {
     if (!token) { setErrMsg('Save a GitHub token first (Token tab).'); return; }
-    if (!confirm(`Permanently delete license for "${name}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete license', message: `Permanently delete license for "${name}"? This cannot be undone.`, confirmLabel: 'Delete', danger: true }))) return;
     setBusy(true); setErrMsg('');
     try {
       const newDb = deleteLicense(db, key);
@@ -205,7 +206,7 @@ export default function LicenseManager({ onClose }) {
     const warn = usedBy.length
       ? `\n\nWarning: ${usedBy.length} license(s) use this group — they will lose its features.`
       : '';
-    if (!confirm(`Delete group "${name}"?${warn}`)) return;
+    if (!(await confirmDialog({ title: 'Delete group', message: `Delete group "${name}"?${warn}`, confirmLabel: 'Delete', danger: true }))) return;
     setBusy(true); setErrMsg('');
     try {
       const newDb = deleteRightsGroup(db, id);
