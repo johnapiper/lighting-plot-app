@@ -91,6 +91,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline-offset: 0;
 }
 
+.panel-splitter:hover { background: var(--border); }
+.panel-splitter:not(.is-collapsed) > button { opacity: 0; transition: opacity 0.12s; }
+.panel-splitter:hover > button, .panel-splitter:focus-visible > button { opacity: 1; }
+
 .ctx-item:hover, .ctx-item:focus {
   background: var(--bg-hover);
 }

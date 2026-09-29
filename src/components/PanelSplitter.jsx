@@ -59,14 +59,14 @@ export default function PanelSplitter({ side, width, collapsed, onResize, onTogg
       title={`Drag to resize ${label.toLowerCase()} · double-click to ${collapsed ? 'expand' : 'collapse'}`}
       onMouseDown={onMouseDown} onDoubleClick={onToggle} onKeyDown={onKeyDown}
       style={{ ...styles.handle, ...(collapsed ? styles.collapsed : {}), ...(active ? styles.active : {}) }}
-      className="panel-splitter">
+      className={`panel-splitter${collapsed ? ' is-collapsed' : ''}`}>
       <button tabIndex={-1} aria-hidden="true" style={styles.btn} onMouseDown={e => e.stopPropagation()} onClick={onToggle}>{arrow}</button>
     </div>
   );
 }
 
 const styles = {
-  handle: { width: 6, flexShrink: 0, cursor: 'col-resize', position: 'relative', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  handle: { width: 6, flexShrink: 0, cursor: 'col-resize', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   collapsed: { width: 14, cursor: 'pointer', background: 'var(--bg-panel)', borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' },
   active: { background: 'var(--accent)' },
   btn: { position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: 12, height: 32, padding: 0, border: '1px solid var(--border)', borderRadius: 3, background: 'var(--bg-inset)', color: 'var(--text-dim)', fontSize: 11, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
