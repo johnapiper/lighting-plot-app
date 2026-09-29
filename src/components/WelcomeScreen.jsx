@@ -11,7 +11,7 @@ function fileInfo(fp) {
     const fs = window.require('fs');
     const st = fs.statSync(fp);
     let fixtures = null, plots = null;
-    if (!fp.toLowerCase().endsWith('.mvr') && st.size < 25 * 1024 * 1024) {
+    if (!fp.toLowerCase().endsWith('.mvr') && st.size < 8 * 1024 * 1024) {
       try {
         const proj = JSON.parse(fs.readFileSync(fp, 'utf8'));
         fixtures = (proj.drawings || []).reduce((n, d) => n + (d.fixtures?.length || 0), 0);
