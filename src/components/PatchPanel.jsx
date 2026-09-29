@@ -119,7 +119,7 @@ export default function PatchPanel({ fixtures, allFixtureTypes, onUpdateFixture,
                       <input
                         style={{
                           ...styles.cellInput,
-                          ...(conflict ? { borderColor: '#fc8181', color: '#fc8181' } : {}),
+                          ...(conflict ? { borderColor: 'var(--danger-text)', color: 'var(--danger-text)' } : {}),
                         }}
                         value={f.dmxAddress || ''}
                         placeholder="U/Ch"
@@ -135,7 +135,7 @@ export default function PatchPanel({ fixtures, allFixtureTypes, onUpdateFixture,
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <p style={{ color: '#718096', padding: 20, textAlign: 'center' }}>No fixtures in the plot.</p>
+            <p style={{ color: 'var(--text-dim)', padding: 20, textAlign: 'center' }}>No fixtures in the plot.</p>
           )}
         </div>
       </div>
@@ -151,8 +151,8 @@ const styles = {
     zIndex: 1000,
   },
   window: {
-    background: '#16213e',
-    border: '1px solid #0f3460',
+    background: 'var(--bg-panel)',
+    border: '1px solid var(--border)',
     borderRadius: 6,
     width: '92vw',
     maxHeight: '85vh',
@@ -162,42 +162,42 @@ const styles = {
   },
   titleBar: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 16px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+    padding: '10px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0,
   },
-  title: { color: '#4a90d9', fontWeight: 700, fontSize: 14 },
+  title: { color: 'var(--accent)', fontWeight: 700, fontSize: 14 },
   actions: { display: 'flex', gap: 8, alignItems: 'center' },
   conflictBadge: {
-    background: '#3a1a1a', color: '#fc8181',
+    background: 'var(--danger-bg)', color: 'var(--danger-text)',
     padding: '3px 10px', borderRadius: 4, fontSize: 12,
   },
   btn: {
-    background: '#0f3460', border: '1px solid #1a4a7a',
-    borderRadius: 4, color: '#a0aec0', padding: '4px 12px', cursor: 'pointer', fontSize: 12,
+    background: 'var(--border)', border: '1px solid #1a4a7a',
+    borderRadius: 4, color: 'var(--text-muted)', padding: '4px 12px', cursor: 'pointer', fontSize: 12,
   },
-  closeBtn: { background: '#3a1a1a', borderColor: '#7a2a2a', color: '#fc8181' },
+  closeBtn: { background: 'var(--danger-bg)', borderColor: 'var(--danger-border)', color: 'var(--danger-text)' },
   select: {
-    background: '#0d1b2a', border: '1px solid #0f3460',
-    color: '#a0aec0', borderRadius: 4, padding: '4px 8px', fontSize: 12,
+    background: 'var(--bg-inset)', border: '1px solid var(--border)',
+    color: 'var(--text-muted)', borderRadius: 4, padding: '4px 8px', fontSize: 12,
   },
   body: { overflowY: 'auto', padding: '0 0 12px' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 12, color: '#e0e0e0' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 12, color: 'var(--text)' },
   th: {
     padding: '8px 12px', textAlign: 'left',
-    background: '#0d1b2a', color: '#4a90d9',
-    borderBottom: '2px solid #0f3460',
+    background: 'var(--bg-inset)', color: 'var(--accent)',
+    borderBottom: '2px solid var(--border)',
     fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em',
     position: 'sticky', top: 0,
   },
-  td: { padding: '4px 8px', borderBottom: '1px solid #0f3460', verticalAlign: 'middle' },
+  td: { padding: '4px 8px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' },
   cellInput: {
-    background: '#0d1b2a', border: '1px solid #0f3460',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 12,
+    background: 'var(--bg-inset)', border: '1px solid var(--border)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 12,
     padding: '2px 6px', width: 80,
   },
   cellSelect: {
-    background: '#0d1b2a', border: '1px solid #0f3460',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 11, padding: '2px 4px',
+    background: 'var(--bg-inset)', border: '1px solid var(--border)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 11, padding: '2px 4px',
   },
-  conflictIcon: { color: '#fc8181', marginLeft: 4, fontSize: 12 },
-  dimText: { color: '#4a5568' },
+  conflictIcon: { color: 'var(--danger-text)', marginLeft: 4, fontSize: 12 },
+  dimText: { color: 'var(--text-faint)' },
 };

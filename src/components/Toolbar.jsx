@@ -409,7 +409,7 @@ export default function Toolbar({
             <label key={k} style={styles.snapRow}>
               <input type="checkbox" checked={!!snap[k]} disabled={!snap.enabled && k !== 'grid'}
                 onChange={e => onSnapChange?.({ ...snap, [k]: e.target.checked })}
-                style={{ accentColor: '#4a90d9' }} />
+                style={{ accentColor: 'var(--accent)' }} />
               <span>{l}</span>
             </label>
           ))}
@@ -423,13 +423,13 @@ export default function Toolbar({
 const styles = {
   toolbar: {
     display: 'flex', alignItems: 'center',
-    background: '#16213e', borderBottom: '1px solid #0f3460',
+    background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
     padding: '4px 8px', gap: 4, flexShrink: 0,
     overflow: 'hidden',
   },
   modeSwitcher: {
     display: 'flex', borderRadius: 5, overflow: 'hidden',
-    border: '1px solid #0f3460', flexShrink: 0, alignSelf: 'center',
+    border: '1px solid var(--border)', flexShrink: 0, alignSelf: 'center',
   },
   toolScroll: {
     display: 'flex', alignItems: 'center', gap: 4,
@@ -437,14 +437,14 @@ const styles = {
     scrollbarWidth: 'thin', msOverflowStyle: 'none',
   },
   scrollArrow: {
-    flexShrink: 0, width: 22, height: 36, background: '#0f3460', border: '1px solid #2a5a8a',
-    borderRadius: 4, color: '#90cdf4', cursor: 'pointer', fontSize: 18, lineHeight: 1,
+    flexShrink: 0, width: 22, height: 36, background: 'var(--border)', border: '1px solid var(--border-accent-2)',
+    borderRadius: 4, color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 18, lineHeight: 1,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   userName: {
-    flexShrink: 0, marginLeft: 8, paddingLeft: 10, borderLeft: '1px solid #0f3460',
-    color: '#a0aec0', fontSize: 11, whiteSpace: 'nowrap', alignSelf: 'center',
-    background: 'none', border: 'none', borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: '#0f3460',
+    flexShrink: 0, marginLeft: 8, paddingLeft: 10, borderLeft: '1px solid var(--border)',
+    color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap', alignSelf: 'center',
+    background: 'none', border: 'none', borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: 'var(--border)',
     cursor: 'pointer',
   },
   resizeHandle: {
@@ -452,38 +452,38 @@ const styles = {
     cursor: 'ns-resize', zIndex: 5,
   },
   modeBtn: {
-    background: '#0d1b2a', border: '1px solid transparent', color: '#718096',
+    background: 'var(--bg-inset)', border: '1px solid transparent', color: 'var(--text-dim)',
     cursor: 'pointer', padding: '5px 12px', fontSize: 11, fontWeight: 600,
     letterSpacing: '0.05em', transition: 'all 0.15s',
   },
-  modeBtnActive:      { background: '#0f3460', color: '#00aaff', border: '1px solid #4a90d9' },
-  modeBtnActiveCable: { background: '#1a2a0a', color: '#68d391', border: '1px solid #2d6a4f' },
-  modeBtnActiveSheet: { background: '#0f2a4a', color: '#60b0ff', border: '1px solid #2a6090' },
+  modeBtnActive:      { background: 'var(--border)', color: 'var(--accent-bright)', border: '1px solid var(--accent)' },
+  modeBtnActiveCable: { background: '#1a2a0a', color: 'var(--success-text)', border: '1px solid #2d6a4f' },
+  modeBtnActiveSheet: { background: '#0f2a4a', color: 'var(--accent-text)', border: '1px solid var(--border-accent)' },
   group:   { display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 },
-  divider: { width: 1, height: 32, background: '#0f3460', margin: '0 4px', flexShrink: 0 },
+  divider: { width: 1, height: 32, background: 'var(--border)', margin: '0 4px', flexShrink: 0 },
   btn: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     background: 'transparent', border: '1px solid transparent', borderRadius: 4,
-    color: '#a0aec0', cursor: 'pointer', padding: '2px 6px',
+    color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 6px',
     minWidth: 40, height: 38, fontSize: 11, transition: 'all 0.1s',
   },
   caret: {
-    background: '#0d1b2a', border: '1px solid #2a5a8a', borderRadius: 4, color: '#90cdf4',
+    background: 'var(--bg-inset)', border: '1px solid var(--border-accent-2)', borderRadius: 4, color: 'var(--accent-soft)',
     cursor: 'pointer', fontSize: 11, padding: '0 4px', marginLeft: 2, alignSelf: 'center', height: 30,
   },
   snapPop: {
     position: 'fixed', zIndex: 1300,
-    background: '#16213e', border: '1px solid #2a5a8a', borderRadius: 6,
+    background: 'var(--bg-panel)', border: '1px solid var(--border-accent-2)', borderRadius: 6,
     boxShadow: '0 8px 24px rgba(0,0,0,0.85)', padding: '8px 10px', minWidth: 170,
   },
-  snapPopTitle: { fontSize: 9, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 },
-  snapRow: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#c0c8d8', padding: '3px 0', cursor: 'pointer' },
-  snapHint: { fontSize: 10, color: '#4a5568', marginTop: 8, paddingTop: 6, borderTop: '1px solid #0f3460', lineHeight: 1.4 },
-  active:   { background: '#0f3460', border: '1px solid #00aaff', color: '#00aaff' },
+  snapPopTitle: { fontSize: 9, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 },
+  snapRow: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text-2)', padding: '3px 0', cursor: 'pointer' },
+  snapHint: { fontSize: 10, color: 'var(--text-faint)', marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--border)', lineHeight: 1.4 },
+  active:   { background: 'var(--border)', border: '1px solid var(--accent-bright)', color: 'var(--accent-bright)' },
   disabled: { opacity: 0.4, cursor: 'not-allowed' },
   locked:   { opacity: 0.45, cursor: 'help' },
   icon:     { fontSize: 15, lineHeight: 1 },
   lockBadge:{ position: 'absolute', right: -5, bottom: -3, background: 'var(--bg-panel)', borderRadius: 2 },
   label:    { fontSize: 9, marginTop: 2, letterSpacing: '0.05em' },
-  zoomLabel:{ color: '#a0aec0', fontSize: 11, minWidth: 38, textAlign: 'center' },
+  zoomLabel:{ color: 'var(--text-muted)', fontSize: 11, minWidth: 38, textAlign: 'center' },
 };

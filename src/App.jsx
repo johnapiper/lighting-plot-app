@@ -991,12 +991,12 @@ function App() {
         const daysLeft = Math.ceil((new Date(exp) - new Date()) / 86400000);
         if (daysLeft > 30) return null;
         return (
-          <div style={{ ...styles.updateBanner, background: daysLeft <= 7 ? '#4a1a1a' : '#2a2a0a', borderBottomColor: daysLeft <= 7 ? '#fc8181' : '#f6e05e' }}>
-            <span style={{ color: daysLeft <= 7 ? '#fc8181' : '#f6e05e' }}>
+          <div style={{ ...styles.updateBanner, background: daysLeft <= 7 ? '#4a1a1a' : '#2a2a0a', borderBottomColor: daysLeft <= 7 ? 'var(--danger-text)' : '#f6e05e' }}>
+            <span style={{ color: daysLeft <= 7 ? 'var(--danger-text)' : '#f6e05e' }}>
               {daysLeft <= 0 ? '⚠ License expired.' : `⚠ License expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`}
             </span>
             <button onClick={() => setShowMyLicense(true)}
-              style={{ marginLeft:10, padding:'2px 12px', background:'transparent', border:`1px solid ${daysLeft<=7?'#fc8181':'#f6e05e'}`, borderRadius:3, color: daysLeft<=7?'#fc8181':'#f6e05e', cursor:'pointer', fontSize:11 }}>
+              style={{ marginLeft:10, padding:'2px 12px', background:'transparent', border:`1px solid ${daysLeft<=7?'var(--danger-text)':'#f6e05e'}`, borderRadius:3, color: daysLeft<=7?'var(--danger-text)':'#f6e05e', cursor:'pointer', fontSize:11 }}>
               Manage License
             </button>
           </div>
@@ -1007,12 +1007,12 @@ function App() {
         <div style={styles.updateBanner}>
           <span>Update available: <strong>v{updateBanner.version}</strong></span>
           <button
-            style={{ marginLeft: 10, padding: '2px 12px', background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 3, color: '#90cdf4', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            style={{ marginLeft: 10, padding: '2px 12px', background: 'var(--border)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
             onClick={() => { setShowAppSettings(true); setUpdateBanner(null); }}>
             Update Now
           </button>
           <button onClick={() => setUpdateBanner(null)}
-            style={{ marginLeft: 8, background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: 13 }}>
+            style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
             ✕
           </button>
         </div>
@@ -1425,23 +1425,23 @@ function App() {
 }
 
 const styles = {
-  app: { display:'flex', flexDirection:'column', height:'100vh', background:'#0d1117', color:'#e0e0e0', fontFamily:"'Segoe UI', system-ui, sans-serif", overflow:'hidden' },
+  app: { display:'flex', flexDirection:'column', height:'100vh', background:'var(--bg-app)', color:'var(--text)', fontFamily:"'Segoe UI', system-ui, sans-serif", overflow:'hidden' },
   updateBanner: {
     display: 'flex', alignItems: 'center', padding: '5px 16px',
-    background: '#0f3460', borderBottom: '1px solid #1a4a80',
-    fontSize: 12, color: '#e0e0e0', gap: 4, flexShrink: 0,
+    background: 'var(--border)', borderBottom: '1px solid #1a4a80',
+    fontSize: 12, color: 'var(--text)', gap: 4, flexShrink: 0,
   },
   main: { display:'flex', flex:1, overflow:'hidden' },
   canvasColumn: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden' },
-  rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid #0f3460', overflow:'hidden', flexShrink:0 },
+  rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid var(--border)', overflow:'hidden', flexShrink:0 },
   statusBar: {
     display: 'flex', alignItems: 'center', padding: '3px 14px',
-    background: '#0d1b2a', borderTop: '1px solid #0f3460',
-    fontSize: 11, color: '#718096', gap: 6, flexShrink: 0,
+    background: 'var(--bg-inset)', borderTop: '1px solid var(--border)',
+    fontSize: 11, color: 'var(--text-dim)', gap: 6, flexShrink: 0,
   },
-  statusItem: { color: '#a0aec0' },
-  statusSep: { color: '#2d3748' },
-  statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px' },
-  conflictBtn: { background:'#3a1a1a', border:'1px solid #7a2a2a', borderRadius:3, color:'#fc8181', cursor:'pointer', fontSize:11, padding:'1px 8px' },
-  statusSelect: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
+  statusItem: { color: 'var(--text-muted)' },
+  statusSep: { color: 'var(--sep)' },
+  statusBtn: { background:'none', border:'none', color:'var(--text-faint)', cursor:'pointer', fontSize:10, padding:'0 6px' },
+  conflictBtn: { background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:3, color:'var(--danger-text)', cursor:'pointer', fontSize:11, padding:'1px 8px' },
+  statusSelect: { background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:3, color:'var(--text-muted)', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
 };

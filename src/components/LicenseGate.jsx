@@ -192,7 +192,7 @@ export default function LicenseGate({ children }) {
       <div style={S.overlay}>
         <div style={S.card}>
           <Logo />
-          <p style={{ color: '#718096', marginTop: 16 }}>Checking license…</p>
+          <p style={{ color: 'var(--text-dim)', marginTop: 16 }}>Checking license…</p>
         </div>
       </div>
     );
@@ -219,12 +219,12 @@ export default function LicenseGate({ children }) {
           <Logo />
           <h2 style={S.heading}>Update Required</h2>
           <p style={S.sub}>
-            This license requires <strong style={{ color: '#e0e0e0' }}>version {blockedInfo?.minVersion}</strong> or newer.
-            You are running <strong style={{ color: '#e0e0e0' }}>v{appVersion}</strong>.
+            This license requires <strong style={{ color: 'var(--text)' }}>version {blockedInfo?.minVersion}</strong> or newer.
+            You are running <strong style={{ color: 'var(--text)' }}>v{appVersion}</strong>.
             Please update to continue.
           </p>
           <button style={S.btn} onClick={() => setShowAbout(true)}>Check for Updates / About</button>
-          <button style={{ ...S.btn, background: 'transparent', border: '1px solid #2a4060', color: '#a0aec0' }}
+          <button style={{ ...S.btn, background: 'transparent', border: '1px solid #2a4060', color: 'var(--text-muted)' }}
             onClick={handleDeactivate}>
             Use a Different License
           </button>
@@ -321,7 +321,7 @@ function Logo() {
         <line x1="20" y1="16" x2="32" y2="16" stroke="#4a90d9" strokeWidth="2"/>
         <line x1="44" y1="16" x2="32" y2="16" stroke="#4a90d9" strokeWidth="2"/>
       </svg>
-      <div style={{ color: '#e0e0e0', fontWeight: 700, fontSize: 18, marginTop: 4, letterSpacing: '0.04em' }}>
+      <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 18, marginTop: 4, letterSpacing: '0.04em' }}>
         LIGHTING PLOT
       </div>
     </div>
@@ -330,36 +330,36 @@ function Logo() {
 
 const S = {
   overlay: {
-    position: 'fixed', inset: 0, background: '#0d1117',
+    position: 'fixed', inset: 0, background: 'var(--bg-app)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
   },
   card: {
-    background: '#16213e', border: '1px solid #0f3460',
+    background: 'var(--bg-panel)', border: '1px solid var(--border)',
     borderRadius: 10, padding: '36px 40px', width: 420,
     display: 'flex', flexDirection: 'column', alignItems: 'center',
     boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
   },
-  heading: { color: '#e0e0e0', fontSize: 20, fontWeight: 700, margin: '12px 0 4px' },
-  sub:     { color: '#718096', fontSize: 13, marginBottom: 20, textAlign: 'center' },
+  heading: { color: 'var(--text)', fontSize: 20, fontWeight: 700, margin: '12px 0 4px' },
+  sub:     { color: 'var(--text-dim)', fontSize: 13, marginBottom: 20, textAlign: 'center' },
   keyInput: {
     width: '100%', boxSizing: 'border-box',
-    background: '#0d1b2a', border: '1px solid #1a3a5c',
-    borderRadius: 5, color: '#e0e0e0', fontSize: 15,
+    background: 'var(--bg-inset)', border: '1px solid var(--border-strong)',
+    borderRadius: 5, color: 'var(--text)', fontSize: 15,
     padding: '10px 12px', letterSpacing: '0.12em',
     textAlign: 'center', outline: 'none',
     fontFamily: "'Courier New', monospace",
   },
   btn: {
     width: '100%', marginTop: 12, padding: '11px',
-    background: '#4a90d9', border: 'none', borderRadius: 5,
+    background: 'var(--accent)', border: 'none', borderRadius: 5,
     color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
   errBox: {
     marginTop: 10, padding: '8px 12px',
-    background: 'rgba(252,129,129,0.12)', border: '1px solid #fc8181',
-    borderRadius: 4, color: '#fc8181', fontSize: 12, width: '100%', boxSizing: 'border-box',
+    background: 'rgba(252,129,129,0.12)', border: '1px solid var(--danger-text)',
+    borderRadius: 4, color: 'var(--danger-text)', fontSize: 12, width: '100%', boxSizing: 'border-box',
   },
-  footer: { color: '#4a5568', fontSize: 11, marginTop: 20, textAlign: 'center' },
+  footer: { color: 'var(--text-faint)', fontSize: 11, marginTop: 20, textAlign: 'center' },
   trialBox: {
     marginTop: 16, width: '100%', boxSizing: 'border-box',
     background: '#2a1a00', border: '1px solid #b7791f', borderRadius: 6,

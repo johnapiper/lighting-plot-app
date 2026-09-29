@@ -29,7 +29,7 @@ export default function TransformModal({ mode, count, onApplyArray, onAlign, onM
         <div style={S.body}>
           {mode === 'mirror' && (
             <>
-              <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 12 }}>Mirror a copy of the selection across:</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Mirror a copy of the selection across:</div>
               <div style={S.btnRow}>
                 <button style={S.opt} onClick={() => onMirror('v')}>⇆ Vertical axis</button>
                 <button style={S.opt} onClick={() => onMirror('h')}>⇅ Horizontal axis</button>
@@ -83,7 +83,7 @@ export default function TransformModal({ mode, count, onApplyArray, onAlign, onM
                 <div style={S.grid2}>
                   <L label="Count (incl. original)"><input style={S.inp} type="number" min="2" value={pCount} onChange={e => setPCount(e.target.value)} /></L>
                   <L label="Total angle (°)"><input style={S.inp} type="number" value={pAngle} onChange={e => setPAngle(e.target.value)} /></L>
-                  <div style={{ gridColumn: '1 / 3', fontSize: 11, color: '#718096' }}>Copies rotate around the centre of the selection.</div>
+                  <div style={{ gridColumn: '1 / 3', fontSize: 11, color: 'var(--text-dim)' }}>Copies rotate around the centre of the selection.</div>
                 </div>
               )}
               <div style={S.footer}>
@@ -121,24 +121,24 @@ export default function TransformModal({ mode, count, onApplyArray, onAlign, onM
 }
 
 function L({ label, children }) {
-  return <div><div style={{ fontSize: 11, color: '#718096', marginBottom: 3 }}>{label}</div>{children}</div>;
+  return <div><div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>{label}</div>{children}</div>;
 }
 
 const S = {
   overlay: { position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1200 },
-  modal: { background:'#16213e', border:'1px solid #0f3460', borderRadius:8, width:380, boxShadow:'0 12px 40px rgba(0,0,0,0.8)' },
-  header: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', borderBottom:'1px solid #0f3460', fontSize:13, fontWeight:700, color:'#e0e0e0' },
-  x: { background:'none', border:'none', color:'#718096', cursor:'pointer', fontSize:16 },
+  modal: { background:'var(--bg-panel)', border:'1px solid var(--border)', borderRadius:8, width:380, boxShadow:'0 12px 40px rgba(0,0,0,0.8)' },
+  header: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:13, fontWeight:700, color:'var(--text)' },
+  x: { background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer', fontSize:16 },
   body: { padding:'14px 16px' },
   tabs: { display:'flex', gap:6, marginBottom:12 },
-  tab: { flex:1, padding:'6px', background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:4, color:'#a0aec0', cursor:'pointer', fontSize:12 },
-  tabOn: { background:'#0f3460', color:'#4a90d9', borderColor:'#4a90d9' },
+  tab: { flex:1, padding:'6px', background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text-muted)', cursor:'pointer', fontSize:12 },
+  tabOn: { background:'var(--border)', color:'var(--accent)', borderColor:'var(--accent)' },
   grid2: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 },
-  inp: { width:'100%', boxSizing:'border-box', background:'#0d1b2a', border:'1px solid #1a3a5c', borderRadius:4, color:'#e0e0e0', fontSize:13, padding:'6px 8px', outline:'none' },
-  secLabel: { fontSize:10, fontWeight:700, color:'#4a90d9', textTransform:'uppercase', letterSpacing:'0.08em', margin:'4px 0 8px' },
+  inp: { width:'100%', boxSizing:'border-box', background:'var(--bg-inset)', border:'1px solid var(--border-strong)', borderRadius:4, color:'var(--text)', fontSize:13, padding:'6px 8px', outline:'none' },
+  secLabel: { fontSize:10, fontWeight:700, color:'var(--accent)', textTransform:'uppercase', letterSpacing:'0.08em', margin:'4px 0 8px' },
   btnRow: { display:'flex', gap:6, marginBottom:8 },
-  opt: { flex:1, padding:'7px 4px', background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:4, color:'#c0c8d8', cursor:'pointer', fontSize:11 },
+  opt: { flex:1, padding:'7px 4px', background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:4, color:'var(--text-2)', cursor:'pointer', fontSize:11 },
   footer: { display:'flex', justifyContent:'flex-end', gap:8, marginTop:14 },
-  cancel: { padding:'6px 16px', background:'transparent', border:'1px solid #0f3460', borderRadius:4, color:'#a0aec0', cursor:'pointer', fontSize:12 },
-  go: { padding:'6px 18px', background:'#0f3460', border:'1px solid #4a90d9', borderRadius:4, color:'#4a90d9', cursor:'pointer', fontSize:12, fontWeight:600 },
+  cancel: { padding:'6px 16px', background:'transparent', border:'1px solid var(--border)', borderRadius:4, color:'var(--text-muted)', cursor:'pointer', fontSize:12 },
+  go: { padding:'6px 18px', background:'var(--border)', border:'1px solid var(--accent)', borderRadius:4, color:'var(--accent)', cursor:'pointer', fontSize:12, fontWeight:600 },
 };

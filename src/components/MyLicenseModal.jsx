@@ -64,7 +64,7 @@ export default function MyLicenseModal({ license, onClose, onChangeLicense }) {
           {/* Permitted features */}
           <Section title="Features Included in Your License">
             {Object.keys(groupedFeatures).length === 0 ? (
-              <p style={{ color: '#718096', fontSize: 12 }}>No features assigned.</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>No features assigned.</p>
             ) : (
               Object.entries(groupedFeatures).map(([group, feats]) => (
                 <div key={group} style={{ marginBottom: 10 }}>
@@ -102,7 +102,7 @@ function Row({ label, value, warn }) {
   return (
     <div style={S.row}>
       <span style={S.rowLabel}>{label}</span>
-      <span style={{ ...S.rowValue, ...(warn ? { color: '#fc8181' } : {}) }}>{value}</span>
+      <span style={{ ...S.rowValue, ...(warn ? { color: 'var(--danger-text)' } : {}) }}>{value}</span>
     </div>
   );
 }
@@ -113,49 +113,49 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
   },
   modal: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: 420, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
     boxShadow: '0 12px 40px rgba(0,0,0,0.9)',
   },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px', borderBottom: '1px solid #0f3460',
-    fontSize: 14, fontWeight: 700, color: '#e0e0e0',
+    padding: '14px 18px', borderBottom: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 700, color: 'var(--text)',
   },
-  closeBtn: { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 16 },
+  closeBtn: { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16 },
   body: { padding: '18px 20px 8px', overflowY: 'auto', flex: 1 },
   footer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '12px 18px', borderTop: '1px solid #0f3460' },
+    padding: '12px 18px', borderTop: '1px solid var(--border)' },
   sectionTitle: {
-    fontSize: 10, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase',
-    letterSpacing: '0.1em', marginBottom: 10, paddingBottom: 4, borderBottom: '1px solid #0f3460',
+    fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase',
+    letterSpacing: '0.1em', marginBottom: 10, paddingBottom: 4, borderBottom: '1px solid var(--border)',
   },
   row: { display: 'flex', justifyContent: 'space-between', marginBottom: 6 },
-  rowLabel: { fontSize: 12, color: '#a0aec0' },
-  rowValue: { fontSize: 12, color: '#e0e0e0', fontWeight: 600 },
+  rowLabel: { fontSize: 12, color: 'var(--text-muted)' },
+  rowValue: { fontSize: 12, color: 'var(--text)', fontWeight: 600 },
   keyBox: {
     display: 'flex', alignItems: 'center', gap: 10,
-    background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 5,
+    background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 5,
     padding: '8px 12px',
   },
-  keyText: { flex: 1, fontSize: 13, color: '#60b0ff', letterSpacing: '0.05em', wordBreak: 'break-all' },
+  keyText: { flex: 1, fontSize: 13, color: 'var(--accent-text)', letterSpacing: '0.05em', wordBreak: 'break-all' },
   ghostBtn: {
     padding: '4px 10px', background: 'transparent', border: '1px solid #2a4060',
-    borderRadius: 4, color: '#718096', cursor: 'pointer', fontSize: 11, flexShrink: 0,
+    borderRadius: 4, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 11, flexShrink: 0,
   },
-  copiedBtn: { borderColor: '#68d391', color: '#68d391' },
-  groupLabel: { fontSize: 10, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 },
+  copiedBtn: { borderColor: 'var(--success-text)', color: 'var(--success-text)' },
+  groupLabel: { fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 },
   featureList: { display: 'flex', flexWrap: 'wrap', gap: 6 },
   featureChip: {
-    fontSize: 11, color: '#68d391', background: 'rgba(104,211,145,0.08)',
+    fontSize: 11, color: 'var(--success-text)', background: 'rgba(104,211,145,0.08)',
     border: '1px solid rgba(104,211,145,0.25)', borderRadius: 4, padding: '2px 8px',
   },
   changeBtn: {
-    padding: '6px 14px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    padding: '6px 14px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
   },
   cancelBtn: {
-    padding: '6px 16px', background: 'transparent', border: '1px solid #0f3460',
-    borderRadius: 4, color: '#a0aec0', cursor: 'pointer', fontSize: 12,
+    padding: '6px 16px', background: 'transparent', border: '1px solid var(--border)',
+    borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12,
   },
 };

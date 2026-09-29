@@ -12,9 +12,9 @@ import { generateId } from '../canvas/geometry';
 function Field({ label, children, hint }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <label style={{ display: 'block', fontSize: 10, color: '#718096', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-dim)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
       {children}
-      {hint && <div style={{ fontSize: 9, color: '#4a5568', marginTop: 2 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 9, color: 'var(--text-faint)', marginTop: 2 }}>{hint}</div>}
     </div>
   );
 }
@@ -41,8 +41,8 @@ function Select({ value, onChange, options }) {
 }
 
 const inp = {
-  width: '100%', background: '#0d1b2a', border: '1px solid #0f3460',
-  borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '4px 7px',
+  width: '100%', background: 'var(--bg-inset)', border: '1px solid var(--border)',
+  borderRadius: 3, color: 'var(--text)', fontSize: 12, padding: '4px 7px',
   outline: 'none', boxSizing: 'border-box',
 };
 
@@ -69,7 +69,7 @@ function DistroInspector({ item, onChange }) {
       <Field label="Label"><TextInput value={item.label} onChange={v => onChange({ ...item, label: v })} /></Field>
       <Field label="Type"><div style={{ fontSize: 11, color: '#fbbf24' }}>Power Distribution Unit</div></Field>
 
-      <div style={{ fontSize: 10, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.07em', marginTop: 10, marginBottom: 6, borderTop: '1px solid #0f3460', paddingTop: 8 }}>
+      <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em', marginTop: 10, marginBottom: 6, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
         Circuits ({(item.circuits || []).length})
       </div>
       {(item.circuits || []).map(c => (
@@ -169,7 +169,7 @@ export function CableInspector({ cable, fromLabel, toLabel, lengthMm, loadInfo, 
 
   return (
     <div style={{ padding: '10px 12px' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#a0aec0', marginBottom: 10 }}>Cable</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>Cable</div>
       <Field label="Label">
         <TextInput value={cable.label || ''} onChange={v => onChange({ ...cable, label: v })} />
       </Field>
@@ -186,14 +186,14 @@ export function CableInspector({ cable, fromLabel, toLabel, lengthMm, loadInfo, 
             onChange={v => onChange({ ...cable, subtype: v })} />
         </Field>
       )}
-      <div style={{ fontSize: 10, color: '#4a5568', marginTop: 8 }}>
-        From: <span style={{ color: '#e0e0e0' }}>{fromLabel || cable.fromId}</span>
+      <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 8 }}>
+        From: <span style={{ color: 'var(--text)' }}>{fromLabel || cable.fromId}</span>
       </div>
-      <div style={{ fontSize: 10, color: '#4a5568', marginBottom: 8 }}>
-        To: <span style={{ color: '#e0e0e0' }}>{toLabel || cable.toId}</span>
+      <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 8 }}>
+        To: <span style={{ color: 'var(--text)' }}>{toLabel || cable.toId}</span>
       </div>
-      <div style={{ fontSize: 10, color: '#4a5568' }}>
-        Est. Length: <span style={{ color: '#e0e0e0', fontWeight: 600 }}>{formatLength(lengthMm)}</span>
+      <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>
+        Est. Length: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{formatLength(lengthMm)}</span>
       </div>
       {loadInfo && (
         <div style={{ marginTop: 8, padding: '6px 8px', borderRadius: 4,
@@ -202,10 +202,10 @@ export function CableInspector({ cable, fromLabel, toLabel, lengthMm, loadInfo, 
           <div style={{ fontSize: 10, color: loadInfo.overloaded ? '#ef4444' : '#34d399', fontWeight: 600 }}>
             {loadInfo.overloaded ? '⚠ OVERLOADED' : '✓ OK'}
           </div>
-          <div style={{ fontSize: 10, color: '#a0aec0', marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
             Load: {loadInfo.totalAmps}A / {loadInfo.maxAmps}A · {loadInfo.utilizationPct}%
           </div>
-          <div style={{ fontSize: 10, color: '#a0aec0' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
             {loadInfo.totalWatts}W / {loadInfo.maxWatts}W
           </div>
         </div>
@@ -225,7 +225,7 @@ export default function InfraInspector({ item, onChange }) {
 
   return (
     <div style={{ padding: '10px 12px' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#a0aec0', marginBottom: 10, textTransform: 'capitalize' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'capitalize' }}>
         {item.type === 'distro' ? '⚡' : item.type === 'node' ? '🎛' : item.type === 'switch' ? '🌐' : '🔌'} {item.type}
       </div>
       <Inspector item={item} onChange={onChange} />
@@ -245,6 +245,6 @@ export default function InfraInspector({ item, onChange }) {
 }
 
 const addBtn = {
-  padding: '4px 10px', background: '#0f3460', border: '1px solid #4a90d9',
-  borderRadius: 3, color: '#4a90d9', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+  padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--accent)',
+  borderRadius: 3, color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontWeight: 600,
 };

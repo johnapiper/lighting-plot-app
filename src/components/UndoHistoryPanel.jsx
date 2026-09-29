@@ -25,14 +25,14 @@ export default function UndoHistoryPanel({ historyStack, historyIdx, historyLabe
                   <span style={S.num}>{i}.</span>
                   <span style={S.desc}>{labels[i] || (i === 0 ? 'Initial state' : 'Edit')}</span>
                   {isCurrent && <span style={S.tag}>current</span>}
-                  {i > cur && <span style={{ ...S.tag, background: '#2d3748', color: '#718096' }}>redo</span>}
+                  {i > cur && <span style={{ ...S.tag, background: 'var(--sep)', color: 'var(--text-dim)' }}>redo</span>}
                 </span>
               </div>
             );
           })}
         </div>
         <div style={S.footer}>
-          <span style={{ fontSize: 10, color: '#4a5568' }}>Click a state to jump to it (Ctrl+Z / Ctrl+Y still work)</span>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>Click a state to jump to it (Ctrl+Z / Ctrl+Y still work)</span>
         </div>
       </div>
     </div>
@@ -41,18 +41,18 @@ export default function UndoHistoryPanel({ historyStack, historyIdx, historyLabe
 
 const S = {
   overlay: { position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1100 },
-  panel: { background:'#16213e', border:'1px solid #0f3460', borderRadius:8, width:300, maxHeight:'70vh', display:'flex', flexDirection:'column', boxShadow:'0 12px 40px rgba(0,0,0,0.8)' },
-  header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid #0f3460', fontSize:13, fontWeight:700, color:'#e0e0e0' },
-  closeBtn: { background:'none', border:'none', color:'#718096', cursor:'pointer', fontSize:16 },
+  panel: { background:'var(--bg-panel)', border:'1px solid var(--border)', borderRadius:8, width:300, maxHeight:'70vh', display:'flex', flexDirection:'column', boxShadow:'0 12px 40px rgba(0,0,0,0.8)' },
+  header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--border)', fontSize:13, fontWeight:700, color:'var(--text)' },
+  closeBtn: { background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer', fontSize:16 },
   body: { overflowY:'auto', flex:1, padding:'8px 0' },
-  empty: { padding:'20px', textAlign:'center', color:'#718096', fontSize:12 },
-  item: { display:'flex', alignItems:'center', gap:10, padding:'6px 16px', cursor:'pointer', fontSize:12, color:'#a0aec0', transition:'background 0.1s' },
-  current: { background:'#0f3460', color:'#e0e0e0' },
+  empty: { padding:'20px', textAlign:'center', color:'var(--text-dim)', fontSize:12 },
+  item: { display:'flex', alignItems:'center', gap:10, padding:'6px 16px', cursor:'pointer', fontSize:12, color:'var(--text-muted)', transition:'background 0.1s' },
+  current: { background:'var(--border)', color:'var(--text)' },
   future: { opacity:0.5 },
-  dot: { fontSize:10, color:'#4a90d9', flexShrink:0 },
+  dot: { fontSize:10, color:'var(--accent)', flexShrink:0 },
   label: { flex:1, display:'flex', alignItems:'center', gap:6, minWidth:0 },
-  num: { fontSize:10, color:'#4a5568', flexShrink:0, minWidth:18 },
+  num: { fontSize:10, color:'var(--text-faint)', flexShrink:0, minWidth:18 },
   desc: { flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' },
-  tag: { fontSize:9, background:'#4a90d9', color:'#fff', borderRadius:3, padding:'1px 5px', flexShrink:0 },
-  footer: { padding:'8px 16px', borderTop:'1px solid #0f3460' },
+  tag: { fontSize:9, background:'var(--accent)', color:'#fff', borderRadius:3, padding:'1px 5px', flexShrink:0 },
+  footer: { padding:'8px 16px', borderTop:'1px solid var(--border)' },
 };

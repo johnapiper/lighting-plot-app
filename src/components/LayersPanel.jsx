@@ -120,7 +120,7 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
               )}
               {layers.length > 1 && !layer.system && (
                 <button
-                  style={{ ...styles.iconBtn, color: '#fc8181' }}
+                  style={{ ...styles.iconBtn, color: 'var(--danger-text)' }}
                   title="Delete layer"
                   onClick={() => onDeleteLayer(layer.id)}
                 >×</button>
@@ -140,8 +140,8 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
 const styles = {
   panel: {
     width: '100%',
-    background: '#16213e',
-    borderTop: '1px solid #0f3460',
+    background: 'var(--bg-panel)',
+    borderTop: '1px solid var(--border)',
     display: 'flex',
     flexDirection: 'column',
     minHeight: 140,
@@ -153,17 +153,17 @@ const styles = {
     fontWeight: 700,
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
-    color: '#4a90d9',
-    borderBottom: '1px solid #0f3460',
+    color: 'var(--accent)',
+    borderBottom: '1px solid var(--border)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   addBtn: {
-    background: '#0f3460',
+    background: 'var(--border)',
     border: 'none',
     borderRadius: 3,
-    color: '#4a90d9',
+    color: 'var(--accent)',
     cursor: 'pointer',
     fontSize: 15,
     lineHeight: 1,
@@ -179,22 +179,22 @@ const styles = {
     alignItems: 'center',
     gap: 4,
     padding: '4px 6px',
-    borderBottom: '1px solid #0f3460',
+    borderBottom: '1px solid var(--border)',
     cursor: 'pointer',
     transition: 'background 0.1s',
     minHeight: 28,
   },
   rowActive: {
     background: 'rgba(42,96,144,0.18)',
-    borderLeft: '2px solid #2a6090',
+    borderLeft: '2px solid var(--border-accent)',
   },
   activeDot: {
     width: 5, height: 5, borderRadius: '50%',
-    background: '#60b0ff', flexShrink: 0,
+    background: 'var(--accent-text)', flexShrink: 0,
     marginRight: 1,
   },
   rowDropOver: {
-    borderTop: '2px solid #00aaff',
+    borderTop: '2px solid var(--accent-bright)',
     background: 'rgba(0,170,255,0.08)',
   },
   rowDragging: {
@@ -220,15 +220,15 @@ const styles = {
   },
   sysBadge: {
     fontSize: 7, fontWeight: 700, letterSpacing: '0.06em',
-    background: '#0f3460', color: '#7fa8d0', borderRadius: 2,
+    background: 'var(--border)', color: '#7fa8d0', borderRadius: 2,
     padding: '1px 3px', marginLeft: 5, verticalAlign: 'middle',
   },
   nameInput: {
     flex: 1,
-    background: '#0d1b2a',
-    border: '1px solid #4a90d9',
+    background: 'var(--bg-inset)',
+    border: '1px solid var(--accent)',
     borderRadius: 3,
-    color: '#e0e0e0',
+    color: 'var(--text)',
     fontSize: 11,
     padding: '1px 4px',
     outline: 'none',
@@ -237,7 +237,7 @@ const styles = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    color: '#718096',
+    color: 'var(--text-dim)',
     fontSize: 13,
     padding: 0,
     lineHeight: 1,
@@ -248,8 +248,8 @@ const styles = {
   hint: {
     padding: '4px 8px',
     fontSize: 9,
-    color: '#00aaff',
+    color: 'var(--accent-bright)',
     textAlign: 'center',
-    borderTop: '1px solid #0f3460',
+    borderTop: '1px solid var(--border)',
   },
 };

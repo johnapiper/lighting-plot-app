@@ -30,13 +30,13 @@ export default function RecoveryDialog({ recovery, onRestore, onDiscard }) {
           <div style={styles.card}>
             <div style={styles.fileName}>📄 {fileName}</div>
             <div style={styles.meta}>
-              {when ? <>Auto-saved {when.toLocaleString()} <span style={{ color: '#4a5568' }}>({timeAgo(recovery.savedAt)})</span></> : 'Auto-save time unknown'}
+              {when ? <>Auto-saved {when.toLocaleString()} <span style={{ color: 'var(--text-faint)' }}>({timeAgo(recovery.savedAt)})</span></> : 'Auto-save time unknown'}
             </div>
             <div style={styles.meta}>
               {drawings.length} plot{drawings.length !== 1 ? 's' : ''} · {fixtureCount} fixture{fixtureCount !== 1 ? 's' : ''}
             </div>
             {recovery.currentFile && (
-              <div style={{ ...styles.meta, color: '#4a5568', wordBreak: 'break-all' }}>{recovery.currentFile}</div>
+              <div style={{ ...styles.meta, color: 'var(--text-faint)', wordBreak: 'break-all' }}>{recovery.currentFile}</div>
             )}
           </div>
           {confirmDiscard && (
@@ -63,16 +63,16 @@ export default function RecoveryDialog({ recovery, onRestore, onDiscard }) {
 
 const styles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 4000 },
-  modal: { background: '#16213e', border: '1px solid #2a5a8a', borderRadius: 8, width: 440, boxShadow: '0 12px 40px rgba(0,0,0,0.9)', color: '#e0e0e0' },
-  header: { padding: '14px 18px', borderBottom: '1px solid #0f3460', fontSize: 14, fontWeight: 700 },
+  modal: { background: 'var(--bg-panel)', border: '1px solid var(--border-accent-2)', borderRadius: 8, width: 440, boxShadow: '0 12px 40px rgba(0,0,0,0.9)', color: 'var(--text)' },
+  header: { padding: '14px 18px', borderBottom: '1px solid var(--border)', fontSize: 14, fontWeight: 700 },
   body: { padding: '14px 18px' },
-  p: { margin: '0 0 10px', fontSize: 12, color: '#a0aec0', lineHeight: 1.5 },
-  card: { background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 },
-  fileName: { fontSize: 13, fontWeight: 600, color: '#e0e0e0' },
-  meta: { fontSize: 11, color: '#a0aec0' },
-  warn: { marginTop: 10, fontSize: 11, color: '#fc8181', background: '#3a1a1a', border: '1px solid #7a2a2a', borderRadius: 4, padding: '6px 8px' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 18px', borderTop: '1px solid #0f3460' },
-  primary: { padding: '6px 18px', background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 4, color: '#90cdf4', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
-  secondary: { padding: '6px 16px', background: 'transparent', border: '1px solid #2d3748', borderRadius: 4, color: '#a0aec0', cursor: 'pointer', fontSize: 12 },
-  danger: { padding: '6px 16px', background: '#3a1a1a', border: '1px solid #e53e3e', borderRadius: 4, color: '#fc8181', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  p: { margin: '0 0 10px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 },
+  card: { background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 },
+  fileName: { fontSize: 13, fontWeight: 600, color: 'var(--text)' },
+  meta: { fontSize: 11, color: 'var(--text-muted)' },
+  warn: { marginTop: 10, fontSize: 11, color: 'var(--danger-text)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 4, padding: '6px 8px' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 18px', borderTop: '1px solid var(--border)' },
+  primary: { padding: '6px 18px', background: 'var(--border)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  secondary: { padding: '6px 16px', background: 'transparent', border: '1px solid var(--sep)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 },
+  danger: { padding: '6px 16px', background: 'var(--danger-bg)', border: '1px solid #e53e3e', borderRadius: 4, color: 'var(--danger-text)', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
 };

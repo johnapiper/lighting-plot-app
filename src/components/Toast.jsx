@@ -13,10 +13,10 @@ export function toast(message, type = 'info', { duration } = {}) {
 }
 
 const COLORS = {
-  info:    { bg: '#0f2a4a', border: '#4a90d9', fg: '#90cdf4', icon: 'ℹ' },
+  info:    { bg: '#0f2a4a', border: 'var(--accent)', fg: 'var(--accent-soft)', icon: 'ℹ' },
   success: { bg: '#10301f', border: '#38a169', fg: '#9ae6b4', icon: '✓' },
   warn:    { bg: '#3a3010', border: '#d69e2e', fg: '#f6e05e', icon: '⚠' },
-  error:   { bg: '#3a1a1a', border: '#e53e3e', fg: '#fc8181', icon: '✕' },
+  error:   { bg: 'var(--danger-bg)', border: '#e53e3e', fg: 'var(--danger-text)', icon: '✕' },
 };
 
 export default function ToastHost() {

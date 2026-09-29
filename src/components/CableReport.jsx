@@ -248,10 +248,10 @@ function OrderLengthSettings({ orderLengths, onChange, onClose }) {
   return (
     <div style={sty.settingsOverlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={sty.settingsBox}>
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: '#e0e0e0' }}>
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--text)' }}>
           📦 Stock Cable Lengths
         </div>
-        <div style={{ fontSize: 11, color: '#718096', marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12 }}>
           Comma-separated list of lengths in metres for each cable type.<br />
           Order Length rounds up to the nearest option.
         </div>
@@ -336,7 +336,7 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
               <option value="dmx">DMX only</option>
               <option value="network">Network only</option>
             </select>
-            <label style={{ fontSize: 11, color: '#a0aec0', display: 'flex', gap: 4, alignItems: 'center' }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 4, alignItems: 'center' }}>
               Default margin:
               <input type="number" min={0} max={100} value={globalMargin}
                 onChange={e => setGlobalMargin(Number(e.target.value) || 0)}
@@ -356,9 +356,9 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
           <span>{displayRows.length} cables</span>
           <span>· Route total: <strong>{formatLength(totalRoute)}</strong></span>
           <span>· Cable total: <strong>{formatLength(totalCable)}</strong></span>
-          <span>· Order total: <strong style={{ color: '#68d391' }}>{formatLength(totalOrder)}</strong></span>
+          <span>· Order total: <strong style={{ color: 'var(--success-text)' }}>{formatLength(totalOrder)}</strong></span>
           {overloads > 0 && <span style={{ color: '#ef4444' }}>· ⚠ {overloads} circuit{overloads > 1 ? 's' : ''} overloaded</span>}
-          <span style={{ color: '#718096', fontSize: 10 }}>
+          <span style={{ color: 'var(--text-dim)', fontSize: 10 }}>
             · Slack per cable: 1.1 m (0.9 m source + 0.2 m load)
           </span>
         </div>
@@ -398,7 +398,7 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
             </thead>
             <tbody>
               {displayRows.length === 0 && (
-                <tr><td colSpan={COLS.length} style={{ ...sty.td, textAlign: 'center', color: '#718096', padding: 20 }}>
+                <tr><td colSpan={COLS.length} style={{ ...sty.td, textAlign: 'center', color: 'var(--text-dim)', padding: 20 }}>
                   No cables found.
                 </td></tr>
               )}
@@ -432,16 +432,16 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                             type="number" min={0} max={100}
                             value={r.marginPct}
                             onChange={e => setRowMargin(r.id, Number(e.target.value) || 0)}
-                            style={{ width: 48, background: '#0d1b2a', border: '1px solid #1a3a5c',
-                              borderRadius: 3, color: '#e0e0e0', fontSize: 11, padding: '2px 4px', textAlign: 'right' }}
+                            style={{ width: 48, background: 'var(--bg-inset)', border: '1px solid var(--border-strong)',
+                              borderRadius: 3, color: 'var(--text)', fontSize: 11, padding: '2px 4px', textAlign: 'right' }}
                           />
-                          <span style={{ color: '#718096', fontSize: 10, marginLeft: 2 }}>%</span>
+                          <span style={{ color: 'var(--text-dim)', fontSize: 10, marginLeft: 2 }}>%</span>
                         </td>
                       );
                     }
                     if (c.key === 'cableLength') {
                       return (
-                        <td key={c.key} style={{ ...sty.td, color: '#a0aec0', fontWeight: 600 }}>
+                        <td key={c.key} style={{ ...sty.td, color: 'var(--text-muted)', fontWeight: 600 }}>
                           {r[c.key]}
                         </td>
                       );
@@ -449,7 +449,7 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                     if (c.key === 'orderLength') {
                       const isOver = r.orderLength === '> stock';
                       return (
-                        <td key={c.key} style={{ ...sty.td, color: isOver ? '#ef4444' : '#68d391', fontWeight: 700 }}>
+                        <td key={c.key} style={{ ...sty.td, color: isOver ? '#ef4444' : 'var(--success-text)', fontWeight: 700 }}>
                           {r[c.key]}
                         </td>
                       );
@@ -491,7 +491,7 @@ export default function CableReport({ drawing, pipes, rigHeight, gridHeight, fix
                         ...sty.td,
                         color: c.key === 'status' && r.overloaded ? '#ef4444'
                              : c.key === 'cableType' ? (r.cableType === 'power' ? '#fbbf24' : r.cableType === 'dmx' ? '#a78bfa' : '#34d399')
-                             : c.key === 'route' ? '#a0aec0'
+                             : c.key === 'route' ? 'var(--text-muted)'
                              : sty.td.color,
                         fontWeight: c.key === 'status' && r.overloaded ? 700 : 400,
                       }}>{r[c.key]}</td>
@@ -522,39 +522,39 @@ const sty = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 950,
   },
   window: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: '95vw', maxWidth: 1400, height: '82vh',
     display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.9)',
   },
   titleBar: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 16px', borderBottom: '1px solid #0f3460',
-    color: '#e0e0e0', flexWrap: 'wrap', gap: 8,
+    padding: '10px 16px', borderBottom: '1px solid var(--border)',
+    color: 'var(--text)', flexWrap: 'wrap', gap: 8,
   },
   summary: {
     display: 'flex', gap: 12, padding: '5px 16px',
-    fontSize: 11, color: '#a0aec0', borderBottom: '1px solid #0f3460',
-    background: '#0d1b2a', flexWrap: 'wrap',
+    fontSize: 11, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)',
+    background: 'var(--bg-inset)', flexWrap: 'wrap',
   },
   tableWrap: { flex: 1, overflowY: 'auto', overflowX: 'auto' },
   table:    { width: '100%', borderCollapse: 'collapse', fontSize: 12 },
   th: {
     padding: '7px 8px', textAlign: 'left',
-    background: '#0f3460', color: '#4a90d9',
+    background: 'var(--border)', color: 'var(--accent)',
     fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
     letterSpacing: '0.05em', position: 'sticky', top: 0, whiteSpace: 'nowrap',
   },
-  td: { padding: '6px 8px', color: '#e0e0e0', borderBottom: '1px solid #0a1628', whiteSpace: 'nowrap' },
+  td: { padding: '6px 8px', color: 'var(--text)', borderBottom: '1px solid #0a1628', whiteSpace: 'nowrap' },
   sel: {
-    background: '#0d1b2a', border: '1px solid #0f3460', color: '#e0e0e0',
+    background: 'var(--bg-inset)', border: '1px solid var(--border)', color: 'var(--text)',
     fontSize: 11, borderRadius: 3, padding: '3px 6px',
   },
   actionBtn: {
-    padding: '4px 12px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 3, color: '#4a90d9', cursor: 'pointer', fontSize: 11,
+    padding: '4px 12px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 3, color: 'var(--accent)', cursor: 'pointer', fontSize: 11,
   },
   closeBtn: {
-    background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 16, padding: '0 4px',
+    background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16, padding: '0 4px',
   },
   warnPanel: {
     background: 'rgba(180,100,0,0.15)', borderBottom: '1px solid #7a4400',
@@ -570,7 +570,7 @@ const sty = {
   badge: (type) => ({
     background: type === 'power' ? 'rgba(239,68,68,0.2)' : 'rgba(167,139,250,0.2)',
     border: `1px solid ${type === 'power' ? '#ef4444' : '#a78bfa'}`,
-    color: type === 'power' ? '#fc8181' : '#c4b5fd',
+    color: type === 'power' ? 'var(--danger-text)' : '#c4b5fd',
     borderRadius: 3, padding: '1px 5px', fontSize: 10, fontWeight: 600,
   }),
   settingsOverlay: {
@@ -578,7 +578,7 @@ const sty = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 960,
   },
   settingsBox: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     padding: 20, width: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
   },
 };

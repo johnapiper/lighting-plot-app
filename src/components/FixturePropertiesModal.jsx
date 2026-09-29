@@ -167,19 +167,19 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
                       title={s.label}
                       onClick={() => set('symbolId', s.id)}
                       style={{
-                        background: active ? '#0f3460' : '#0d1b2a',
-                        border: `1px solid ${active ? '#4a90d9' : '#1a3a5c'}`,
+                        background: active ? 'var(--border)' : 'var(--bg-inset)',
+                        border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
                         borderRadius: 4, padding: 4, cursor: 'pointer',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                       }}
                     >
                       <svg
                         viewBox={s.symbolViewBox} width="34" height="34"
-                        style={{ color: active ? '#4a90d9' : '#a0aec0', display: 'block' }}
+                        style={{ color: active ? 'var(--accent)' : 'var(--text-muted)', display: 'block' }}
                       >
                         <g dangerouslySetInnerHTML={{ __html: s.symbol }} />
                       </svg>
-                      <span style={{ fontSize: 8, color: active ? '#4a90d9' : '#718096', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 8, color: active ? 'var(--accent)' : 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                         {s.label}
                       </span>
                     </button>
@@ -194,15 +194,15 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
                     value={form.symbolColour || '#e0e0e0'}
                     onChange={e => set('symbolColour', e.target.value)}
                     style={{ width: 36, height: 28, padding: 2, background: 'none',
-                      border: '1px solid #1a3a5c', borderRadius: 3, cursor: 'pointer' }}
+                      border: '1px solid var(--border-strong)', borderRadius: 3, cursor: 'pointer' }}
                   />
-                  <span style={{ fontSize: 11, color: '#a0aec0', flex: 1 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>
                     {form.symbolColour || 'Default (white)'}
                   </span>
                   {form.symbolColour && (
                     <button
                       onClick={() => set('symbolColour', '')}
-                      style={{ background: 'none', border: 'none', color: '#718096',
+                      style={{ background: 'none', border: 'none', color: 'var(--text-dim)',
                         cursor: 'pointer', fontSize: 11, padding: 0 }}
                       title="Reset to default colour"
                     >Reset</button>
@@ -211,13 +211,13 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
               </Field>
               {/* Live preview */}
               <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 10, color: '#4a5568' }}>Preview:</span>
+                <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>Preview:</span>
                 {(() => {
                   const sym = SYMBOL_CATALOGUE.find(s => s.id === form.symbolId);
                   return sym ? (
                     <svg viewBox={sym.symbolViewBox} width="44" height="44"
                       style={{ color: form.symbolColour || '#e0e0e0', background: '#0d1b2a',
-                        borderRadius: 4, border: '1px solid #1a3a5c' }}>
+                        borderRadius: 4, border: '1px solid var(--border-strong)' }}>
                       <g dangerouslySetInnerHTML={{ __html: sym.symbol }} />
                     </svg>
                   ) : null;
@@ -241,7 +241,7 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
                     style={{ ...S.input, width: 52 }}
                     title="Channel count"
                   />
-                  <span style={{ fontSize: 10, color: '#718096', marginLeft: 2 }}>ch</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 2 }}>ch</span>
                   {form.dmxModes.length > 1 && (
                     <button style={S.removeBtn} onClick={() => removeMode(i)} title="Remove mode">✕</button>
                   )}
@@ -267,8 +267,8 @@ export default function FixturePropertiesModal({ fixture, onSave, onClose }) {
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 10, color: '#4a90d9', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.1em', marginBottom: 8, borderBottom: '1px solid #0f3460', paddingBottom: 4 }}>
+      <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.1em', marginBottom: 8, borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
         {title}
       </div>
       {children}
@@ -279,7 +279,7 @@ function Section({ title, children }) {
 function Field({ label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 7, gap: 8 }}>
-      <span style={{ fontSize: 11, color: '#a0aec0', width: 110, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 110, flexShrink: 0 }}>{label}</span>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );
@@ -305,17 +305,17 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   window: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: 760, maxHeight: '88vh',
     display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.9)',
   },
   titleBar: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '12px 16px', borderBottom: '1px solid #0f3460',
-    fontSize: 14, fontWeight: 700, color: '#e0e0e0',
+    padding: '12px 16px', borderBottom: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 700, color: 'var(--text)',
   },
   closeBtn: {
-    background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 16,
+    background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16,
   },
   body: {
     display: 'flex', gap: 24, padding: '16px 20px', overflowY: 'auto', flex: 1,
@@ -323,39 +323,39 @@ const S = {
   col: { flex: 1 },
   footer: {
     display: 'flex', gap: 8, justifyContent: 'flex-end',
-    padding: '12px 16px', borderTop: '1px solid #0f3460',
+    padding: '12px 16px', borderTop: '1px solid var(--border)',
   },
   input: {
-    width: '100%', background: '#0d1b2a', border: '1px solid #1a3a5c',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '5px 8px', outline: 'none',
+    width: '100%', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 12, padding: '5px 8px', outline: 'none',
     boxSizing: 'border-box',
   },
   select: {
-    width: '100%', background: '#0d1b2a', border: '1px solid #1a3a5c',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '5px 8px',
+    width: '100%', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 12, padding: '5px 8px',
   },
   textarea: {
-    width: '100%', background: '#0d1b2a', border: '1px solid #1a3a5c',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '6px 8px',
+    width: '100%', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 12, padding: '6px 8px',
     outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
   },
   modeRow: {
     display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
   },
   removeBtn: {
-    background: 'transparent', border: 'none', color: '#fc8181', cursor: 'pointer',
+    background: 'transparent', border: 'none', color: 'var(--danger-text)', cursor: 'pointer',
     fontSize: 11, padding: '0 2px',
   },
   addModeBtn: {
-    marginTop: 4, padding: '4px 10px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 3, color: '#4a90d9', cursor: 'pointer', fontSize: 11,
+    marginTop: 4, padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 3, color: 'var(--accent)', cursor: 'pointer', fontSize: 11,
   },
   saveBtn: {
-    padding: '8px 20px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    padding: '8px 20px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
   },
   cancelBtn: {
-    padding: '8px 14px', background: '#3a1a1a', border: '1px solid #7a2a2a',
-    borderRadius: 4, color: '#fc8181', cursor: 'pointer', fontSize: 13,
+    padding: '8px 14px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
+    borderRadius: 4, color: 'var(--danger-text)', cursor: 'pointer', fontSize: 13,
   },
 };

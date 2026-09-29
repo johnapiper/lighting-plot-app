@@ -255,8 +255,8 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
         {/* Title bar */}
         <div style={S.titleBar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: '#4a90d9' }}>🌐 GDTF Share</span>
-            <span style={{ fontSize: 11, color: '#718096' }}>community fixture library</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--accent)' }}>🌐 GDTF Share</span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>community fixture library</span>
           </div>
           <button style={S.closeBtn} onClick={onClose}>✕</button>
         </div>
@@ -264,9 +264,9 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
         {/* ── LOGIN ──────────────────────────────────────────────────────── */}
         {!loggedIn && (
           <div style={S.loginWrap}>
-            <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 14, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.6 }}>
               Sign in with your{' '}
-              <strong style={{ color: '#e0e0e0' }}>gdtf-share.com</strong> account to
+              <strong style={{ color: 'var(--text)' }}>gdtf-share.com</strong> account to
               browse the community library and import fixtures directly into your plot.
             </div>
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -287,7 +287,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
                 {loginBusy ? 'Signing in…' : 'Sign In'}
               </button>
             </form>
-            <div style={{ marginTop: 12, fontSize: 11, color: '#718096' }}>
+            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-dim)' }}>
               No account?{' '}
               <span style={S.link} onClick={() => {
                 const { shell } = window.require('electron');
@@ -311,7 +311,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
                 onChange={e => setQuery(e.target.value)}
               />
               {allRows && !listBusy && (
-                <span style={{ fontSize: 10, color: '#718096', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                   {filtered.length.toLocaleString()} result{filtered.length !== 1 ? 's' : ''}
                 </span>
               )}
@@ -325,7 +325,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
               </div>
             )}
             {listErr && !listBusy && (
-              <div style={{ ...S.banner, color: '#fc8181' }}>
+              <div style={{ ...S.banner, color: 'var(--danger-text)' }}>
                 ⚠ {listErr}
                 <button style={S.retryBtn} onClick={fetchList}>Retry</button>
               </div>
@@ -337,9 +337,9 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
               <div style={{ ...S.tableWrap, flex: preview ? '0 0 55%' : 1 }}>
                 {/* Header */}
                 <div style={S.headerRow}>
-                  <span style={{ flex: '0 0 140px', color: '#4a90d9' }}>Manufacturer</span>
-                  <span style={{ flex: 1, color: '#4a90d9' }}>Fixture</span>
-                  <span style={{ flex: '0 0 56px', color: '#4a90d9' }}>Rev</span>
+                  <span style={{ flex: '0 0 140px', color: 'var(--accent)' }}>Manufacturer</span>
+                  <span style={{ flex: 1, color: 'var(--accent)' }}>Fixture</span>
+                  <span style={{ flex: '0 0 56px', color: 'var(--accent)' }}>Rev</span>
                   <span style={{ flex: '0 0 108px' }} />
                 </div>
 
@@ -359,12 +359,12 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
                     <div key={`${id}-${i}`} style={{
                       ...S.row,
                       background: isPreviewed ? 'rgba(74,144,217,0.1)' : (i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'),
-                      borderLeft: isPreviewed ? '2px solid #4a90d9' : '2px solid transparent',
+                      borderLeft: isPreviewed ? '2px solid var(--accent)' : '2px solid transparent',
                     }}>
-                      <span style={{ ...S.cell, flex: '0 0 140px', color: '#a0aec0', fontSize: 11 }}>
+                      <span style={{ ...S.cell, flex: '0 0 140px', color: 'var(--text-muted)', fontSize: 11 }}>
                         {fMfr(row)}
                       </span>
-                      <span style={{ ...S.cell, flex: 1, color: '#e0e0e0' }}>
+                      <span style={{ ...S.cell, flex: 1, color: 'var(--text)' }}>
                         {fName(row)}
                       </span>
                       <span style={{ ...S.cell, flex: '0 0 56px', color: '#4a6080', fontSize: 10 }}>
@@ -409,7 +409,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
             {totalPages > 1 && (
               <div style={S.pager}>
                 <button style={S.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹ Prev</button>
-                <span style={{ fontSize: 11, color: '#a0aec0' }}>Page {page} / {totalPages}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Page {page} / {totalPages}</span>
                 <button style={S.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next ›</button>
               </div>
             )}
@@ -425,18 +425,18 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
 function PreviewPane({ ft, row, onClose, onImport, importing }) {
   return (
     <div style={{
-      flex: '0 0 45%', borderLeft: '1px solid #0f3460', display: 'flex',
+      flex: '0 0 45%', borderLeft: '1px solid var(--border)', display: 'flex',
       flexDirection: 'column', overflow: 'hidden', background: '#0f1e35',
     }}>
       {/* Pane header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 12px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+        padding: '8px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0,
       }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#e0e0e0' }}>Fixture Preview</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Fixture Preview</span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 14 }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 14 }}
         >✕</button>
       </div>
 
@@ -445,21 +445,21 @@ function PreviewPane({ ft, row, onClose, onImport, importing }) {
         {/* Symbol + name header */}
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 14 }}>
           <svg viewBox={ft.symbolViewBox} width="52" height="52"
-            style={{ color: '#4a90d9', background: '#0d1b2a', borderRadius: 6,
-              border: '1px solid #1a3a5c', flexShrink: 0 }}>
+            style={{ color: 'var(--accent)', background: 'var(--bg-inset)', borderRadius: 6,
+              border: '1px solid var(--border-strong)', flexShrink: 0 }}>
             <g dangerouslySetInnerHTML={{ __html: ft.symbol }} />
           </svg>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#e0e0e0', lineHeight: 1.3 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>
               {ft.name}
             </div>
-            <div style={{ fontSize: 11, color: '#718096', marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
               {ft.manufacturer}
             </div>
             {ft.gdtfCategory && (
               <div style={{
                 display: 'inline-block', marginTop: 5,
-                fontSize: 9, color: '#4a90d9', background: 'rgba(74,144,217,0.12)',
+                fontSize: 9, color: 'var(--accent)', background: 'rgba(74,144,217,0.12)',
                 border: '1px solid rgba(74,144,217,0.25)', borderRadius: 3, padding: '1px 6px',
                 textTransform: 'uppercase', letterSpacing: '0.07em',
               }}>
@@ -474,7 +474,7 @@ function PreviewPane({ ft, row, onClose, onImport, importing }) {
           {ft.powerW   != null && <PrevRow label="Power"  value={`${ft.powerW} W`}  />}
           {ft.weightKg != null && <PrevRow label="Weight" value={`${ft.weightKg} kg`} />}
           {ft.powerW == null && ft.weightKg == null && (
-            <span style={{ fontSize: 11, color: '#4a5568', fontStyle: 'italic' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-faint)', fontStyle: 'italic' }}>
               Not specified in GDTF file
             </span>
           )}
@@ -511,13 +511,13 @@ function PreviewPane({ ft, row, onClose, onImport, importing }) {
 
       {/* Footer — import button */}
       <div style={{
-        padding: '10px 14px', borderTop: '1px solid #0f3460', flexShrink: 0,
+        padding: '10px 14px', borderTop: '1px solid var(--border)', flexShrink: 0,
         display: 'flex', gap: 8,
       }}>
         <button
           style={{
-            flex: 1, padding: '8px', background: '#0f3460', border: '1px solid #4a90d9',
-            borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            flex: 1, padding: '8px', background: 'var(--border)', border: '1px solid var(--accent)',
+            borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
           }}
           disabled={importing}
           onClick={onImport}
@@ -528,7 +528,7 @@ function PreviewPane({ ft, row, onClose, onImport, importing }) {
           onClick={onClose}
           style={{
             padding: '8px 12px', background: 'none', border: '1px solid #2a3a5a',
-            borderRadius: 4, color: '#718096', cursor: 'pointer', fontSize: 12,
+            borderRadius: 4, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12,
           }}
         >
           Back
@@ -542,8 +542,8 @@ function PrevSection({ title, children }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{
-        fontSize: 9, color: '#4a90d9', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.1em', marginBottom: 6, borderBottom: '1px solid #0f3460', paddingBottom: 3,
+        fontSize: 9, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.1em', marginBottom: 6, borderBottom: '1px solid var(--border)', paddingBottom: 3,
       }}>{title}</div>
       {children}
     </div>
@@ -554,19 +554,19 @@ function PrevRow({ label, value }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11,
       padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-      <span style={{ color: '#718096' }}>{label}</span>
-      <span style={{ color: '#e0e0e0', fontFamily: /^\d/.test(value) ? 'monospace' : 'inherit' }}>{value}</span>
+      <span style={{ color: 'var(--text-dim)' }}>{label}</span>
+      <span style={{ color: 'var(--text)', fontFamily: /^\d/.test(value) ? 'monospace' : 'inherit' }}>{value}</span>
     </div>
   );
 }
 
 const PS = {
   th: {
-    padding: '4px 6px', fontSize: 10, fontWeight: 700, color: '#4a5568',
-    textAlign: 'left', borderBottom: '1px solid #0f3460',
+    padding: '4px 6px', fontSize: 10, fontWeight: 700, color: 'var(--text-faint)',
+    textAlign: 'left', borderBottom: '1px solid var(--border)',
   },
   td: {
-    padding: '4px 6px', fontSize: 11, color: '#e0e0e0',
+    padding: '4px 6px', fontSize: 11, color: 'var(--text)',
     borderBottom: '1px solid rgba(255,255,255,0.03)',
   },
 };
@@ -579,52 +579,52 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900,
   },
   panel: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: '90vw', maxWidth: 960, maxHeight: '84vh',
     display: 'flex', flexDirection: 'column',
     boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
   },
   titleBar: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '12px 16px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+    padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0,
   },
   closeBtn: {
-    background: 'none', border: 'none', color: '#718096',
+    background: 'none', border: 'none', color: 'var(--text-dim)',
     cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1,
   },
   loginWrap: { padding: '22px 24px', flexShrink: 0 },
   inp: {
-    background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 3,
-    color: '#e0e0e0', fontSize: 13, padding: '7px 10px', outline: 'none',
+    background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', borderRadius: 3,
+    color: 'var(--text)', fontSize: 13, padding: '7px 10px', outline: 'none',
     width: '100%', boxSizing: 'border-box',
   },
   loginBtn: {
-    padding: '9px', background: '#4a90d9', border: 'none',
+    padding: '9px', background: 'var(--accent)', border: 'none',
     borderRadius: 4, color: '#fff', cursor: 'pointer',
     fontSize: 13, fontWeight: 600,
     opacity: 1,
   },
   errBox: {
-    color: '#fc8181', fontSize: 11,
+    color: 'var(--danger-text)', fontSize: 11,
     background: 'rgba(252,129,129,0.08)', padding: '6px 10px', borderRadius: 3,
   },
-  link: { color: '#4a90d9', cursor: 'pointer', textDecoration: 'underline' },
+  link: { color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' },
   toolbar: {
     display: 'flex', gap: 8, alignItems: 'center',
-    padding: '9px 12px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+    padding: '9px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0,
   },
   signOutBtn: {
     background: 'none', border: '1px solid #2a3a5a', borderRadius: 3,
-    color: '#718096', cursor: 'pointer', fontSize: 10, padding: '4px 8px', whiteSpace: 'nowrap',
+    color: 'var(--text-dim)', cursor: 'pointer', fontSize: 10, padding: '4px 8px', whiteSpace: 'nowrap',
   },
   banner: {
-    padding: '9px 14px', fontSize: 12, color: '#a0aec0',
-    borderBottom: '1px solid #0f3460', flexShrink: 0,
+    padding: '9px 14px', fontSize: 12, color: 'var(--text-muted)',
+    borderBottom: '1px solid var(--border)', flexShrink: 0,
     display: 'flex', alignItems: 'center', gap: 8,
   },
   retryBtn: {
-    background: 'none', border: '1px solid #fc8181', borderRadius: 3,
-    color: '#fc8181', cursor: 'pointer', fontSize: 10, padding: '2px 8px',
+    background: 'none', border: '1px solid var(--danger-text)', borderRadius: 3,
+    color: 'var(--danger-text)', cursor: 'pointer', fontSize: 10, padding: '2px 8px',
   },
   tableWrap: { flex: 1, overflowY: 'auto' },
   headerRow: {
@@ -638,28 +638,28 @@ const S = {
     padding: '7px 14px', borderBottom: '1px solid rgba(15,52,96,0.4)',
   },
   cell: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 },
-  empty: { padding: 28, textAlign: 'center', fontSize: 12, color: '#4a5568' },
+  empty: { padding: 28, textAlign: 'center', fontSize: 12, color: 'var(--text-faint)' },
   importBtn: {
-    padding: '3px 10px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 3, color: '#4a90d9', cursor: 'pointer', fontSize: 11,
+    padding: '3px 10px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 3, color: 'var(--accent)', cursor: 'pointer', fontSize: 11,
   },
   importDone: {
-    background: '#0f3a1a', borderColor: '#68d391', color: '#68d391', cursor: 'default',
+    background: '#0f3a1a', borderColor: 'var(--success-text)', color: 'var(--success-text)', cursor: 'default',
   },
   previewBtn: {
     padding: '3px 8px', background: 'transparent', border: '1px solid #2a3a5a',
-    borderRadius: 3, color: '#718096', cursor: 'pointer', fontSize: 11,
+    borderRadius: 3, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 11,
   },
   previewBtnActive: {
-    background: 'rgba(74,144,217,0.1)', borderColor: '#4a90d9', color: '#4a90d9',
+    background: 'rgba(74,144,217,0.1)', borderColor: 'var(--accent)', color: 'var(--accent)',
   },
   pager: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
-    padding: '8px 12px', borderTop: '1px solid #0f3460', flexShrink: 0,
+    padding: '8px 12px', borderTop: '1px solid var(--border)', flexShrink: 0,
   },
   pageBtn: {
-    background: '#0f3460', border: '1px solid #1a4a7a',
-    borderRadius: 3, color: '#a0aec0', cursor: 'pointer',
+    background: 'var(--border)', border: '1px solid #1a4a7a',
+    borderRadius: 3, color: 'var(--text-muted)', cursor: 'pointer',
     fontSize: 11, padding: '4px 12px',
   },
 };
