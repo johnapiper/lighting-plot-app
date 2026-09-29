@@ -542,7 +542,8 @@ ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await storeReady;
   createWindow();
   // Check for updates a few seconds after launch so the window is ready
   setTimeout(() => autoUpdater.checkForUpdates(), 5000);
