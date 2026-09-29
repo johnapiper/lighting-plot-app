@@ -1429,12 +1429,22 @@ function App() {
               <option value="ft">ft</option>
               <option value="in">in</option>
             </select>
+            <span style={styles.statusSep}>|</span>
+            <label style={styles.statusItem} htmlFor="label-mode">Labels:</label>
+            <select id="label-mode" style={styles.statusSelect} value={labelMode} onChange={e => changeLabelMode(e.target.value)}
+              title="What to show under each fixture symbol">
+              {LABEL_MODES.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
+            </select>
             <span style={{ flex:1 }} />
-            {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>}
-            {license?.hasFeature('revisions') && <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>}
-            {license?.hasFeature('undo_history') && <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>}
-            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">📁 Templates</button>}
-            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">📐 Drawing</button>}
+            {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview (U)">Universe</button>}
+            {license?.hasFeature('revisions') && <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">Revisions</button>}
+            {license?.hasFeature('undo_history') && <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">History</button>}
+            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">Templates</button>}
+            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">Drawing templates</button>}
+            <button style={{ ...styles.statusBtn, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }} onClick={() => setShowPalette(true)}
+              title="Command palette — search every command (Ctrl+K)">
+              <Icon name="search" size={11} /> Commands <kbd style={styles.statusKbd}>Ctrl K</kbd>
+            </button>
           </div>
         );
       })()}
