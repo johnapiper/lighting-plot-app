@@ -1223,7 +1223,10 @@ function App() {
             onUpdateFixture={handleUpdateFixtureType}
             onOpenGdtfBrowser={license?.hasFeature('gdtf_browser') ? () => setShowGdtfBrowser(true) : null}
           />
-        )}
+          </div>}
+          <PanelSplitter side="left" label="Fixture library panel" width={leftPanel.width} collapsed={leftPanel.collapsed}
+            min={120} max={420} onResize={w => setLeftPanel({ width: w })} onToggle={() => setLeftPanel({ collapsed: !leftPanel.collapsed })} />
+        </>)}
 
         {activeMode === 'cad' || activeMode === 'cable' ? (
           /* ── CAD / Cable mode — same canvas ───────────────────── */
