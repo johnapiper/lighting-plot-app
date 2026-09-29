@@ -1257,6 +1257,10 @@ function App() {
               onSwapFixture={(canEditCanvas && license?.hasFeature('fixture_swap')) ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
               canEdit={canEditCanvas}
+              labelMode={labelMode}
+              onTransform={canEditCanvas ? (m => setTransformMode(m)) : undefined}
+              onGroupToggle={canEditCanvas ? handleGroupToggle : undefined}
+              groupState={{ canGroup, canUngroup }}
             />
             {license?.hasFeature('multi_drawing') && (
               <DrawingTabs
