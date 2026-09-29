@@ -91,6 +91,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline-offset: 0;
 }
 
+.ctx-item:hover, .ctx-item:focus {
+  background: var(--bg-hover);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
