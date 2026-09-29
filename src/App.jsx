@@ -1209,7 +1209,8 @@ function App() {
 
       <div style={styles.main}>
         {/* Library only visible in CAD mode and when the fixture_library feature is licensed */}
-        {activeMode === 'cad' && canUseLibrary && (
+        {activeMode === 'cad' && canUseLibrary && (<>
+          {!leftPanel.collapsed && <div style={{ width: leftPanel.width, flexShrink: 0, display: 'flex', overflow: 'hidden' }}>
           <LibraryPanel
             builtinFixtures={fixtureTypesData}
             customFixtures={project.customFixtureTypes||[]}
