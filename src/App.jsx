@@ -157,6 +157,13 @@ function App() {
   const [dirty, setDirty]               = useState(false);
   const [updateBanner, setUpdateBanner] = useState(null); // { version }
   const [recovery, setRecovery]         = useState(null); // { savedAt, currentFile, project } pending restore decision
+  const [showPalette, setShowPalette]   = useState(false);
+  const [showWelcome, setShowWelcome]   = useState(false);
+  const [welcomeEnabled, setWelcomeEnabled] = useState(true);
+  const [theme, setTheme]               = useState('dark'); // 'dark' | 'light' | 'system'
+  const [labelMode, setLabelMode]       = useState(() => { try { return localStorage.getItem('lplot-label-mode') || 'auto'; } catch { return 'auto'; } });
+  const [leftPanel, setLeftPanel]       = usePanelWidth('lplot-left-panel', 150, 120, 420);
+  const [rightPanel, setRightPanel]     = usePanelWidth('lplot-right-panel', 210, 180, 520);
 
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
