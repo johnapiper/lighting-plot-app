@@ -1391,7 +1391,7 @@ function App() {
             activeLayerId={activeLayerId}
             onSetActiveLayer={handleSetActiveLayer}
           />
-        </div>
+        </div>}
       </div>
 
       {/* ── Status bar ──────────────────────────────────────────────────── */}
