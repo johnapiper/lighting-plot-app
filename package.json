@@ -120,6 +120,7 @@
     "electron": "^31.7.7",
     "electron-builder": "^26.15.0",
     "html-webpack-plugin": "^5.6.7",
+    "lucide-react": "^1.48.0",
     "style-loader": "^4.0.0",
     "webpack": "^5.107.2",
     "webpack-cli": "^7.0.3"
