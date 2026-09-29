@@ -10,6 +10,8 @@ import { findNearestStructure } from '../cabling/routing';
 import { formatLength, formatCoord, toDisplayValue, UNIT_LABELS, MM_PER_UNIT } from './units';
 import { gatherSnapTargets, computeOsnap, constrainAngle } from './snapping';
 import { useToolHints } from '../components/ToolHint';
+import Minimap from './Minimap';
+import { objectBounds } from './transforms';
 
 const RULER_SIZE = 20;
 const HIT_RADIUS = 8;
@@ -36,6 +38,27 @@ function arcPath(cx, cy, r, a0, a1) {
 }
 function getLayerId(obj, kind) { return obj.layerId || LAYER_DEFAULTS[kind] || 'layer-arch'; }
 
+// Text shown under each fixture symbol, chosen from the status-bar Labels menu.
+export const LABEL_MODES = [
+  ['auto', 'Auto (channel, else unit)'], ['channel', 'Channel'], ['address', 'DMX address'],
+  ['unit', 'Unit number'], ['position', 'Position'], ['colour', 'Colour / gel'],
+  ['purpose', 'Purpose'], ['mode', 'DMX mode'], ['none', 'None'],
+];
+function fixtureLabel(f, mode) {
+  const v = (x) => (x == null ? '' : String(x).trim()) || null;
+  switch (mode) {
+    case 'channel':  return v(f.channel) ? `Ch.${v(f.channel)}` : null;
+    case 'address':  return v(f.dmxAddress);
+    case 'unit':     return v(f.unit);
+    case 'position': return v(f.position);
+    case 'colour':   return v(f.colour);
+    case 'purpose':  return v(f.purpose);
+    case 'mode':     return v(f.dmxMode);
+    case 'none':     return null;
+    default:         return v(f.channel) ? `Ch.${v(f.channel)}` : v(f.unit);
+  }
+}
+
 export default function Canvas({
   project, drawing, commit, softUpdate,
   activeTool, pendingFixture, onPendingFixturePlaced,
@@ -52,8 +75,21 @@ export default function Canvas({
   onSwapFixture,
   onDuplicateAlongPath,
   canEdit = true,
+  labelMode = 'auto',
+  onTransform,
+  onGroupToggle,
+  groupState,
 }) {
   const svgRef = useRef(null);
+  const [vpSize, setVpSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const obs = new ResizeObserver(() => setVpSize({ w: el.clientWidth, h: el.clientHeight }));
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  const ctxRef = useRef(null);
   // Unified snap config — defaults all-on. Held in a ref so the canvas mouse
   // handlers (useCallback) always read the live value, not a stale closure.
   const snapCfg = snap || { enabled: true, endpoint: true, midpoint: true, center: true, intersection: true, nearest: true, grid: true, pipe: true };
@@ -1227,7 +1263,7 @@ export default function Canvas({
     }
     const world = screenToWorld(e.clientX, e.clientY);
     const hit = hitTestAll(world.x, world.y, true); // includeLocked=true for right-click
-    if (hit) setContextMenu({ sx: e.clientX, sy: e.clientY, hit });
+    setContextMenu({ sx: e.clientX, sy: e.clientY, hit: hit || null, world });
   }, [activeTool, fixtures, pipes, lines, rectangles, texts, images, annotations, zoom, pan, showRulers, layers, canEdit]);
 
   const onWheel = useCallback((e) => {
@@ -1908,7 +1944,7 @@ export default function Canvas({
             <g key={f.id} transform={`translate(${f.x},${f.y})`} style={{ cursor: f.locked ? 'not-allowed' : 'pointer', opacity: f.locked ? 0.6 : 1 }}>
               {beamEl}
               <g transform={`scale(${1/zoom})`}>
-                <FixtureSymbol fixtureType={ftype} unit={f.channel?.trim() ? `Ch.${f.channel.trim()}` : (f.unit?.trim()||null)} channel={null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} symbolOverride={f.symbolOverride||null} symbolColor={f.symbolColor||null} />
+                <FixtureSymbol fixtureType={ftype} unit={fixtureLabel(f, labelMode)} channel={null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} symbolOverride={f.symbolOverride||null} symbolColor={f.symbolColor||null} />
               </g>
               {dmxConflicts.includes(f.id) && <circle cx={0} cy={0} r={16/zoom} fill="none" stroke="#fc8181" strokeWidth={2/zoom} strokeOpacity={0.85} style={{ pointerEvents:'none' }} />}
               {f.id === focusModeId && <circle cx={0} cy={0} r={6/zoom} fill="none" stroke="#ffaa00" strokeWidth={2/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} />}
@@ -2092,8 +2128,9 @@ export default function Canvas({
 
   return (
     <>
-      <svg ref={svgRef}
-        style={{ flex: 1, display: 'block', background: '#0d1117', cursor: cursorStyle, userSelect: 'none' }}
+      <div style={{ flex: 1, position: 'relative', display: 'flex', minHeight: 0, minWidth: 0 }}>
+      <svg ref={svgRef} data-plot-canvas="true"
+        style={{ flex: 1, display: 'block', background: '#0d1117', cursor: cursorStyle, userSelect: 'none', minWidth: 0 }}
         onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
         onDoubleClick={onDblClick} onContextMenu={onContextMenu}
         onMouseLeave={() => { setCursorPos(null); setFocusCursor(null); if (dragTargetLayerRef) dragTargetLayerRef.current = null; }}
@@ -2466,6 +2503,11 @@ export default function Canvas({
         })()}
         <text x={ro+8} y={1000-8} fontSize={9} fill="#4a6080">1:{meta?.scale||25} · Grid {formatLength(gridSize, meta?.units || 'mm')}</text>
       </svg>
+      {activeMode !== 'sheet' && (
+        <Minimap drawing={drawing} zoom={zoom} pan={pan}
+          vpW={vpSize.w - ro} vpH={vpSize.h - ro} onPanChange={onPanChange} />
+      )}
+      </div>
 
       {editOverlay}
 
@@ -2541,11 +2583,14 @@ export default function Canvas({
 
       {/* Context menu */}
       {contextMenu && (
-        <div style={{ position: 'fixed', left: contextMenu.sx, top: contextMenu.sy, background: '#16213e', border: '1px solid #0f3460', borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.6)', zIndex: 999, minWidth: 170 }}
-          onMouseLeave={() => setContextMenu(null)}>
+        <div ref={ctxRef} role="menu" aria-label="Object actions" onKeyDown={onCtxKeyDown}
+          style={{ position: 'fixed', left: contextMenu.sx, top: contextMenu.sy, background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 6px 24px var(--shadow)', zIndex: 999, minWidth: 200, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto', padding: '3px 0' }}>
           {ctxHints.hintEl}
+          {!contextMenu.hit && renderBackgroundMenu()}
+          {contextMenu.hit && renderSelectionMenu(contextMenu.hit)}
+          {contextMenu.hit && (<>
           {contextMenu.hit.kind === 'fixture' && (<>
-            <div style={ctxStyle.item} {...ctxHints.bind('focus')} onClick={() => {
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('focus')} onClick={() => {
               setFocusModeId(contextMenu.hit.id);
               onSelect(contextMenu.hit);
               setContextMenu(null);
@@ -2556,7 +2601,7 @@ export default function Canvas({
               { scope: 'type', label: 'Scale All of Same Type' },
               { scope: 'all',  label: 'Scale All Fixtures' },
             ].map(({ scope, label }) => (
-              <div key={scope} style={{ ...ctxStyle.item, paddingLeft: 20, color: scaleMode?.id === contextMenu.hit.id && scaleMode?.scope === scope ? '#7b61ff' : '#e0e0e0' }}
+              <div role="menuitem" tabIndex={-1} className="ctx-item" key={scope} style={{ ...ctxStyle.item, paddingLeft: 20, color: scaleMode?.id === contextMenu.hit.id && scaleMode?.scope === scope ? '#7b61ff' : '#e0e0e0' }}
                 onClick={() => {
                   setScaleMode({ id: contextMenu.hit.id, scope });
                   onSelect(contextMenu.hit);
@@ -2567,41 +2612,41 @@ export default function Canvas({
               const onPipeFixes = fixtures.filter(f => f.pipeId === contextMenu.hit.pipeId && contextMenu.hit.pipeId);
               const pipeObj = pipes.find(p => p.id === contextMenu.hit.pipeId);
               return onPipeFixes.length >= 2 && pipeObj ? (
-                <div style={{ ...ctxStyle.item }} {...ctxHints.bind('distribute')} onClick={() => {
+                <div role="menuitem" tabIndex={-1} className="ctx-item" style={{ ...ctxStyle.item }} {...ctxHints.bind('distribute')} onClick={() => {
                   distributeOnPipe(contextMenu.hit.pipeId);
                   setContextMenu(null);
                 }}>↔ Distribute on {pipeObj.name || 'Pipe'}</div>
               ) : null;
             })()}
             {(selectedIds?.length >= 3 && selectedIds.includes(contextMenu.hit.id)) && (
-              <div style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
+              <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
                 distributeSelected();
                 setContextMenu(null);
               }}>↔ Distribute Selected Evenly</div>
             )}
             {onSwapFixture && (
-              <div style={ctxStyle.item} {...ctxHints.bind('swap')} onClick={() => {
+              <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('swap')} onClick={() => {
                 const ids = selectedIds?.includes(contextMenu.hit.id) ? selectedIds : [contextMenu.hit.id];
                 onSwapFixture(ids);
                 setContextMenu(null);
               }}>🔄 Swap Fixture Type…</div>
             )}
-            <div style={ctxStyle.item} {...ctxHints.bind('duppath')} onClick={() => {
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('duppath')} onClick={() => {
               onDuplicateAlongPath?.(contextMenu.hit.id);
               setContextMenu(null);
             }}>↗ Duplicate Along Path…</div>
-            <div style={ctxStyle.item} onClick={() => {
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
               setShowBeams(v => !v);
               setContextMenu(null);
             }}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</div>
           </>)}
           {contextMenu.hit.kind === 'pipe' && (
-            <div style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
               distributeOnPipe(contextMenu.hit.id);
               setContextMenu(null);
             }}>↔ Distribute Fixtures Evenly</div>
           )}
-          <div style={ctxStyle.item} {...ctxHints.bind('lock')} onClick={() => {
+          <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('lock')} onClick={() => {
             toggleLock(contextMenu.hit.id, contextMenu.hit.kind);
             setContextMenu(null);
           }}>
@@ -2612,7 +2657,7 @@ export default function Canvas({
             <>
               <div style={ctxStyle.sep}>Send to Layer</div>
               {(project.layers||[]).map(l => (
-                <div key={l.id} style={{ ...ctxStyle.item, paddingLeft: 20, display: 'flex', alignItems: 'center', gap: 7 }}
+                <div role="menuitem" tabIndex={-1} className="ctx-item" key={l.id} style={{ ...ctxStyle.item, paddingLeft: 20, display: 'flex', alignItems: 'center', gap: 7 }}
                   onClick={() => {
                     const { id, kind } = contextMenu.hit;
                     commitToDrawing(d => {
@@ -2628,7 +2673,7 @@ export default function Canvas({
             </>
           )}
           <div style={ctxStyle.sep}>Edit</div>
-          <div style={ctxStyle.item} onClick={() => {
+          <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
             const hit = contextMenu.hit;
             // If item is part of multi-select, copy all selected; otherwise just this one
             const ids = (selectedIds?.length && selectedIds.includes(hit.id))
@@ -2637,7 +2682,7 @@ export default function Canvas({
             copySelection(ids);
             setContextMenu(null);
           }}>📋 Copy  <span style={{ color: '#4a5568', fontSize: 10, marginLeft: 4 }}>Ctrl+C</span></div>
-          <div style={ctxStyle.item} onClick={() => {
+          <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
             const hit = contextMenu.hit;
             const ids = (selectedIds?.length && selectedIds.includes(hit.id))
               ? selectedIds
@@ -2655,14 +2700,14 @@ export default function Canvas({
             setContextMenu(null);
           }}>⧉ Duplicate  <span style={{ color: '#4a5568', fontSize: 10, marginLeft: 4 }}>Ctrl+D</span></div>
           {clipboard?.length > 0 && (
-            <div style={ctxStyle.item} onClick={() => {
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
               const off = 30 * pasteGeneration.current;
               pasteGeneration.current += 1;
               pasteObjects(clipboardRef.current, off, off);
               setContextMenu(null);
             }}>📌 Paste  <span style={{ color: '#4a5568', fontSize: 10, marginLeft: 4 }}>Ctrl+V</span></div>
           )}
-          <div style={{ ...ctxStyle.item, borderTop: '1px solid #0f3460', color: '#fc8181' }} onClick={() => {
+          <div role="menuitem" tabIndex={-1} className="ctx-item" style={{ ...ctxStyle.item, borderTop: '1px solid #0f3460', color: '#fc8181' }} onClick={() => {
             commitToDrawing(d => {
               const id = contextMenu.hit.id;
               d.fixtures = d.fixtures.filter(f => f.id !== id);
@@ -2676,6 +2721,7 @@ export default function Canvas({
             onSelect(null);
             setContextMenu(null);
           }}>🗑 Delete</div>
+          </>)}
         </div>
       )}
     </>
@@ -2683,6 +2729,7 @@ export default function Canvas({
 }
 
 const ctxStyle = {
-  item: { padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#e0e0e0', transition: 'background 0.1s' },
-  sep:  { padding: '4px 14px 2px', fontSize: 10, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid #0f3460', marginTop: 2 },
+  item: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)', transition: 'background 0.1s', outline: 'none' },
+  sep:  { padding: '5px 14px 2px', fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid var(--border)', marginTop: 2 },
+  kbd:  { color: 'var(--text-faint)', fontSize: 10, marginLeft: 'auto', paddingLeft: 16 },
 };
