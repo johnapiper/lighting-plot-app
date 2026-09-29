@@ -331,6 +331,7 @@ function App() {
       const tag = document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (k === 'k' || (e.shiftKey && k === 'p'))) { e.preventDefault(); setShowPalette(v => !v); return; }
       if (!e.ctrlKey && !e.metaKey) {
         const canEdit = license?.hasFeature('cad_edit');
         if (k === 'v') setActiveTool('select');
