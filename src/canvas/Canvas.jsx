@@ -2150,6 +2150,7 @@ export default function Canvas({
   function onCtxKeyDown(e) {
     const items = [...(ctxRef.current?.querySelectorAll('[role="menuitem"]') || [])];
     const i = items.indexOf(document.activeElement);
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', ' '].includes(e.key)) e.stopPropagation();
     if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
     else if (e.key === 'Home') { e.preventDefault(); items[0]?.focus(); }
