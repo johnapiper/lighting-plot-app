@@ -754,7 +754,7 @@ function App() {
 
   // ── Export ────────────────────────────────────────────────────────────────
   function handleExportPNG() {
-    const svg = document.querySelector('svg'); if (!svg || !ipcRenderer) return;
+    const svg = document.querySelector('svg[data-plot-canvas]'); if (!svg || !ipcRenderer) return;
     const data = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement('canvas');
     canvas.width = svg.clientWidth*2; canvas.height = svg.clientHeight*2;
@@ -763,7 +763,7 @@ function App() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(data)));
   }
   function handleExportSVG() {
-    const svg = document.querySelector('svg'); if (!svg || !ipcRenderer) return;
+    const svg = document.querySelector('svg[data-plot-canvas]'); if (!svg || !ipcRenderer) return;
     ipcRenderer.send('export-svg', new XMLSerializer().serializeToString(svg));
   }
 
@@ -1021,6 +1021,116 @@ function App() {
 
   const titleStr = `Lighting Plot${currentFile ? ` — ${currentFile.split(/[\\/]/).pop()}` : ''}${dirty ? ' •' : ''}`;
   useEffect(() => { document.title = titleStr; }, [titleStr]);
+
+  // ── Welcome screen actions ──────────────────────────────────────────────
+  async function welcomeNew() {
+    setShowWelcome(false);
+    if (!(await guardUnsaved())) return;
+    suppressDirtyRef.current = true;
+    resetProject(); setCurrentFile(null); setDirty(false); clearSelection();
+  }
+  function welcomeOpen() { setShowWelcome(false); if (!blockIfTrial()) ipcRenderer?.send('open-request'); }
+  async function openRecentFile(fp) {
+    if (blockIfTrial()) return;
+    if (!(await guardUnsaved())) return;
+    try {
+      if (fp.toLowerCase().endsWith('.mvr')) {
+        if (!requireFeature('mvr_import', 'MVR import')) return;
+        const buf = require('fs').readFileSync(fp);
+        openProject(await importMVR(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), fp);
+      } else {
+        openProject(JSON.parse(require('fs').readFileSync(fp, 'utf8')), fp);
+      }
+      setShowWelcome(false);
+    } catch (err) { toast('Could not open: ' + err.message, 'error'); }
+  }
+
+  // ── Command palette ─────────────────────────────────────────────────────
+  const has = (f) => !!license?.hasFeature(f);
+  const inCanvas = activeMode === 'cad' || activeMode === 'cable';
+  const lockedCmd = (feature, cmd) => has(feature) ? cmd : { ...cmd, locked: true, run: () => setShowMyLicense(true) };
+  const toolCmd = (id, label, icon, shortcut, extra = {}) => ({
+    id: `tool-${id}`, group: 'Tools', label: `${label} tool`, icon, shortcut,
+    disabled: !canEditCanvas || (extra.mode ? activeMode !== extra.mode : activeMode !== 'cad'),
+    run: () => { setActiveTool(id); setPendingFixture(null); }, ...extra,
+  });
+  const commands = [
+    // File
+    { id: 'new', group: 'File', label: 'New plot', shortcut: 'Ctrl+N', run: welcomeNew },
+    { id: 'open', group: 'File', label: 'Open…', shortcut: 'Ctrl+O', disabled: isTrial, run: () => ipcRenderer?.send('open-request') },
+    { id: 'save', group: 'File', label: 'Save', shortcut: 'Ctrl+S', disabled: isTrial, run: handleSave },
+    { id: 'saveas', group: 'File', label: 'Save as…', shortcut: 'Ctrl+Shift+S', disabled: isTrial, run: () => ipcRenderer?.send('save-as-request') },
+    { id: 'welcome', group: 'File', label: 'Show welcome screen / recent files', run: () => setShowWelcome(true) },
+    lockedCmd('mvr_export', { id: 'export-png', group: 'File', label: 'Export PNG…', keywords: 'image', disabled: isTrial || !inCanvas, run: handleExportPNG }),
+    lockedCmd('mvr_export', { id: 'export-svg', group: 'File', label: 'Export SVG…', keywords: 'vector', disabled: isTrial || !inCanvas, run: handleExportSVG }),
+    // Edit
+    { id: 'undo', group: 'Edit', label: 'Undo', shortcut: 'Ctrl+Z', run: undo },
+    { id: 'redo', group: 'Edit', label: 'Redo', shortcut: 'Ctrl+Y', run: redo },
+    { id: 'delete', group: 'Edit', label: 'Delete selection', shortcut: 'Del', disabled: !allSelectedIds.length || !canEditCanvas, run: handleDelete },
+    { id: 'group', group: 'Edit', label: canUngroup ? 'Ungroup' : 'Group selection', shortcut: 'Ctrl+G', disabled: !canEditCanvas || (!canGroup && !canUngroup), run: handleGroupToggle },
+    { id: 'mirror', group: 'Edit', label: 'Mirror selection…', icon: 'mirror', disabled: !canEditCanvas || !allSelectedIds.length, run: () => setTransformMode('mirror') },
+    { id: 'array', group: 'Edit', label: 'Array selection…', icon: 'array', disabled: !canEditCanvas || !allSelectedIds.length, run: () => setTransformMode('array') },
+    { id: 'offset', group: 'Edit', label: 'Offset selection…', icon: 'offset', disabled: !canEditCanvas || !allSelectedIds.length, run: () => setTransformMode('offset') },
+    { id: 'align', group: 'Edit', label: 'Align / distribute selection…', icon: 'align', disabled: !canEditCanvas || allSelectedIds.length < 2, run: () => setTransformMode('align') },
+    { id: 'corner', group: 'Edit', label: 'Join corner (two lines)', icon: 'corner', disabled: !canEditCanvas || allSelectedIds.length !== 2, run: handleCorner },
+    // Tools
+    { id: 'tool-select', group: 'Tools', label: 'Select tool', icon: 'select', shortcut: 'V', disabled: !inCanvas, run: () => setActiveTool('select') },
+    toolCmd('line', 'Line', 'line', 'L'),
+    toolCmd('rect', 'Rectangle', 'rect', 'E'),
+    toolCmd('polyline', 'Polyline', 'polyline'),
+    toolCmd('circle', 'Circle', 'circle'),
+    toolCmd('arc', 'Arc', 'arc'),
+    toolCmd('pipe', 'Pipe', 'pipe', 'P'),
+    toolCmd('truss', 'Truss', 'truss'),
+    toolCmd('text', 'Text', 'text', 'T'),
+    toolCmd('dimension', 'Measure', 'dimension', 'M', { disabled: !canEditCanvas || activeMode !== 'cad' || !has('dimensioning') }),
+    toolCmd('calibrate', 'Calibrate scale', 'calibrate', 'C'),
+    toolCmd('infra-distro', 'Place PDU', 'infra-distro', null, { mode: 'cable' }),
+    toolCmd('infra-node', 'Place DMX node', 'infra-node', null, { mode: 'cable' }),
+    toolCmd('infra-switch', 'Place network switch', 'infra-switch', null, { mode: 'cable' }),
+    toolCmd('infra-netport', 'Place network port', 'infra-netport', null, { mode: 'cable' }),
+    toolCmd('cable-power', 'Draw power cable', null, null, { mode: 'cable' }),
+    toolCmd('cable-dmx', 'Draw DMX cable', null, null, { mode: 'cable' }),
+    toolCmd('cable-network', 'Draw network cable', null, null, { mode: 'cable' }),
+    // Mode
+    { id: 'mode-cad', group: 'Mode', label: 'Switch to CAD mode', disabled: activeMode === 'cad', run: () => handleSetMode('cad') },
+    lockedCmd('cable_routing', { id: 'mode-cable', group: 'Mode', label: 'Switch to Cable mode', disabled: activeMode === 'cable', run: () => handleSetMode('cable') }),
+    lockedCmd('sheet_editor', { id: 'mode-sheet', group: 'Mode', label: 'Switch to Drawing (sheet) mode', disabled: activeMode === 'sheet', run: () => handleSetMode('sheet') }),
+    // View
+    { id: 'fit', group: 'View', label: 'Fit to window', icon: 'fit', shortcut: 'Ctrl+0', disabled: !inCanvas, run: () => fitViewRef.current?.() },
+    { id: 'zoomin', group: 'View', label: 'Zoom in', icon: 'zoomin', shortcut: 'Ctrl+=', disabled: !inCanvas, run: () => setZoom(z => Math.min(20, z * 1.2)) },
+    { id: 'zoomout', group: 'View', label: 'Zoom out', icon: 'zoomout', shortcut: 'Ctrl+-', disabled: !inCanvas, run: () => setZoom(z => Math.max(0.02, z / 1.2)) },
+    { id: 'grid', group: 'View', label: showGrid ? 'Hide grid' : 'Show grid', icon: 'grid', run: () => setShowGrid(v => !v) },
+    { id: 'rulers', group: 'View', label: showRulers ? 'Hide rulers' : 'Show rulers', run: () => setShowRulers(v => !v) },
+    { id: 'snap', group: 'View', label: snap.enabled ? 'Turn object snap off' : 'Turn object snap on', icon: 'snap', shortcut: 'F3', run: () => setSnap(s => ({ ...s, enabled: !s.enabled })) },
+    { id: '3d', group: 'View', label: '3D view', icon: 'view3d', disabled: !inCanvas, run: () => setShow3D(true) },
+    { id: 'left-panel', group: 'View', label: leftPanel.collapsed ? 'Show fixture library panel' : 'Hide fixture library panel', disabled: activeMode !== 'cad' || !canUseLibrary, run: () => setLeftPanel({ collapsed: !leftPanel.collapsed }) },
+    { id: 'right-panel', group: 'View', label: rightPanel.collapsed ? 'Show inspector panel' : 'Hide inspector panel', run: () => setRightPanel({ collapsed: !rightPanel.collapsed }) },
+    ...LABEL_MODES.map(([m, l]) => ({ id: `labels-${m}`, group: 'View', label: `Fixture labels: ${l}`, icon: 'labels', keywords: 'label show text', disabled: labelMode === m, run: () => changeLabelMode(m) })),
+    { id: 'theme-dark', group: 'View', label: 'Theme: Dark', keywords: 'appearance colour', disabled: theme === 'dark', run: () => changeTheme('dark') },
+    { id: 'theme-light', group: 'View', label: 'Theme: Light', keywords: 'appearance colour', disabled: theme === 'light', run: () => changeTheme('light') },
+    { id: 'theme-system', group: 'View', label: 'Theme: Match system', keywords: 'appearance colour auto', disabled: theme === 'system', run: () => changeTheme('system') },
+    // Panels & reports
+    lockedCmd('patch_panel', { id: 'patch', group: 'Panels', label: 'DMX patch', icon: 'patch', run: openPatch }),
+    lockedCmd('universe_view', { id: 'universe', group: 'Panels', label: 'Universe overview', shortcut: 'U', run: () => setShowUniverse(true) }),
+    lockedCmd('reports', { id: 'rep-fixture', group: 'Panels', label: 'Fixture schedule report', icon: 'fixtures', run: () => setReport({ type: 'instrument' }) }),
+    lockedCmd('reports', { id: 'rep-channel', group: 'Panels', label: 'Channel list report', icon: 'channels', run: () => setReport({ type: 'channel' }) }),
+    lockedCmd('cable_routing', { id: 'cable-report', group: 'Panels', label: 'Cable report', icon: 'report', run: () => setShowCableReport(true) }),
+    lockedCmd('eos_import', { id: 'eos', group: 'Panels', label: 'Import EOS patch…', icon: 'eos', run: () => setShowEOSImport(true) }),
+    lockedCmd('gdtf_browser', { id: 'gdtf', group: 'Panels', label: 'Browse GDTF share…', keywords: 'fixture library download', run: () => setShowGdtfBrowser(true) }),
+    lockedCmd('pdf_background', { id: 'pdf', group: 'Panels', label: 'Import PDF background…', icon: 'pdf', disabled: !inCanvas, run: handleImportPdf }),
+    lockedCmd('pdf_background', { id: 'image', group: 'Panels', label: 'Place image…', icon: 'image', disabled: !inCanvas, run: handleImportImage }),
+    lockedCmd('revisions', { id: 'revisions', group: 'Panels', label: 'Revision history', run: () => setShowRevisions(true) }),
+    lockedCmd('undo_history', { id: 'history', group: 'Panels', label: 'Undo history', run: () => setShowUndoHistory(true) }),
+    lockedCmd('templates', { id: 'templates', group: 'Panels', label: 'Project templates', run: () => setShowTemplates(true) }),
+    lockedCmd('templates', { id: 'dtemplates', group: 'Panels', label: 'Drawing templates', run: () => setShowDrawingTemplates(true) }),
+    { id: 'next-conflict', group: 'Panels', label: `Jump to next DMX conflict (${dmxConflicts.length})`, disabled: !dmxConflicts.length, run: handleNextConflict },
+    // Settings & help
+    { id: 'studio', group: 'Settings', label: 'Studio settings', icon: 'studio', run: () => setShowStudioSettings(true) },
+    { id: 'app-settings', group: 'Settings', label: 'App settings', keywords: 'preferences auto-save update theme', run: () => setShowAppSettings(true) },
+    { id: 'my-license', group: 'Settings', label: 'My license', icon: 'user', run: () => setShowMyLicense(true) },
+    { id: 'shortcuts', group: 'Settings', label: 'Keyboard shortcuts', shortcut: '?', keywords: 'help keys', run: () => setShowShortcuts(true) },
+  ];
 
   return (
     <div style={styles.app}>
