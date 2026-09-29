@@ -1294,8 +1294,10 @@ function App() {
           <div style={styles.canvasColumn} />
         )}
 
-        {/* Right panel — inspector + layers, always visible */}
-        <div style={styles.rightPanel}>
+        {/* Right panel — inspector + layers; resizable and collapsible */}
+        <PanelSplitter side="right" label="Inspector panel" width={rightPanel.width} collapsed={rightPanel.collapsed}
+          min={180} max={520} onResize={w => setRightPanel({ width: w })} onToggle={() => setRightPanel({ collapsed: !rightPanel.collapsed })} />
+        {!rightPanel.collapsed && <div style={{ ...styles.rightPanel, width: rightPanel.width }}>
           {(activeMode === 'cad' || activeMode === 'cable') && (() => {
             const kind = selectedObj?.kind;
             if (kind === 'infra') {
