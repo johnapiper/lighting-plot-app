@@ -406,6 +406,22 @@ function App() {
     });
   }, []);
 
+  // ── Theme ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const apply = () => {
+      const eff = theme === 'system' ? (mq?.matches ? 'light' : 'dark') : theme;
+      document.documentElement.dataset.theme = eff;
+    };
+    apply();
+    if (theme !== 'system' || !mq) return;
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [theme]);
+  function changeTheme(t) { setTheme(t); ipcRenderer?.invoke('set-pref', 'theme', t); }
+  function changeWelcomeEnabled(v) { setWelcomeEnabled(v); ipcRenderer?.invoke('set-pref', 'showWelcome', v); }
+  function changeLabelMode(m) { setLabelMode(m); try { localStorage.setItem('lplot-label-mode', m); } catch {} }
+
   function handleRestoreRecovery() {
     const rec = recovery; setRecovery(null);
     try {
