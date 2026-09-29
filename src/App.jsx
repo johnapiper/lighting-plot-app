@@ -260,7 +260,10 @@ function App() {
       },
       'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
-      'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
+      'menu-deactivate': async () => {
+        const ok = await confirmDialog({ title: 'Deactivate license', message: 'Deactivate this license on this machine? You will need your license key to activate it again.', confirmLabel: 'Deactivate', danger: true });
+        if (ok) license?.deactivate();
+      },
       'menu-new':    async () => {
         if (!(await guardUnsaved())) return;
         suppressDirtyRef.current = true;
