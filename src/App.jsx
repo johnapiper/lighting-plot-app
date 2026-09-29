@@ -334,8 +334,8 @@ function App() {
       const tag = document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       // While a dialog is open, canvas shortcuts (tools, nudge, delete…) stay inactive.
-      if (document.querySelector('[aria-modal="true"]')) return;
-      if (!e.ctrlKey && !e.metaKey) {
+      const inModal = !!document.querySelector('[aria-modal="true"]');
+      if (!e.ctrlKey && !e.metaKey && !inModal) {
         const canEdit = license?.hasFeature('cad_edit');
         if (k === 'v') setActiveTool('select');
         if (canEdit && k === 'l') setActiveTool('line');
