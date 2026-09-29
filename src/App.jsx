@@ -328,10 +328,13 @@ function App() {
 
   useEffect(() => {
     const handler = (e) => {
+      const k = e.key.toLowerCase();
+      // Command palette works from anywhere, including text fields.
+      if ((e.ctrlKey || e.metaKey) && (k === 'k' || (e.shiftKey && k === 'p'))) { e.preventDefault(); setShowPalette(v => !v); return; }
       const tag = document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      const k = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && (k === 'k' || (e.shiftKey && k === 'p'))) { e.preventDefault(); setShowPalette(v => !v); return; }
+      // While a dialog is open, canvas shortcuts (tools, nudge, delete…) stay inactive.
+      if (document.querySelector('[aria-modal="true"]')) return;
       if (!e.ctrlKey && !e.metaKey) {
         const canEdit = license?.hasFeature('cad_edit');
         if (k === 'v') setActiveTool('select');
