@@ -1611,7 +1611,8 @@ const styles = {
   },
   statusItem: { color: 'var(--text-muted)' },
   statusSep: { color: 'var(--sep)' },
-  statusBtn: { background:'none', border:'none', color:'var(--text-faint)', cursor:'pointer', fontSize:10, padding:'0 6px' },
+  statusBtn: { background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer', fontSize:10, padding:'0 6px' },
+  statusKbd: { fontFamily:'inherit', fontSize:9, border:'1px solid var(--border)', borderRadius:3, padding:'0 4px', color:'var(--text-dim)' },
   conflictBtn: { background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:3, color:'var(--danger-text)', cursor:'pointer', fontSize:11, padding:'1px 8px' },
   statusSelect: { background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:3, color:'var(--text-muted)', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
 };
