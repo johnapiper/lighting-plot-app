@@ -153,7 +153,7 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
           {/* ── Auto-save ── */}
           <Section title="Auto-Save">
             <div style={S.row}>
-              <span style={S.rowLabel}>Auto-save project every 2 minutes</span>
+              <span style={S.rowLabel}>Keep a recovery copy of unsaved changes</span>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input type="checkbox" checked={autoSaveEnabled}
                   onChange={e => onChangeAutoSave?.(e.target.checked)} />
