@@ -2122,6 +2122,139 @@ export default function Canvas({
     if (onToolDone) onToolDone();
   }
 
+  // ─── Context menu: placement, dismissal, keyboard ─────────────────────
+  // Keep the menu on-screen, close on outside click / Esc, focus the first item.
+  React.useLayoutEffect(() => {
+    const el = ctxRef.current;
+    if (!contextMenu || !el) return;
+    const r = el.getBoundingClientRect();
+    const left = Math.max(8, Math.min(contextMenu.sx, window.innerWidth - r.width - 8));
+    const top = Math.max(8, Math.min(contextMenu.sy, window.innerHeight - r.height - 8));
+    el.style.left = `${left}px`; el.style.top = `${top}px`;
+    el.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+  }, [contextMenu]);
+  useEffect(() => {
+    if (!contextMenu) return;
+    const onDown = (e) => { if (!ctxRef.current?.contains(e.target)) setContextMenu(null); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setContextMenu(null); } };
+    const onScroll = () => setContextMenu(null);
+    document.addEventListener('mousedown', onDown, true);
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('blur', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('blur', onScroll);
+    };
+  }, [contextMenu]);
+  function onCtxKeyDown(e) {
+    const items = [...(ctxRef.current?.querySelectorAll('[role="menuitem"]') || [])];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); items[0]?.focus(); }
+    else if (e.key === 'End') { e.preventDefault(); items[items.length - 1]?.focus(); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.activeElement?.click?.(); }
+  }
+
+  // Zoom/pan so a world-space box fills most of the viewport.
+  function zoomToBounds(b) {
+    const svgEl = svgRef.current; if (!svgEl) return;
+    const ro = showRulers ? RULER_SIZE : 0;
+    const vpW = svgEl.clientWidth - ro, vpH = svgEl.clientHeight - ro;
+    const PAD = 400;
+    const w = Math.max(1, b.maxX - b.minX) + PAD, h = Math.max(1, b.maxY - b.minY) + PAD;
+    const z = Math.max(0.02, Math.min(4, Math.min(vpW / w, vpH / h)));
+    onZoomChange(z);
+    onPanChange({ x: vpW / 2 - ((b.minX + b.maxX) / 2) * z, y: vpH / 2 - ((b.minY + b.maxY) / 2) * z });
+  }
+
+  const selectableKinds = () => [
+    ['fixture', fixtures], ['pipe', pipes], ['line', lines], ['rect', rectangles], ['text', texts],
+    ['image', images], ['annotation', annotations], ['circle', circles], ['arc', arcs], ['polyline', polylines],
+  ];
+  function selectAllOnActiveLayer() {
+    const ids = [];
+    selectableKinds().forEach(([k, arr]) => arr.forEach(o => {
+      const lid = getLayerId(o, k);
+      if (o.locked || !isLayerVisible(lid) || isLayerLocked(lid)) return;
+      if (activeLayerId && lid !== activeLayerId) return;
+      ids.push(o.id);
+    }));
+    onMultiSelect(ids);
+  }
+
+  const CtxItem = ({ children, onClick, kbd, danger, disabled, hint }) => (
+    <div role="menuitem" tabIndex={-1} className="ctx-item" aria-disabled={disabled || undefined}
+      {...(hint ? ctxHints.bind(hint) : {})}
+      style={{ ...ctxStyle.item, ...(danger ? { color: 'var(--danger-text)' } : {}), ...(disabled ? { opacity: 0.4, cursor: 'default' } : {}) }}
+      onClick={() => { if (disabled) return; onClick(); setContextMenu(null); }}>
+      <span>{children}</span>{kbd && <span style={ctxStyle.kbd}>{kbd}</span>}
+    </div>
+  );
+
+  function renderBackgroundMenu() {
+    const has = clipboard?.length > 0;
+    const w = contextMenu.world;
+    return (<>
+      <div style={{ ...ctxStyle.sep, borderTop: 'none', marginTop: 0 }}>Canvas</div>
+      {has && <CtxItem kbd="Ctrl+V" onClick={() => {
+        const first = clipboardRef.current?.[0];
+        const ox = first ? (first.x ?? first.x1 ?? first.cx ?? 0) : 0, oy = first ? (first.y ?? first.y1 ?? first.cy ?? 0) : 0;
+        pasteObjects(clipboardRef.current, w.x - ox, w.y - oy);
+      }}>📌 Paste Here</CtxItem>}
+      <CtxItem kbd="Ctrl+A" onClick={selectAllOnActiveLayer}>⬚ Select All on Active Layer</CtxItem>
+      <CtxItem onClick={() => centerOn(w.x, w.y)}>✥ Centre View Here</CtxItem>
+      <CtxItem kbd="Ctrl+0" onClick={fitView}>⤢ Fit to Window</CtxItem>
+      <CtxItem onClick={() => setShowBeams(v => !v)}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</CtxItem>
+    </>);
+  }
+
+  function renderSelectionMenu(hit) {
+    const inSel = selectedIds?.includes(hit.id) && selectedIds.length > 1;
+    const ids = inSel ? selectedIds : [hit.id];
+    const ensureSelected = () => { if (!inSel) onSelect(hit); };
+    const sameType = hit.kind === 'fixture' ? fixtures.filter(f => (f.fixtureTypeId || f.type) === (hit.fixtureTypeId || hit.type)) : [];
+    const onPipe = hit.kind === 'pipe' ? fixtures.filter(f => f.pipeId === hit.id)
+      : (hit.kind === 'fixture' && hit.pipeId) ? fixtures.filter(f => f.pipeId === hit.pipeId) : [];
+    const title = inSel ? `${ids.length} objects selected`
+      : hit.kind === 'fixture' ? `${hit.type || 'Fixture'}${hit.channel ? ` · Ch ${hit.channel}` : ''}`
+      : hit.name || hit.label || ({ rect: 'Rectangle', infra: 'Infrastructure' }[hit.kind] || hit.kind[0].toUpperCase() + hit.kind.slice(1));
+    return (<>
+      <div style={{ ...ctxStyle.sep, borderTop: 'none', marginTop: 0, textTransform: 'none', letterSpacing: 0, fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{title}</div>
+      <CtxItem onClick={() => {
+        let b = null;
+        const all = [...fixtures.map(o => [o, 'fixture']), ...pipes.map(o => [o, 'pipe']), ...lines.map(o => [o, 'line']),
+          ...rectangles.map(o => [o, 'rect']), ...texts.map(o => [o, 'text']), ...images.map(o => [o, 'image']),
+          ...circles.map(o => [o, 'circle']), ...arcs.map(o => [o, 'arc']), ...polylines.map(o => [o, 'polyline']),
+          ...annotations.map(o => [o, 'annotation']), ...infrastructure.map(o => [o, 'infra'])];
+        const idSet = new Set(ids);
+        all.forEach(([o, k]) => {
+          if (!idSet.has(o.id)) return;
+          const ob = objectBounds(o, k);
+          b = b ? { minX: Math.min(b.minX, ob.minX), minY: Math.min(b.minY, ob.minY), maxX: Math.max(b.maxX, ob.maxX), maxY: Math.max(b.maxY, ob.maxY) } : ob;
+        });
+        if (b) zoomToBounds(b);
+      }}>🔍 Zoom to {inSel ? 'Selection' : 'Object'}</CtxItem>
+      {sameType.length > 1 && (
+        <CtxItem onClick={() => onMultiSelect(sameType.map(f => f.id))}>⧉ Select All of This Type ({sameType.length})</CtxItem>
+      )}
+      {onPipe.length > 0 && (
+        <CtxItem onClick={() => onMultiSelect(onPipe.map(f => f.id))}>━ Select Fixtures on {hit.kind === 'pipe' ? 'This' : 'Same'} Pipe ({onPipe.length})</CtxItem>
+      )}
+      {onTransform && hit.kind !== 'infra' && (<>
+        <div style={ctxStyle.sep}>Transform</div>
+        {inSel && <CtxItem onClick={() => onTransform('align')}>⊟ Align / Distribute…</CtxItem>}
+        <CtxItem onClick={() => { ensureSelected(); onTransform('mirror'); }}>⇋ Mirror…</CtxItem>
+        <CtxItem onClick={() => { ensureSelected(); onTransform('array'); }}>▦ Array…</CtxItem>
+        <CtxItem onClick={() => { ensureSelected(); onTransform('offset'); }}>⇇ Offset…</CtxItem>
+        {inSel && onGroupToggle && (groupState?.canUngroup
+          ? <CtxItem kbd="Ctrl+G" onClick={onGroupToggle}>⬚ Ungroup</CtxItem>
+          : <CtxItem kbd="Ctrl+G" onClick={onGroupToggle} disabled={!groupState?.canGroup}>⊞ Group Selection</CtxItem>)}
+      </>)}
+    </>);
+  }
+
   const cursorStyle = focusModeId ? 'crosshair' : activeTool === 'calibrate' ? 'crosshair' : pendingFixture ? 'crosshair'
     : activeTool === 'select' ? (dragging && !dragging.handlePoint ? 'grabbing' : 'default')
     : 'crosshair';
