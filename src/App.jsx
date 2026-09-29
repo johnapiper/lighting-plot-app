@@ -359,7 +359,7 @@ function App() {
       if (e.key === 'F3') { e.preventDefault(); setSnap(s => ({ ...s, enabled: !s.enabled })); }
       // Arrow keys nudge the selection: 10 mm, Alt = 1 mm, Shift = one grid step.
       const ARROWS = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
-      if (ARROWS[k] && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
+      if (ARROWS[k] && !inModal && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
         e.preventDefault();
         const step = e.shiftKey ? (project.meta?.gridSize || 20) : e.altKey ? 1 : 10;
         handleNudge(ARROWS[k][0] * step, ARROWS[k][1] * step);
