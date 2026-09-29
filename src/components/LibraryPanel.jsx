@@ -208,7 +208,7 @@ const ctxItem = {
 
 const styles = {
   panel: {
-    width: 150, background: 'var(--bg-panel)', borderRight: '1px solid var(--border)',
+    width: '100%', height: '100%', background: 'var(--bg-panel)', borderRight: '1px solid var(--border)',
     display: 'flex', flexDirection: 'column', overflowY: 'auto', flexShrink: 0,
     position: 'relative',
   },
