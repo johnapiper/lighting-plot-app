@@ -4,9 +4,71 @@
   padding: 0;
 }
 
+/* ── Theme tokens ──────────────────────────────────────────────────────────
+   Dark is the default (and the original look). <html data-theme="light">
+   switches the app chrome; the plot canvas itself keeps its drawing colours
+   so PNG/SVG exports are identical in either theme. */
+:root {
+  color-scheme: dark;
+  --bg-app: #0d1117;
+  --bg-inset: #0d1b2a;
+  --bg-panel: #16213e;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --border: #0f3460;
+  --border-strong: #1a3a5c;
+  --border-accent: #2a6090;
+  --border-accent-2: #2a5a8a;
+  --accent: #4a90d9;
+  --accent-bright: #00aaff;
+  --accent-text: #60b0ff;
+  --accent-soft: #90cdf4;
+  --text: #e0e0e0;
+  --text-2: #c0c8d8;
+  --text-muted: #a0aec0;
+  --text-dim: #718096;
+  --text-faint: #4a5568;
+  --sep: #2d3748;
+  --danger-text: #fc8181;
+  --danger-bg: #3a1a1a;
+  --danger-border: #7a2a2a;
+  --success-text: #68d391;
+  --warn-text: #f6e05e;
+  --focus-ring: #00aaff;
+  --shadow: rgba(0, 0, 0, 0.6);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-app: #e9edf3;
+  --bg-inset: #ffffff;
+  --bg-panel: #f5f7fb;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --border: #c9d4e2;
+  --border-strong: #b3c2d5;
+  --border-accent: #7fa4cf;
+  --border-accent-2: #8fb0d6;
+  --accent: #2b6cb0;
+  --accent-bright: #0a72c2;
+  --accent-text: #1d5c9e;
+  --accent-soft: #1d5c9e;
+  --text: #1a202c;
+  --text-2: #2d3748;
+  --text-muted: #4a5568;
+  --text-dim: #5b6778;
+  --text-faint: #7f8b9c;
+  --sep: #c3ccd8;
+  --danger-text: #c53030;
+  --danger-bg: #fdeaea;
+  --danger-border: #f0a3a3;
+  --success-text: #2f855a;
+  --warn-text: #975a16;
+  --focus-ring: #0a72c2;
+  --shadow: rgba(30, 40, 60, 0.18);
+}
+
 body {
-  background: #0d1117;
-  color: #e0e0e0;
+  background: var(--bg-app);
+  color: var(--text);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   overflow: hidden;
 }
@@ -16,8 +78,17 @@ button:hover {
 }
 
 input:focus {
-  border-color: #4a90d9 !important;
+  border-color: var(--accent) !important;
   outline: none;
+}
+
+/* Keyboard focus is always visible (mouse clicks don't show the ring). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 1px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-offset: 0;
 }
 
 ::-webkit-scrollbar {
@@ -26,12 +97,16 @@ input:focus {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d1117;
+  background: var(--bg-app);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #0f3460;
+  background: var(--border);
   border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
 /* Suppress entire app UI if window.print() is ever called directly.
