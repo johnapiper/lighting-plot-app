@@ -1449,53 +1449,53 @@ function App() {
         );
       })()}
 
-      {report && license?.hasFeature('reports') && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
+      {report && license?.hasFeature('reports') && <ModalA11y onClose={() => setReport(null)} label="Report"><ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} /></ModalA11y>}
       {showPatch && license?.hasFeature('patch_panel') && (
-        <PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
-          onUpdateFixture={handleUpdateFixtureInstance} onClose={closePatch} />
+        <ModalA11y onClose={closePatch} label="DMX patch"><PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
+          onUpdateFixture={handleUpdateFixtureInstance} onClose={closePatch} /></ModalA11y>
       )}
       {showGdtfBrowser && license?.hasFeature('gdtf_browser') && (
-        <GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} />
+        <ModalA11y onClose={() => setShowGdtfBrowser(false)} label="GDTF browser"><GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} /></ModalA11y>
       )}
       {showStudioSettings && (
-        <StudioSettingsModal
+        <ModalA11y onClose={() => setShowStudioSettings(false)} label="Studio settings"><StudioSettingsModal
           meta={project.meta}
           onSave={handleStudioSettingsSave}
           onClose={() => setShowStudioSettings(false)}
-        />
+        /></ModalA11y>
       )}
       {show3D && (
-        <Viewer3D
+        <ModalA11y onClose={() => setShow3D(false)} label="3D view"><Viewer3D
           drawing={activeDrawing}
           fixtureTypes={allFixtureTypes}
           meta={project.meta}
           onClose={() => setShow3D(false)}
-        />
+        /></ModalA11y>
       )}
       {showAppSettings && (
-        <AppSettingsModal
+        <ModalA11y onClose={() => setShowAppSettings(false)} label="App settings"><AppSettingsModal
           onClose={() => setShowAppSettings(false)}
           autoSaveEnabled={autoSaveEnabled}
           onChangeAutoSave={v => { setAutoSaveEnabled(v); ipcRenderer?.invoke('set-pref', 'autoSaveEnabled', v); }}
           pendingUpdateVersion={updateBanner?.version || null}
           maxVersion={maxVersion}
-        />
+        /></ModalA11y>
       )}
       {showMyLicense && (
-        <MyLicenseModal
+        <ModalA11y onClose={() => setShowMyLicense(false)} label="My license"><MyLicenseModal
           license={license?.license}
           onClose={() => setShowMyLicense(false)}
           onChangeLicense={() => { setShowMyLicense(false); license?.deactivate(); }}
-        />
+        /></ModalA11y>
       )}
       {showShortcuts && (
-        <ShortcutsModal onClose={() => setShowShortcuts(false)} />
+        <ModalA11y onClose={() => setShowShortcuts(false)} label="Keyboard shortcuts"><ShortcutsModal onClose={() => setShowShortcuts(false)} /></ModalA11y>
       )}
       {showLicenseManager && license?.hasFeature('license_manager') && (
-        <LicenseManager onClose={() => setShowLicenseManager(false)} />
+        <ModalA11y onClose={() => setShowLicenseManager(false)} label="License manager"><LicenseManager onClose={() => setShowLicenseManager(false)} /></ModalA11y>
       )}
       {showEOSImport && license?.hasFeature('eos_import') && (
-        <EOSImport
+        <ModalA11y onClose={() => setShowEOSImport(false)} label="EOS import"><EOSImport
           drawing={activeDrawing}
           fixtureTypes={allFixtureTypes}
           onClose={() => setShowEOSImport(false)}
@@ -1511,55 +1511,55 @@ function App() {
             });
             setShowEOSImport(false);
           }}
-        />
+        /></ModalA11y>
       )}
 
       {showUndoHistory && (
-        <UndoHistoryPanel
+        <ModalA11y onClose={() => setShowUndoHistory(false)} label="Undo history"><UndoHistoryPanel
           historyStack={historyStack} historyIdx={historyIdx} historyLabels={historyLabels}
           onJump={handleHistoryJump}
           onClose={() => setShowUndoHistory(false)}
-        />
+        /></ModalA11y>
       )}
       {showUniverse && (
-        <UniverseOverviewModal
+        <ModalA11y onClose={() => setShowUniverse(false)} label="Universe overview"><UniverseOverviewModal
           fixtures={activeDrawing?.fixtures || []}
           onClose={() => setShowUniverse(false)}
-        />
+        /></ModalA11y>
       )}
       {showRevisions && (
-        <RevisionHistoryModal
+        <ModalA11y onClose={() => setShowRevisions(false)} label="Revision history"><RevisionHistoryModal
           revisions={project.revisions || []}
           onSave={name => saveRevision(name)}
           onRestore={id => restoreRevision(id)}
           onClose={() => setShowRevisions(false)}
-        />
+        /></ModalA11y>
       )}
       {swapFixtureIds && (
-        <FixtureSwapModal
+        <ModalA11y onClose={() => setSwapFixtureIds(null)} label="Swap fixture type"><FixtureSwapModal
           fixtureIds={swapFixtureIds}
           allFixtureTypes={fixtureTypesData}
           customFixtureTypes={project.customFixtureTypes || []}
           onSwap={handleSwapFixture}
           onClose={() => setSwapFixtureIds(null)}
-        />
+        /></ModalA11y>
       )}
       {showTemplates && (
-        <ProjectTemplatesDialog
+        <ModalA11y onClose={() => setShowTemplates(false)} label="Project templates"><ProjectTemplatesDialog
           currentProject={project}
           onSelect={handleApplyTemplate}
           onClose={() => setShowTemplates(false)}
-        />
+        /></ModalA11y>
       )}
       {showDrawingTemplates && (
-        <DrawingTemplatesModal
+        <ModalA11y onClose={() => setShowDrawingTemplates(false)} label="Drawing templates"><DrawingTemplatesModal
           currentDrawing={activeDrawing}
           onLoad={handleLoadDrawingTemplate}
           onClose={() => setShowDrawingTemplates(false)}
-        />
+        /></ModalA11y>
       )}
       {transformMode && (
-        <TransformModal
+        <ModalA11y onClose={() => { setTransformMode(null); setDuplicateId(null); }} label="Transform"><TransformModal
           mode={transformMode}
           count={allSelectedIds.length}
           onApplyArray={handleApplyArray}
@@ -1568,10 +1568,10 @@ function App() {
           onOffset={handleApplyOffset}
           onDuplicate={handleApplyDuplicate}
           onClose={() => { setTransformMode(null); setDuplicateId(null); }}
-        />
+        /></ModalA11y>
       )}
       {showCableReport && license?.hasFeature('cable_routing') && (
-        <CableReport
+        <ModalA11y onClose={() => setShowCableReport(false)} label="Cable report"><CableReport
           drawing={activeDrawing}
           pipes={activeDrawing?.pipes || []}
           rigHeight={project.meta?.rigHeight || 5500}
@@ -1584,11 +1584,20 @@ function App() {
               if (c) Object.assign(c, patch);
             });
           }}
-        />
+        /></ModalA11y>
       )}
       {recovery && (
-        <RecoveryDialog recovery={recovery} onRestore={handleRestoreRecovery} onDiscard={handleDiscardRecovery} />
+        <ModalA11y  label="Recover unsaved work"><RecoveryDialog recovery={recovery} onRestore={handleRestoreRecovery} onDiscard={handleDiscardRecovery} /></ModalA11y>
       )}
+      {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
+      {showWelcome && !recovery && (
+        <WelcomeScreen onClose={() => setShowWelcome(false)} onNew={welcomeNew} onOpen={welcomeOpen} onOpenRecent={openRecentFile}
+          onTemplates={() => { setShowWelcome(false); setShowTemplates(true); }}
+          onImportMVR={() => { setShowWelcome(false); ipcRenderer?.send('open-request'); }}
+          canTemplates={!!license?.hasFeature('templates')} canImportMVR={!!license?.hasFeature('mvr_import')}
+          isTrial={isTrial} userName={license?.license?.name || ''} />
+      )}
+      <ConfirmHost />
       <ToastHost />
     </div>
   );

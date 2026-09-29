@@ -124,6 +124,32 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
             </div>
           </Section>
 
+          {/* ── Appearance ── */}
+          <Section title="Appearance">
+            <div style={S.row}>
+              <span style={S.rowLabel} id="theme-label">Theme</span>
+              <div role="radiogroup" aria-labelledby="theme-label" style={{ display: 'flex', gap: 4 }}>
+                {[['dark', 'Dark'], ['light', 'Light'], ['system', 'Match system']].map(([v, l]) => (
+                  <button key={v} role="radio" aria-checked={theme === v} onClick={() => onChangeTheme?.(v)}
+                    style={{ padding: '4px 10px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
+                      background: theme === v ? 'var(--border)' : 'transparent',
+                      border: `1px solid ${theme === v ? 'var(--accent)' : 'var(--border)'}`,
+                      color: theme === v ? 'var(--accent-text)' : 'var(--text-muted)' }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>
+              Changes panels, toolbars and dialogs. The plot canvas keeps its drawing colours so exports look the same in any theme.
+            </div>
+            <div style={{ ...S.row, marginTop: 10 }}>
+              <span style={S.rowLabel}>Show welcome screen on startup</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={welcomeEnabled} onChange={e => onChangeWelcome?.(e.target.checked)} />
+                <span style={{ fontSize: 12, color: welcomeEnabled ? 'var(--success-text)' : 'var(--text-dim)' }}>{welcomeEnabled ? 'On' : 'Off'}</span>
+              </label>
+            </div>
+          </Section>
+
           {/* ── Auto-save ── */}
           <Section title="Auto-Save">
             <div style={S.row}>
