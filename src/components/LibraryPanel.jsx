@@ -91,7 +91,7 @@ export default function LibraryPanel({
         </button>
       )}
       {onOpenGdtfBrowser && (
-        <button style={{ ...styles.importBtn, background: '#0f2a4a', borderColor: '#2a6090', marginTop: 0 }}
+        <button style={{ ...styles.importBtn, background: '#0f2a4a', borderColor: 'var(--border-accent)', marginTop: 0 }}
           onClick={onOpenGdtfBrowser} {...hintBind('gdtf-share')}>
           🌐 GDTF Share…
         </button>
@@ -111,7 +111,7 @@ export default function LibraryPanel({
         )}
       </div>
       {search && (
-        <div style={{ padding: '2px 10px 4px', fontSize: 9, color: '#718096' }}>
+        <div style={{ padding: '2px 10px 4px', fontSize: 9, color: 'var(--text-dim)' }}>
           {filtered.length} fixture{filtered.length !== 1 ? 's' : ''}
         </div>
       )}
@@ -128,7 +128,7 @@ export default function LibraryPanel({
               {renamingId === f.id ? (
                 <div style={{ flex: 1, padding: '4px 6px', display: 'flex', gap: 4, alignItems: 'center' }}>
                   <input autoFocus
-                    style={{ flex: 1, background: '#0d1b2a', border: '1px solid #4a90d9', borderRadius: 3, color: '#e0e0e0', fontSize: 11, padding: '2px 5px', outline: 'none' }}
+                    style={{ flex: 1, background: 'var(--bg-inset)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--text)', fontSize: 11, padding: '2px 5px', outline: 'none' }}
                     value={renameVal}
                     onChange={e => setRenameVal(e.target.value)}
                     onBlur={() => commitRename(f)}
@@ -138,7 +138,7 @@ export default function LibraryPanel({
                       e.stopPropagation();
                     }}
                   />
-                  <button style={{ ...styles.deleteBtn, color: '#68d391' }} onClick={() => commitRename(f)}>✓</button>
+                  <button style={{ ...styles.deleteBtn, color: 'var(--success-text)' }} onClick={() => commitRename(f)}>✓</button>
                   <button style={styles.deleteBtn} onClick={() => setRenamingId(null)}>✕</button>
                 </div>
               ) : (
@@ -172,7 +172,7 @@ export default function LibraryPanel({
         <div
           style={{
             position: 'fixed', left: ctxMenu.x, top: ctxMenu.y,
-            background: '#16213e', border: '1px solid #0f3460',
+            background: 'var(--bg-panel)', border: '1px solid var(--border)',
             borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
             zIndex: 999, minWidth: 160,
           }}
@@ -181,7 +181,7 @@ export default function LibraryPanel({
           <div style={ctxItem} onClick={() => openProperties(ctxMenu.fixture)}>
             ⚙️ Properties…
           </div>
-          <div style={{ ...ctxItem, borderTop: '1px solid #0f3460' }} onClick={() => handleDuplicate(ctxMenu.fixture)}>
+          <div style={{ ...ctxItem, borderTop: '1px solid var(--border)' }} onClick={() => handleDuplicate(ctxMenu.fixture)}>
             📋 Duplicate
           </div>
           {isCustom(ctxMenu.fixture) && (
@@ -190,7 +190,7 @@ export default function LibraryPanel({
             </div>
           )}
           {isCustom(ctxMenu.fixture) && (
-            <div style={{ ...ctxItem, borderTop: '1px solid #0f3460', color: '#fc8181' }}
+            <div style={{ ...ctxItem, borderTop: '1px solid var(--border)', color: 'var(--danger-text)' }}
               onClick={() => handleDelete(ctxMenu.fixture)}>
               🗑 Delete
             </div>
@@ -203,58 +203,58 @@ export default function LibraryPanel({
 
 const ctxItem = {
   padding: '9px 14px', cursor: 'pointer', fontSize: 13,
-  color: '#e0e0e0', transition: 'background 0.1s',
+  color: 'var(--text)', transition: 'background 0.1s',
 };
 
 const styles = {
   panel: {
-    width: 150, background: '#16213e', borderRight: '1px solid #0f3460',
+    width: '100%', height: '100%', background: 'var(--bg-panel)', borderRight: '1px solid var(--border)',
     display: 'flex', flexDirection: 'column', overflowY: 'auto', flexShrink: 0,
     position: 'relative',
   },
   header: {
     padding: '8px 10px', fontSize: 10, fontWeight: 700,
     letterSpacing: '0.1em', textTransform: 'uppercase',
-    color: '#4a90d9', borderBottom: '1px solid #0f3460',
+    color: 'var(--accent)', borderBottom: '1px solid var(--border)',
   },
   importBtn: {
-    margin: 8, padding: '5px 8px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+    margin: 8, padding: '5px 8px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontWeight: 600,
   },
   hint: {
-    padding: '6px 8px', background: '#0f3460', color: '#00aaff',
+    padding: '6px 8px', background: 'var(--border)', color: 'var(--accent-bright)',
     fontSize: 10, textAlign: 'center', lineHeight: 1.4,
   },
   category: {
-    padding: '6px 10px 2px', fontSize: 9, color: '#718096',
+    padding: '6px 10px 2px', fontSize: 9, color: 'var(--text-dim)',
     textTransform: 'uppercase', letterSpacing: '0.08em',
   },
   itemWrap: {
     position: 'relative', display: 'flex', alignItems: 'stretch',
-    borderBottom: '1px solid #0f3460',
+    borderBottom: '1px solid var(--border)',
   },
   item: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1,
     padding: '6px 8px', background: 'transparent', border: 'none',
-    color: '#e0e0e0', cursor: 'pointer', textAlign: 'center',
+    color: 'var(--text)', cursor: 'pointer', textAlign: 'center',
   },
-  itemActive: { background: '#0f3460', color: '#00aaff' },
+  itemActive: { background: 'var(--border)', color: 'var(--accent-bright)' },
   itemName: { fontSize: 9, marginTop: 3, lineHeight: 1.2, wordBreak: 'break-word' },
   gdtfBadge: {
-    fontSize: 8, background: '#1a3a5c', color: '#4a90d9',
+    fontSize: 8, background: 'var(--border-strong)', color: 'var(--accent)',
     borderRadius: 2, padding: '1px 3px', marginTop: 2,
   },
   deleteBtn: {
-    background: 'transparent', border: 'none', color: '#4a5568',
+    background: 'transparent', border: 'none', color: 'var(--text-faint)',
     cursor: 'pointer', fontSize: 11, padding: '0 3px',
   },
   searchInput: {
     width: '100%', boxSizing: 'border-box',
-    background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 4,
-    color: '#e0e0e0', fontSize: 11, padding: '4px 22px 4px 7px', outline: 'none',
+    background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 4,
+    color: 'var(--text)', fontSize: 11, padding: '4px 22px 4px 7px', outline: 'none',
   },
   searchClear: {
     position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-    background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 11, padding: 0,
+    background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 11, padding: 0,
   },
 };

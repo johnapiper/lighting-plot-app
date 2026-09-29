@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { confirmDialog } from './ConfirmDialog';
 import {
   fetchDatabase, writeDatabase,
   addLicense, revokeLicense, updateLicense, deleteLicense, invalidateCache,
@@ -120,7 +121,7 @@ export default function LicenseManager({ onClose }) {
   // ── License: revoke / delete ──────────────────────────────────────────────
   async function handleRevoke(key, name) {
     if (!token) { setErrMsg('Save a GitHub token first (Token tab).'); return; }
-    if (!confirm(`Revoke license for "${name}"?`)) return;
+    if (!(await confirmDialog({ title: 'Revoke license', message: `Revoke license for "${name}"?`, confirmLabel: 'Revoke', danger: true }))) return;
     setBusy(true); setErrMsg('');
     try {
       const newDb = revokeLicense(db, key);
@@ -143,7 +144,7 @@ export default function LicenseManager({ onClose }) {
 
   async function handleDeleteLicense(key, name) {
     if (!token) { setErrMsg('Save a GitHub token first (Token tab).'); return; }
-    if (!confirm(`Permanently delete license for "${name}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: 'Delete license', message: `Permanently delete license for "${name}"? This cannot be undone.`, confirmLabel: 'Delete', danger: true }))) return;
     setBusy(true); setErrMsg('');
     try {
       const newDb = deleteLicense(db, key);
@@ -205,7 +206,7 @@ export default function LicenseManager({ onClose }) {
     const warn = usedBy.length
       ? `\n\nWarning: ${usedBy.length} license(s) use this group — they will lose its features.`
       : '';
-    if (!confirm(`Delete group "${name}"?${warn}`)) return;
+    if (!(await confirmDialog({ title: 'Delete group', message: `Delete group "${name}"?${warn}`, confirmLabel: 'Delete', danger: true }))) return;
     setBusy(true); setErrMsg('');
     try {
       const newDb = deleteRightsGroup(db, id);
@@ -254,15 +255,15 @@ export default function LicenseManager({ onClose }) {
       <div style={{ columns: 2, columnGap: 16 }}>
         {Object.entries(byGroup).map(([grp, feats]) => (
           <div key={grp} style={{ breakInside: 'avoid', marginBottom: 10 }}>
-            <div style={{ color: '#718096', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>{grp}</div>
+            <div style={{ color: 'var(--text-dim)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>{grp}</div>
             {feats.map(f => (
               <label key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}>
                 <input type="checkbox" checked={value.includes(f.id)}
                   onChange={e => onChange(e.target.checked
                     ? [...value, f.id]
                     : value.filter(x => x !== f.id))}
-                  style={{ accentColor: '#4a90d9' }} />
-                <span style={{ color: '#c0c8d8', fontSize: 12 }}>{f.label}</span>
+                  style={{ accentColor: 'var(--accent)' }} />
+                <span style={{ color: 'var(--text-2)', fontSize: 12 }}>{f.label}</span>
               </label>
             ))}
           </div>
@@ -279,12 +280,12 @@ export default function LicenseManager({ onClose }) {
           const on = value.includes(g.id);
           return (
             <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-              background: on ? '#2a4a6a' : '#0d1b2a', border: `1px solid ${on ? '#4a90d9' : '#1a3a5c'}`,
+              background: on ? '#2a4a6a' : 'var(--bg-inset)', border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
               borderRadius: 4, cursor: 'pointer' }}>
               <input type="checkbox" checked={on}
                 onChange={e => onChange(e.target.checked ? [...value, g.id] : value.filter(x => x !== g.id))}
-                style={{ accentColor: '#4a90d9' }} />
-              <span style={{ color: on ? '#e0e0e0' : '#718096', fontSize: 12 }}>{g.name}</span>
+                style={{ accentColor: 'var(--accent)' }} />
+              <span style={{ color: on ? 'var(--text)' : 'var(--text-dim)', fontSize: 12 }}>{g.name}</span>
             </label>
           );
         })}
@@ -317,7 +318,7 @@ export default function LicenseManager({ onClose }) {
 
         {newLicenseKey && (
           <div style={S.keyBanner}>
-            <span style={{ color: '#68d391', fontWeight: 700 }}>New key — copy now, won't be shown again:</span>
+            <span style={{ color: 'var(--success-text)', fontWeight: 700 }}>New key — copy now, won't be shown again:</span>
             <div style={S.keyDisplay}>{newLicenseKey}</div>
             <button style={S.copyBtn} onClick={() => { navigator.clipboard.writeText(newLicenseKey); flash('Copied!'); }}>Copy</button>
             <button style={{ ...S.copyBtn, background: 'none', border: '1px solid #2a4a6a', marginLeft: 8 }}
@@ -337,36 +338,36 @@ export default function LicenseManager({ onClose }) {
               </thead>
               <tbody>
                 {licenses.length === 0 && (
-                  <tr><td colSpan={6} style={{ ...S.td, textAlign: 'center', color: '#4a5568' }}>No licenses yet.</td></tr>
+                  <tr><td colSpan={6} style={{ ...S.td, textAlign: 'center', color: 'var(--text-faint)' }}>No licenses yet.</td></tr>
                 )}
                 {licenses.map(l => (
                   <React.Fragment key={l.key}>
                     <tr style={l.active ? {} : { opacity: 0.45 }}>
                       <td style={S.td}>
-                        <div style={{ fontWeight: 600, color: '#e0e0e0' }}>{l.name}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{l.name}</div>
                         <div style={{ fontSize: 10, color: '#4a6a8a', fontFamily: 'monospace' }}>{l.key}</div>
-                        {l.email && <div style={{ fontSize: 10, color: '#718096' }}>{l.email}</div>}
+                        {l.email && <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{l.email}</div>}
                       </td>
                       <td style={S.td}><span style={{ color: '#a0c4e8', fontSize: 12 }}>{rightsLabel(l.rights)}</span></td>
                       <td style={S.td} nowrap="true">{l.expiresAt}</td>
                       <td style={S.td}>{l.maxSeats || 1}</td>
                       <td style={S.td}>
-                        {!l.active ? <span style={{ color: '#fc8181' }}>Revoked</span>
+                        {!l.active ? <span style={{ color: 'var(--danger-text)' }}>Revoked</span>
                           : new Date(l.expiresAt) < new Date() ? <span style={{ color: '#f6ad55' }}>Expired</span>
-                          : <span style={{ color: '#68d391' }}>Active</span>}
+                          : <span style={{ color: 'var(--success-text)' }}>Active</span>}
                       </td>
                       <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
                         <button style={S.iconBtn} title="Edit" onClick={() => editingLicense === l.key ? setEditingLicense(null) : startEditLicense(l)}>✎</button>
                         {l.active
                           ? <button style={{ ...S.iconBtn, color: '#f6ad55' }} title="Revoke" onClick={() => handleRevoke(l.key, l.name)} disabled={busy}>⊘</button>
-                          : <button style={{ ...S.iconBtn, color: '#68d391' }} title="Reactivate" onClick={() => handleReactivate(l.key)} disabled={busy}>↺</button>
+                          : <button style={{ ...S.iconBtn, color: 'var(--success-text)' }} title="Reactivate" onClick={() => handleReactivate(l.key)} disabled={busy}>↺</button>
                         }
-                        <button style={{ ...S.iconBtn, color: '#fc8181' }} title="Delete" onClick={() => handleDeleteLicense(l.key, l.name)} disabled={busy}>✕</button>
+                        <button style={{ ...S.iconBtn, color: 'var(--danger-text)' }} title="Delete" onClick={() => handleDeleteLicense(l.key, l.name)} disabled={busy}>✕</button>
                       </td>
                     </tr>
                     {editingLicense === l.key && (
                       <tr>
-                        <td colSpan={6} style={{ ...S.td, background: '#0d1b2a', padding: 16 }}>
+                        <td colSpan={6} style={{ ...S.td, background: 'var(--bg-inset)', padding: 16 }}>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                             <LabelField label="Name">
                               <input style={S.inp} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
@@ -389,8 +390,8 @@ export default function LicenseManager({ onClose }) {
                             <RightsSelector value={editForm.rights} onChange={v => setEditForm(f => ({ ...f, rights: v }))} />
                           </LabelField>
                           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                            <button style={{ ...S.btn, padding: '7px 18px', background: '#4a90d9' }} onClick={saveEditLicense} disabled={busy}>Save</button>
-                            <button style={{ ...S.btn, padding: '7px 18px', background: 'none', border: '1px solid #1a3a5c', color: '#718096' }} onClick={() => setEditingLicense(null)}>Cancel</button>
+                            <button style={{ ...S.btn, padding: '7px 18px', background: 'var(--accent)' }} onClick={saveEditLicense} disabled={busy}>Save</button>
+                            <button style={{ ...S.btn, padding: '7px 18px', background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-dim)' }} onClick={() => setEditingLicense(null)}>Cancel</button>
                           </div>
                         </td>
                       </tr>
@@ -423,7 +424,7 @@ export default function LicenseManager({ onClose }) {
               <LabelField label="Rights groups">
                 <RightsSelector value={addForm.rights} onChange={v => setAddForm(f => ({ ...f, rights: v }))} />
               </LabelField>
-              <button style={{ ...S.btn, marginTop: 16, padding: '10px 24px', background: '#4a90d9' }}
+              <button style={{ ...S.btn, marginTop: 16, padding: '10px 24px', background: 'var(--accent)' }}
                 type="submit" disabled={busy || !token}>
                 {busy ? 'Creating…' : 'Create License'}
               </button>
@@ -456,37 +457,37 @@ export default function LicenseManager({ onClose }) {
                         />
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                        <button style={{ ...S.btn, padding: '6px 16px', background: '#4a90d9' }} onClick={saveEditGroup} disabled={busy}>Save</button>
-                        <button style={{ ...S.btn, padding: '6px 16px', background: 'none', border: '1px solid #1a3a5c', color: '#718096' }} onClick={() => setEditingGroup(null)}>Cancel</button>
+                        <button style={{ ...S.btn, padding: '6px 16px', background: 'var(--accent)' }} onClick={saveEditGroup} disabled={busy}>Save</button>
+                        <button style={{ ...S.btn, padding: '6px 16px', background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-dim)' }} onClick={() => setEditingGroup(null)}>Cancel</button>
                       </div>
                     </>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontWeight: 700, color: '#e0e0e0', fontSize: 14 }}>{g.name}</span>
+                          <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>{g.name}</span>
                           <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#4a6a8a' }}>{g.id}</span>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {(g.features || []).map(fid => {
                             const feat = FEATURES.find(f => f.id === fid);
                             return (
-                              <span key={fid} style={{ background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 3, padding: '2px 7px', fontSize: 10, color: '#a0c4e8' }}>
+                              <span key={fid} style={{ background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', borderRadius: 3, padding: '2px 7px', fontSize: 10, color: '#a0c4e8' }}>
                                 {feat?.label || fid}
                               </span>
                             );
                           })}
-                          {(g.features || []).length === 0 && <span style={{ color: '#4a5568', fontSize: 12 }}>No features</span>}
+                          {(g.features || []).length === 0 && <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>No features</span>}
                         </div>
                         {(g.minVersion || g.maxVersion) && (
-                          <div style={{ fontSize: 10, color: '#718096', marginTop: 6 }}>
+                          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 6 }}>
                             Version: {g.minVersion ? `min v${g.minVersion}` : 'any'} → {g.maxVersion ? `max v${g.maxVersion}` : 'any'}
                           </div>
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                         <button style={S.iconBtn} title="Edit group" onClick={() => startEditGroup(g)}>✎</button>
-                        <button style={{ ...S.iconBtn, color: '#fc8181' }} title="Delete group" onClick={() => handleDeleteGroup(g.id, g.name)} disabled={busy}>✕</button>
+                        <button style={{ ...S.iconBtn, color: 'var(--danger-text)' }} title="Delete group" onClick={() => handleDeleteGroup(g.id, g.name)} disabled={busy}>✕</button>
                       </div>
                     </div>
                   )}
@@ -496,7 +497,7 @@ export default function LicenseManager({ onClose }) {
               {/* Add new group */}
               {showAddGroup ? (
                 <form onSubmit={handleAddGroup} style={{ ...S.groupCard, background: '#0a1525', marginTop: 12 }}>
-                  <div style={{ color: '#718096', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 10 }}>New Group</div>
+                  <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 10 }}>New Group</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                     <LabelField label="ID (slug)">
                       <input style={S.inp} value={addGroupForm.id} placeholder="e.g. premium"
@@ -521,13 +522,13 @@ export default function LicenseManager({ onClose }) {
                     />
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button type="submit" style={{ ...S.btn, padding: '7px 18px', background: '#4a90d9' }} disabled={busy || !token}>Create Group</button>
-                    <button type="button" style={{ ...S.btn, padding: '7px 18px', background: 'none', border: '1px solid #1a3a5c', color: '#718096' }} onClick={() => setShowAddGroup(false)}>Cancel</button>
+                    <button type="submit" style={{ ...S.btn, padding: '7px 18px', background: 'var(--accent)' }} disabled={busy || !token}>Create Group</button>
+                    <button type="button" style={{ ...S.btn, padding: '7px 18px', background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-dim)' }} onClick={() => setShowAddGroup(false)}>Cancel</button>
                   </div>
                   {!token && <div style={{ color: '#f6ad55', fontSize: 11, marginTop: 8 }}>⚠ Add a GitHub token first (Token tab).</div>}
                 </form>
               ) : (
-                <button style={{ ...S.btn, marginTop: 12, padding: '8px 18px', background: '#1a3a5c', border: '1px solid #2a5a8a', color: '#a0c4e8' }}
+                <button style={{ ...S.btn, marginTop: 12, padding: '8px 18px', background: 'var(--border-strong)', border: '1px solid var(--border-accent-2)', color: '#a0c4e8' }}
                   onClick={() => setShowAddGroup(true)}>+ Add Rights Group</button>
               )}
             </div>
@@ -536,8 +537,8 @@ export default function LicenseManager({ onClose }) {
           {/* ── TRIAL TAB ────────────────────────────────────────────────────── */}
           {tab === 'trial' && (
             <div style={S.form}>
-              <p style={{ color: '#a0aec0', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
-                Trial mode applies to users with <strong style={{ color: '#e0e0e0' }}>no license key</strong>.
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+                Trial mode applies to users with <strong style={{ color: 'var(--text)' }}>no license key</strong>.
                 Choose which features they can use and for how long. Saving, loading, exporting and
                 importing are always disabled in trial mode — everything stays temporary.
               </p>
@@ -545,20 +546,20 @@ export default function LicenseManager({ onClose }) {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!trialForm.enabled}
                     onChange={e => setTrialForm(f => ({ ...f, enabled: e.target.checked }))}
-                    style={{ accentColor: '#4a90d9' }} />
-                  <span style={{ color: '#c0c8d8', fontSize: 13 }}>Trial mode enabled</span>
+                    style={{ accentColor: 'var(--accent)' }} />
+                  <span style={{ color: 'var(--text-2)', fontSize: 13 }}>Trial mode enabled</span>
                 </label>
                 <LabelField label="Trial length (days)">
                   <input style={{ ...S.inp, width: 90 }} type="number" min="0" value={trialForm.days}
                     onChange={e => setTrialForm(f => ({ ...f, days: e.target.value }))} />
                 </LabelField>
               </div>
-              <div style={{ color: '#718096', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+              <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
                 Trial features
               </div>
               <FeatureChecklist value={trialForm.features}
                 onChange={v => setTrialForm(f => ({ ...f, features: v }))} />
-              <button style={{ ...S.btn, marginTop: 16, padding: '9px 22px', background: '#4a90d9' }}
+              <button style={{ ...S.btn, marginTop: 16, padding: '9px 22px', background: 'var(--accent)' }}
                 onClick={saveTrialConfig} disabled={busy || !token}>
                 {busy ? 'Saving…' : 'Save Trial Settings'}
               </button>
@@ -569,8 +570,8 @@ export default function LicenseManager({ onClose }) {
           {/* ── TOKEN TAB ────────────────────────────────────────────────────── */}
           {tab === 'token' && (
             <div style={S.form}>
-              <p style={{ color: '#a0aec0', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
-                A GitHub Personal Access Token with <strong style={{ color: '#e0e0e0' }}>repo</strong> scope
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+                A GitHub Personal Access Token with <strong style={{ color: 'var(--text)' }}>repo</strong> scope
                 is required to create, edit, or delete licenses and rights groups.
                 The token is stored encrypted on this machine and never transmitted except directly to GitHub.
               </p>
@@ -579,11 +580,11 @@ export default function LicenseManager({ onClose }) {
                   onChange={e => { setToken(e.target.value); setTokenSaved(false); }}
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
               </LabelField>
-              <button style={{ ...S.btn, marginTop: 12, padding: '9px 20px', background: '#4a90d9' }}
+              <button style={{ ...S.btn, marginTop: 12, padding: '9px 20px', background: 'var(--accent)' }}
                 onClick={saveToken} disabled={!token.trim()}>
                 {tokenSaved ? '✓ Saved' : 'Save Token'}
               </button>
-              <p style={{ color: '#4a5568', fontSize: 11, marginTop: 16 }}>
+              <p style={{ color: 'var(--text-faint)', fontSize: 11, marginTop: 16 }}>
                 Encrypted with AES-256-GCM and stored in the app data folder.
               </p>
             </div>
@@ -597,7 +598,7 @@ export default function LicenseManager({ onClose }) {
 function LabelField({ label, children }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <label style={{ display: 'block', fontSize: 11, color: '#718096', marginBottom: 4 }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>{label}</label>
       {children}
     </div>
   );
@@ -641,7 +642,7 @@ function VersionRangePicker({ minVersion, maxVersion, versions, onChangeMin, onC
           </select>
         </LabelField>
       </div>
-      <div style={{ fontSize: 11, color: '#a0c4e8', background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 4, padding: '7px 10px' }}>
+      <div style={{ fontSize: 11, color: '#a0c4e8', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', borderRadius: 4, padding: '7px 10px' }}>
         {versionAccessSummary(minVersion, maxVersion, versions)}
       </div>
     </div>
@@ -655,25 +656,25 @@ function oneYearFromNow() {
 
 const S = {
   overlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 },
-  panel:    { background: '#16213e', border: '1px solid #0f3460', borderRadius: 8, width: '92vw', maxWidth: 960, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' },
-  header:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #0f3460', flexShrink: 0 },
-  title:    { fontSize: 16, fontWeight: 700, color: '#e0e0e0' },
-  closeBtn: { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 18 },
-  tabs:     { display: 'flex', borderBottom: '1px solid #0f3460', flexShrink: 0, padding: '0 16px' },
-  tab:      { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', padding: '10px 14px', fontSize: 13 },
-  tabActive:{ color: '#4a90d9', borderBottom: '2px solid #4a90d9' },
-  errBox:   { margin: '8px 16px 0', padding: '8px 12px', background: 'rgba(252,129,129,0.12)', border: '1px solid #fc8181', borderRadius: 4, color: '#fc8181', fontSize: 12 },
-  okBox:    { margin: '8px 16px 0', padding: '8px 12px', background: 'rgba(104,211,145,0.12)', border: '1px solid #68d391', borderRadius: 4, color: '#68d391', fontSize: 12 },
+  panel:    { background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, width: '92vw', maxWidth: 960, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 40px rgba(0,0,0,0.7)' },
+  header:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 },
+  title:    { fontSize: 16, fontWeight: 700, color: 'var(--text)' },
+  closeBtn: { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 18 },
+  tabs:     { display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0, padding: '0 16px' },
+  tab:      { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '10px 14px', fontSize: 13 },
+  tabActive:{ color: 'var(--accent)', borderBottom: '2px solid var(--accent)' },
+  errBox:   { margin: '8px 16px 0', padding: '8px 12px', background: 'rgba(252,129,129,0.12)', border: '1px solid var(--danger-text)', borderRadius: 4, color: 'var(--danger-text)', fontSize: 12 },
+  okBox:    { margin: '8px 16px 0', padding: '8px 12px', background: 'rgba(104,211,145,0.12)', border: '1px solid var(--success-text)', borderRadius: 4, color: 'var(--success-text)', fontSize: 12 },
   body:     { flex: 1, overflow: 'auto', padding: 16 },
   table:    { width: '100%', borderCollapse: 'collapse', fontSize: 12 },
-  th:       { textAlign: 'left', padding: '6px 10px', color: '#718096', borderBottom: '1px solid #0f3460', fontWeight: 600, fontSize: 11, textTransform: 'uppercase' },
-  td:       { padding: '8px 10px', borderBottom: '1px solid rgba(15,52,96,0.5)', color: '#e0e0e0', verticalAlign: 'middle' },
+  th:       { textAlign: 'left', padding: '6px 10px', color: 'var(--text-dim)', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 11, textTransform: 'uppercase' },
+  td:       { padding: '8px 10px', borderBottom: '1px solid rgba(15,52,96,0.5)', color: 'var(--text)', verticalAlign: 'middle' },
   form:     { maxWidth: 520, paddingTop: 8 },
-  inp:      { width: '100%', background: '#0d1b2a', border: '1px solid #1a3a5c', borderRadius: 4, color: '#e0e0e0', fontSize: 13, padding: '7px 10px', boxSizing: 'border-box' },
+  inp:      { width: '100%', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', borderRadius: 4, color: 'var(--text)', fontSize: 13, padding: '7px 10px', boxSizing: 'border-box' },
   btn:      { padding: '5px 12px', background: '#2a4a6a', border: 'none', borderRadius: 4, color: '#c0d8f0', fontSize: 12, cursor: 'pointer' },
-  iconBtn:  { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 15, padding: '2px 5px' },
-  groupCard:{ background: '#0f1e35', border: '1px solid #0f3460', borderRadius: 6, padding: 14, marginBottom: 10 },
-  keyBanner:{ margin: '8px 16px', padding: 14, background: 'rgba(104,211,145,0.08)', border: '1px solid #68d391', borderRadius: 6 },
-  keyDisplay:{ fontFamily: 'monospace', fontSize: 18, letterSpacing: '0.15em', color: '#68d391', margin: '10px 0', fontWeight: 700 },
+  iconBtn:  { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 15, padding: '2px 5px' },
+  groupCard:{ background: '#0f1e35', border: '1px solid var(--border)', borderRadius: 6, padding: 14, marginBottom: 10 },
+  keyBanner:{ margin: '8px 16px', padding: 14, background: 'rgba(104,211,145,0.08)', border: '1px solid var(--success-text)', borderRadius: 6 },
+  keyDisplay:{ fontFamily: 'monospace', fontSize: 18, letterSpacing: '0.15em', color: 'var(--success-text)', margin: '10px 0', fontWeight: 700 },
   copyBtn:  { padding: '6px 14px', background: '#276749', border: 'none', borderRadius: 4, color: '#c6f6d5', fontSize: 12, cursor: 'pointer' },
 };

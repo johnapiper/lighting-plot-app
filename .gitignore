@@ -31,3 +31,6 @@ yarn-error.log*
 # Temp files
 *.tmp
 *.temp
+
+# Claude Code worktrees (local checkouts, never commit)
+.claude/worktrees/

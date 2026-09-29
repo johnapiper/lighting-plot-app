@@ -81,7 +81,7 @@ export default function FindFixtureModal({ fixtures, onGoTo, onSelectAll, onClos
 
   return (
     <div style={S.overlay} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={S.modal} role="dialog" aria-label="Find fixture">
+      <div style={S.modal}>
         <input ref={inputRef} style={S.input} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={onKeyDown}
           placeholder="Find fixture — channel, unit, 1/101, type, position, purpose…" aria-label="Search fixtures" />
         <div style={S.meta}>
@@ -116,17 +116,17 @@ export default function FindFixtureModal({ fixtures, onGoTo, onSelectAll, onClos
 
 const S = {
   overlay: { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', justifyContent:'center', alignItems:'flex-start', paddingTop:'12vh', zIndex:1300 },
-  modal: { width:560, maxWidth:'92vw', background:'#16213e', border:'1px solid #0f3460', borderRadius:8, boxShadow:'0 16px 48px rgba(0,0,0,0.85)', display:'flex', flexDirection:'column', overflow:'hidden' },
-  input: { background:'#0d1b2a', border:'none', borderBottom:'1px solid #0f3460', color:'#e0e0e0', fontSize:15, padding:'12px 16px', outline:'none' },
-  meta: { display:'flex', padding:'5px 16px', fontSize:10, color:'#718096', borderBottom:'1px solid #0f3460' },
-  hint: { color:'#4a5568' },
+  modal: { width:560, maxWidth:'92vw', background:'var(--bg-panel)', border:'1px solid var(--border)', borderRadius:8, boxShadow:'0 16px 48px rgba(0,0,0,0.85)', display:'flex', flexDirection:'column', overflow:'hidden' },
+  input: { background:'var(--bg-inset)', border:'none', borderBottom:'1px solid var(--border)', color:'var(--text)', fontSize:15, padding:'12px 16px', outline:'none' },
+  meta: { display:'flex', padding:'5px 16px', fontSize:10, color:'var(--text-dim)', borderBottom:'1px solid var(--border)' },
+  hint: { color:'var(--text-faint)' },
   list: { maxHeight:'50vh', overflowY:'auto' },
   row: { display:'flex', alignItems:'center', gap:12, padding:'6px 16px', cursor:'pointer', borderLeft:'3px solid transparent' },
-  rowActive: { background:'#0f3460', borderLeftColor:'#4a90d9' },
-  ch: { width:64, flexShrink:0, color:'#90cdf4', fontWeight:700, fontSize:13, fontVariantNumeric:'tabular-nums' },
+  rowActive: { background:'var(--border)', borderLeftColor:'var(--accent)' },
+  ch: { width:64, flexShrink:0, color:'var(--accent-soft)', fontWeight:700, fontSize:13, fontVariantNumeric:'tabular-nums' },
   main: { flex:1, display:'flex', flexDirection:'column', minWidth:0 },
-  type: { fontSize:12, color:'#e0e0e0', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
-  sub: { fontSize:10, color:'#718096', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
-  addr: { fontSize:11, color:'#a0aec0', fontVariantNumeric:'tabular-nums' },
-  empty: { padding:'18px 16px', fontSize:12, color:'#4a5568', textAlign:'center' },
+  type: { fontSize:12, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
+  sub: { fontSize:10, color:'var(--text-dim)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
+  addr: { fontSize:11, color:'var(--text-muted)', fontVariantNumeric:'tabular-nums' },
+  empty: { padding:'18px 16px', fontSize:12, color:'var(--text-faint)', textAlign:'center' },
 };

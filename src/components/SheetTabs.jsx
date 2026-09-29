@@ -92,19 +92,19 @@ export default function SheetTabs({ sheets, activeSheetId, onSwitch, onAdd, onRe
 }
 
 const styles = {
-  bar: { position: 'relative', display: 'flex', alignItems: 'center', background: '#0d1117', borderTop: '1px solid #0f3460', padding: '3px 8px', gap: 4, flexShrink: 0, overflowX: 'auto', minHeight: 30 },
-  label: { fontSize: 9, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4, flexShrink: 0 },
-  tab: { display: 'flex', alignItems: 'center', background: '#16213e', border: '1px solid #0f3460', borderRadius: '4px 4px 0 0', padding: '3px 8px', gap: 4, cursor: 'pointer', fontSize: 11, color: '#a0aec0', flexShrink: 0 },
-  active: { background: '#1a3a5c', borderColor: '#2a6090', color: '#60b0ff', borderBottom: '1px solid #1a3a5c' },
+  bar: { position: 'relative', display: 'flex', alignItems: 'center', background: 'var(--bg-app)', borderTop: '1px solid var(--border)', padding: '3px 8px', gap: 4, flexShrink: 0, overflowX: 'auto', minHeight: 30 },
+  label: { fontSize: 9, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4, flexShrink: 0 },
+  tab: { display: 'flex', alignItems: 'center', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '4px 4px 0 0', padding: '3px 8px', gap: 4, cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 },
+  active: { background: 'var(--border-strong)', borderColor: 'var(--border-accent)', color: 'var(--accent-text)', borderBottom: '1px solid var(--border-strong)' },
   tabName: { maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  closeBtn: { background: 'none', border: 'none', color: '#4a5568', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1, flexShrink: 0 },
-  addBtn: { background: '#0f3460', border: '1px solid #1a4a7a', borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 10, padding: '3px 8px', flexShrink: 0 },
-  renameInput: { background: '#0d1b2a', border: '1px solid #4a90d9', borderRadius: 2, color: '#e0e0e0', fontSize: 11, padding: '0 3px', width: 80, outline: 'none' },
+  closeBtn: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1, flexShrink: 0 },
+  addBtn: { background: 'var(--border)', border: '1px solid #1a4a7a', borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 10, padding: '3px 8px', flexShrink: 0 },
+  renameInput: { background: 'var(--bg-inset)', border: '1px solid var(--accent)', borderRadius: 2, color: 'var(--text)', fontSize: 11, padding: '0 3px', width: 80, outline: 'none' },
   ctx: {
-    position: 'fixed', background: '#16213e', border: '1px solid #0f3460', borderRadius: 6,
+    position: 'fixed', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 6,
     boxShadow: '0 6px 20px rgba(0,0,0,0.7)', zIndex: 2000, minWidth: 150, padding: '4px 0',
   },
-  ctxItem: { padding: '6px 14px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', userSelect: 'none',
-    ':hover': { background: '#0f3460' } },
-  ctxDivider: { height: 1, background: '#0f3460', margin: '3px 0' },
+  ctxItem: { padding: '6px 14px', fontSize: 12, color: 'var(--text)', cursor: 'pointer', userSelect: 'none',
+    ':hover': { background: 'var(--border)' } },
+  ctxDivider: { height: 1, background: 'var(--border)', margin: '3px 0' },
 };

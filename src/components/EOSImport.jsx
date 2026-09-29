@@ -382,7 +382,7 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
                 onChange={e => handleFile(e.target.files?.[0])} />
               <button style={S.cancelBtn} onClick={onClose}>Cancel</button>
             </div>
-            {loading && <div style={{ color: '#a0aec0', marginTop: 12 }}>⏳ Parsing showfile…</div>}
+            {loading && <div style={{ color: 'var(--text-muted)', marginTop: 12 }}>⏳ Parsing showfile…</div>}
             {error   && <div style={{ color: '#ef4444', marginTop: 12, whiteSpace: 'pre-wrap' }}>⚠ {error}</div>}
           </div>
         </div>
@@ -414,14 +414,14 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
       <div style={{ ...S.box, width: '90vw', maxWidth: 900, height: '80vh' }}>
         <div style={S.title}>
           📋 EOS Import Preview
-          <span style={{ fontSize: 11, color: '#718096', fontWeight: 400, marginLeft: 12 }}>{sourceFile}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 12 }}>{sourceFile}</span>
         </div>
 
         {/* What to import */}
-        <div style={{ display: 'flex', gap: 16, padding: '8px 16px', borderBottom: '1px solid #0f3460', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: '#a0aec0' }}>Update fields:</span>
+        <div style={{ display: 'flex', gap: 16, padding: '8px 16px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Update fields:</span>
           {[['label', 'Label / Name'], ['channel', 'Channel Number'], ['address', 'DMX Address']].map(([k, lab]) => (
-            <label key={k} style={{ fontSize: 11, color: '#e0e0e0', display: 'flex', gap: 4, cursor: 'pointer' }}>
+            <label key={k} style={{ fontSize: 11, color: 'var(--text)', display: 'flex', gap: 4, cursor: 'pointer' }}>
               <input type="checkbox" checked={fieldMap[k]} onChange={e => setFieldMap(m => ({ ...m, [k]: e.target.checked }))} />
               {lab}
             </label>
@@ -460,19 +460,19 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
                           return n;
                         })} />
                     </td>
-                    <td style={{ ...S.td, color: '#60b0ff', fontWeight: 700 }}>{c.num}</td>
-                    <td style={S.td}>{c.label || <em style={{ color: '#4a5568' }}>—</em>}</td>
-                    <td style={{ ...S.td, fontSize: 10, color: '#718096' }}>{c.manufacturer || '—'}</td>
+                    <td style={{ ...S.td, color: 'var(--accent-text)', fontWeight: 700 }}>{c.num}</td>
+                    <td style={S.td}>{c.label || <em style={{ color: 'var(--text-faint)' }}>—</em>}</td>
+                    <td style={{ ...S.td, fontSize: 10, color: 'var(--text-dim)' }}>{c.manufacturer || '—'}</td>
                     <td style={{ ...S.td, fontFamily: 'monospace', color: '#a78bfa' }}>{c.address || '—'}</td>
                     <td style={S.td}>
                       {match
                         ? <span style={{ color: '#34d399' }}>{ftype?.name || match.type || 'Fixture'} #{match.unit || match.channel || match.id.slice(0,6)}</span>
-                        : <em style={{ color: '#718096' }}>No match</em>}
+                        : <em style={{ color: 'var(--text-dim)' }}>No match</em>}
                     </td>
                     <td style={S.td}>
                       {match
                         ? <span style={{ color: '#34d399' }}>✓ Will update</span>
-                        : <span style={{ color: '#4a5568' }}>Skip</span>}
+                        : <span style={{ color: 'var(--text-faint)' }}>Skip</span>}
                     </td>
                   </tr>
                 );
@@ -481,8 +481,8 @@ export default function EOSImport({ drawing, fixtureTypes, onClose, onApply }) {
           </table>
         </div>
 
-        <div style={{ padding: '10px 16px', borderTop: '1px solid #0f3460', display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#a0aec0', flex: 1 }}>
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1 }}>
             {selected.size} selected · {matchedCount} will be updated in drawing
           </span>
           <button style={S.btn} disabled={matchedCount === 0} onClick={applyImport}>
@@ -501,29 +501,29 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 980,
   },
   box: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: '90vw', maxWidth: 560,
     display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.9)',
     overflow: 'hidden',
   },
   title: {
-    padding: '12px 16px', borderBottom: '1px solid #0f3460',
-    fontSize: 14, fontWeight: 700, color: '#e0e0e0',
+    padding: '12px 16px', borderBottom: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 700, color: 'var(--text)',
     display: 'flex', alignItems: 'baseline', gap: 8,
   },
   body: { padding: '16px', flex: 1 },
-  para: { fontSize: 12, color: '#a0aec0', marginBottom: 8, lineHeight: 1.6 },
+  para: { fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.6 },
   btn: {
-    padding: '7px 18px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    padding: '7px 18px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
   },
   cancelBtn: {
-    padding: '7px 14px', background: 'none', border: '1px solid #4a5568',
-    borderRadius: 4, color: '#718096', cursor: 'pointer', fontSize: 12,
+    padding: '7px 14px', background: 'none', border: '1px solid var(--text-faint)',
+    borderRadius: 4, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12,
   },
   th: {
-    padding: '6px 10px', background: '#0f3460', color: '#4a90d9',
+    padding: '6px 10px', background: 'var(--border)', color: 'var(--accent)',
     textAlign: 'left', fontSize: 11, fontWeight: 700, position: 'sticky', top: 0,
   },
-  td: { padding: '5px 10px', color: '#e0e0e0', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+  td: { padding: '5px 10px', color: 'var(--text)', borderBottom: '1px solid rgba(255,255,255,0.04)' },
 };

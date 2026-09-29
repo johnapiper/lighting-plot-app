@@ -98,6 +98,7 @@ function Cell({ col, fixture, onCommit, onNavigate, onPasteGrid }) {
   return (
     <input
       data-cell={`${fixture.id}:${col.key}`}
+      data-local-esc="" // Esc reverts the cell rather than closing the panel
       style={{ ...styles.cellInput, width: col.width, ...(error ? styles.cellError : {}) }}
       value={draft}
       title={error ? `${error} — not saved` : undefined}
@@ -213,6 +214,7 @@ export default function PatchPanel({ fixtures, allFixtureTypes, selectedIds = []
           <span style={styles.title}>DMX Patch</span>
           <div style={styles.actions}>
             <input style={styles.search} placeholder="Filter…" value={search} onChange={e => setSearch(e.target.value)}
+              data-local-esc={search ? '' : undefined} // Esc clears a filter first, then closes
               onKeyDown={e => { if (e.key === 'Escape') setSearch(''); e.stopPropagation(); }} aria-label="Filter patch rows" />
             {universes.length > 0 && (
               <select style={styles.select} value={filterUniverse} onChange={e => setFilterUniverse(e.target.value)}>
@@ -297,7 +299,7 @@ export default function PatchPanel({ fixtures, allFixtureTypes, selectedIds = []
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <p style={{ color: '#718096', padding: 20, textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-dim)', padding: 20, textAlign: 'center' }}>
               {fixtures.length ? 'No fixtures match the current filter.' : 'No fixtures in the plot.'}
             </p>
           )}
@@ -315,8 +317,8 @@ const styles = {
     zIndex: 1000,
   },
   window: {
-    background: '#16213e',
-    border: '1px solid #0f3460',
+    background: 'var(--bg-panel)',
+    border: '1px solid var(--border)',
     borderRadius: 6,
     width: '92vw',
     maxHeight: '85vh',
@@ -326,52 +328,52 @@ const styles = {
   },
   titleBar: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 16px', borderBottom: '1px solid #0f3460', flexShrink: 0,
+    padding: '10px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0,
   },
-  title: { color: '#4a90d9', fontWeight: 700, fontSize: 14 },
+  title: { color: 'var(--accent)', fontWeight: 700, fontSize: 14 },
   actions: { display: 'flex', gap: 8, alignItems: 'center' },
-  helpBar: { padding: '4px 16px', fontSize: 10, color: '#4a5568', borderBottom: '1px solid #0f3460', flexShrink: 0 },
-  pasteNote: { color: '#f6e05e' },
-  count: { fontSize: 11, color: '#718096' },
+  helpBar: { padding: '4px 16px', fontSize: 10, color: 'var(--text-faint)', borderBottom: '1px solid var(--border)', flexShrink: 0 },
+  pasteNote: { color: 'var(--warn-text)' },
+  count: { fontSize: 11, color: 'var(--text-dim)' },
   search: {
-    background: '#0d1b2a', border: '1px solid #0f3460', color: '#e0e0e0',
+    background: 'var(--bg-inset)', border: '1px solid var(--border)', color: 'var(--text)',
     borderRadius: 4, padding: '4px 8px', fontSize: 12, width: 160, outline: 'none',
   },
   conflictBadge: {
-    background: '#3a1a1a', color: '#fc8181', border: '1px solid #3a1a1a',
+    background: 'var(--danger-bg)', color: 'var(--danger-text)', border: '1px solid var(--danger-bg)',
     padding: '3px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer',
   },
-  conflictOn: { borderColor: '#fc8181' },
+  conflictOn: { borderColor: 'var(--danger-text)' },
   btn: {
-    background: '#0f3460', border: '1px solid #1a4a7a',
-    borderRadius: 4, color: '#a0aec0', padding: '4px 12px', cursor: 'pointer', fontSize: 12,
+    background: 'var(--border)', border: '1px solid #1a4a7a',
+    borderRadius: 4, color: 'var(--text-muted)', padding: '4px 12px', cursor: 'pointer', fontSize: 12,
   },
-  closeBtn: { background: '#3a1a1a', borderColor: '#7a2a2a', color: '#fc8181' },
+  closeBtn: { background: 'var(--danger-bg)', borderColor: 'var(--danger-border)', color: 'var(--danger-text)' },
   select: {
-    background: '#0d1b2a', border: '1px solid #0f3460',
-    color: '#a0aec0', borderRadius: 4, padding: '4px 8px', fontSize: 12,
+    background: 'var(--bg-inset)', border: '1px solid var(--border)',
+    color: 'var(--text-muted)', borderRadius: 4, padding: '4px 8px', fontSize: 12,
   },
   body: { overflowY: 'auto', padding: '0 0 12px' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 12, color: '#e0e0e0' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 12, color: 'var(--text)' },
   th: {
     padding: '8px 12px', textAlign: 'left',
-    background: '#0d1b2a', color: '#4a90d9',
-    borderBottom: '2px solid #0f3460',
+    background: 'var(--bg-inset)', color: 'var(--accent)',
+    borderBottom: '2px solid var(--border)',
     fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em',
     position: 'sticky', top: 0, userSelect: 'none', whiteSpace: 'nowrap',
   },
-  td: { padding: '4px 8px', borderBottom: '1px solid #0f3460', verticalAlign: 'middle' },
+  td: { padding: '4px 8px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' },
   cellInput: {
-    background: '#0d1b2a', border: '1px solid #0f3460',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 12,
+    background: 'var(--bg-inset)', border: '1px solid var(--border)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 12,
     padding: '2px 6px', width: 80, outline: 'none',
   },
-  cellError: { borderColor: '#fc8181', color: '#fc8181' },
+  cellError: { borderColor: 'var(--danger-text)', color: 'var(--danger-text)' },
   cellSelect: {
-    background: '#0d1b2a', border: '1px solid #0f3460',
-    borderRadius: 3, color: '#e0e0e0', fontSize: 11, padding: '2px 4px',
+    background: 'var(--bg-inset)', border: '1px solid var(--border)',
+    borderRadius: 3, color: 'var(--text)', fontSize: 11, padding: '2px 4px',
   },
-  locate: { background: 'none', border: 'none', color: '#4a90d9', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 },
-  conflictIcon: { color: '#fc8181', marginLeft: 4, fontSize: 12 },
-  dimText: { color: '#4a5568' },
+  locate: { background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 },
+  conflictIcon: { color: 'var(--danger-text)', marginLeft: 4, fontSize: 12 },
+  dimText: { color: 'var(--text-faint)' },
 };

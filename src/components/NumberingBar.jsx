@@ -29,13 +29,13 @@ export default function NumberingBar({ state, onChange, onSkip, onBack, onDone }
 
 const S = {
   wrap: { position:'absolute', top:28, left:'50%', transform:'translateX(-50%)', zIndex:20, display:'flex', flexWrap:'wrap', alignItems:'center', gap:8,
-          background:'#16213e', border:'1px solid #4a90d9', borderRadius:6, padding:'6px 10px', boxShadow:'0 6px 24px rgba(0,0,0,0.6)', fontSize:12, color:'#e0e0e0', maxWidth:'90%' },
-  title: { color:'#90cdf4', fontWeight:600 },
-  label: { display:'flex', alignItems:'center', gap:4, color:'#a0aec0' },
-  input: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#e0e0e0', fontSize:12, padding:'2px 5px', outline:'none' },
-  select: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#e0e0e0', fontSize:12, padding:'2px 4px' },
-  count: { color:'#718096', fontVariantNumeric:'tabular-nums' },
-  btn: { background:'#0f3460', border:'1px solid #1a4a7a', borderRadius:4, color:'#a0aec0', padding:'3px 10px', cursor:'pointer', fontSize:11 },
-  done: { borderColor:'#4a90d9', color:'#90cdf4', fontWeight:600 },
-  warn: { flexBasis:'100%', color:'#f6e05e', fontSize:11 },
+          background:'var(--bg-panel)', border:'1px solid var(--accent)', borderRadius:6, padding:'6px 10px', boxShadow:'0 6px 24px rgba(0,0,0,0.6)', fontSize:12, color:'var(--text)', maxWidth:'90%' },
+  title: { color:'var(--accent-soft)', fontWeight:600 },
+  label: { display:'flex', alignItems:'center', gap:4, color:'var(--text-muted)' },
+  input: { background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:3, color:'var(--text)', fontSize:12, padding:'2px 5px', outline:'none' },
+  select: { background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:3, color:'var(--text)', fontSize:12, padding:'2px 4px' },
+  count: { color:'var(--text-dim)', fontVariantNumeric:'tabular-nums' },
+  btn: { background:'var(--border)', border:'1px solid #1a4a7a', borderRadius:4, color:'var(--text-muted)', padding:'3px 10px', cursor:'pointer', fontSize:11 },
+  done: { borderColor:'var(--accent)', color:'var(--accent-soft)', fontWeight:600 },
+  warn: { flexBasis:'100%', color:'var(--warn-text)', fontSize:11 },
 };

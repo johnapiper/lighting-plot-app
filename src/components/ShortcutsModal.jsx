@@ -85,10 +85,10 @@ export default function ShortcutsModal({ onClose }) {
                       <td style={S.keyCell}>
                         {key.split(' / ').map((k, i) => (
                           <span key={k}>
-                            {i > 0 && <span style={{ color: '#4a5568', margin: '0 4px' }}>/</span>}
+                            {i > 0 && <span style={{ color: 'var(--text-faint)', margin: '0 4px' }}>/</span>}
                             {k.split(' + ').map((part, j) => (
                               <span key={j}>
-                                {j > 0 && <span style={{ color: '#4a5568', margin: '0 2px' }}>+</span>}
+                                {j > 0 && <span style={{ color: 'var(--text-faint)', margin: '0 2px' }}>+</span>}
                                 <kbd style={S.kbd}>{part}</kbd>
                               </span>
                             ))}
@@ -117,31 +117,31 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200,
   },
   modal: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: 520, maxHeight: '85vh', display: 'flex', flexDirection: 'column',
     boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
   },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px', borderBottom: '1px solid #0f3460',
-    fontSize: 14, fontWeight: 700, color: '#e0e0e0',
+    padding: '14px 18px', borderBottom: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 700, color: 'var(--text)',
   },
-  closeBtn: { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 16 },
+  closeBtn: { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16 },
   body: { padding: '18px 20px', overflowY: 'auto', flex: 1 },
-  footer: { display: 'flex', justifyContent: 'flex-end', padding: '10px 18px', borderTop: '1px solid #0f3460' },
+  footer: { display: 'flex', justifyContent: 'flex-end', padding: '10px 18px', borderTop: '1px solid var(--border)' },
   sectionTitle: {
-    fontSize: 10, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase',
-    letterSpacing: '0.1em', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid #0f3460',
+    fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase',
+    letterSpacing: '0.1em', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid var(--border)',
   },
   keyCell: { padding: '6px 12px 6px 0', width: '45%', verticalAlign: 'middle' },
-  descCell: { padding: '6px 0', fontSize: 12, color: '#a0aec0', verticalAlign: 'middle' },
+  descCell: { padding: '6px 0', fontSize: 12, color: 'var(--text-muted)', verticalAlign: 'middle' },
   kbd: {
-    display: 'inline-block', background: '#0d1b2a', border: '1px solid #1a3a5c',
-    borderRadius: 3, padding: '1px 5px', fontSize: 11, color: '#60b0ff',
+    display: 'inline-block', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)',
+    borderRadius: 3, padding: '1px 5px', fontSize: 11, color: 'var(--accent-text)',
     fontFamily: 'monospace', whiteSpace: 'nowrap',
   },
   closeFullBtn: {
-    padding: '6px 16px', background: 'transparent', border: '1px solid #0f3460',
-    borderRadius: 4, color: '#a0aec0', cursor: 'pointer', fontSize: 12,
+    padding: '6px 16px', background: 'transparent', border: '1px solid var(--border)',
+    borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12,
   },
 };

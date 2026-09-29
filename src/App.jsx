@@ -31,6 +31,13 @@ import ToastHost, { toast } from './components/Toast';
 import RecoveryDialog from './components/RecoveryDialog';
 import FindFixtureModal from './components/FindFixtureModal';
 import NumberingBar from './components/NumberingBar';
+import CommandPalette from './components/CommandPalette';
+import WelcomeScreen from './components/WelcomeScreen';
+import ConfirmHost, { confirmDialog } from './components/ConfirmDialog';
+import ModalA11y from './components/ModalA11y';
+import PanelSplitter, { usePanelWidth } from './components/PanelSplitter';
+import Icon from './components/Icon';
+import { LABEL_MODES } from './canvas/Canvas';
 import { mirrorObject, translateObject, rotateObject, offsetObject, cloneWithId, objectBounds } from './canvas/transforms';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
@@ -154,6 +161,13 @@ function App() {
   const [recovery, setRecovery]         = useState(null); // { savedAt, currentFile, project } pending restore decision
   const [showFind, setShowFind]         = useState(false);
   const [numbering, setNumbering]       = useState(null); // click-to-number: { field, next, step, count, ids, warning }
+  const [showPalette, setShowPalette]   = useState(false);
+  const [showWelcome, setShowWelcome]   = useState(false);
+  const [welcomeEnabled, setWelcomeEnabled] = useState(true);
+  const [theme, setTheme]               = useState('dark'); // 'dark' | 'light' | 'system'
+  const [labelMode, setLabelMode]       = useState(() => { try { return localStorage.getItem('lplot-label-mode') || 'auto'; } catch { return 'auto'; } });
+  const [leftPanel, setLeftPanel]       = usePanelWidth('lplot-left-panel', 150, 120, 420);
+  const [rightPanel, setRightPanel]     = usePanelWidth('lplot-right-panel', 210, 180, 520);
 
   const dragTargetLayerRef = useRef(null);
   const patchSnapshotRef   = useRef(null);
@@ -252,7 +266,10 @@ function App() {
       },
       'menu-my-license': () => setShowMyLicense(true),
       'menu-license-manager': () => license?.hasFeature('license_manager') && setShowLicenseManager(true),
-      'menu-deactivate': () => { if (confirm('Deactivate this license on this machine?')) license?.deactivate(); },
+      'menu-deactivate': async () => {
+        const ok = await confirmDialog({ title: 'Deactivate license', message: 'Deactivate this license on this machine? You will need your license key to activate it again.', confirmLabel: 'Deactivate', danger: true });
+        if (ok) license?.deactivate();
+      },
       'menu-new':    async () => {
         if (!(await guardUnsaved())) return;
         suppressDirtyRef.current = true;
@@ -326,10 +343,14 @@ function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
   keyHandlerRef.current = (e) => {
+    const k = e.key.toLowerCase();
+    // Command palette works from anywhere, including text fields.
+    if ((e.ctrlKey || e.metaKey) && (k === 'k' || (e.shiftKey && k === 'p'))) { e.preventDefault(); setShowPalette(v => !v); return; }
     const tag = document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    const k = e.key.toLowerCase();
-    if (!e.ctrlKey && !e.metaKey) {
+    // While a dialog is open, canvas shortcuts (tools, nudge, delete…) stay inactive.
+    const inModal = !!document.querySelector('[aria-modal="true"]');
+    if (!e.ctrlKey && !e.metaKey && !inModal) {
       const canEdit = license?.hasFeature('cad_edit');
       if (k === 'v') setActiveTool('select');
       if (canEdit && k === 'l') setActiveTool('line');
@@ -347,8 +368,8 @@ function App() {
     if ((e.ctrlKey||e.metaKey) && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     if ((e.ctrlKey||e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
     if ((e.ctrlKey||e.metaKey) && k === 's') { e.preventDefault(); handleSave(); }
-    if ((e.ctrlKey||e.metaKey) && k === 'g') { e.preventDefault(); handleGroupToggle(); }
-    if ((e.ctrlKey||e.metaKey) && k === 'f' && (activeMode === 'cad' || activeMode === 'cable')) { e.preventDefault(); setShowFind(true); }
+    if ((e.ctrlKey||e.metaKey) && k === 'g' && !inModal) { e.preventDefault(); handleGroupToggle(); }
+    if ((e.ctrlKey||e.metaKey) && k === 'f' && !inModal && (activeMode === 'cad' || activeMode === 'cable')) { e.preventDefault(); setShowFind(true); }
     if (e.key === 'F12' && license?.hasFeature('dev_tools')) {
       e.preventDefault();
       ipcRenderer?.send('toggle-dev-tools');
@@ -356,7 +377,7 @@ function App() {
     if (e.key === 'F3') { e.preventDefault(); setSnap(s => ({ ...s, enabled: !s.enabled })); }
     // Arrow keys nudge the selection: 10 mm, Alt = 1 mm, Shift = one grid step.
     const ARROWS = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
-    if (ARROWS[k] && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
+    if (ARROWS[k] && !inModal && !e.ctrlKey && !e.metaKey && (activeMode === 'cad' || activeMode === 'cable') && allSelectedIds.length) {
       e.preventDefault();
       const step = e.shiftKey ? (project.meta?.gridSize || 20) : e.altKey ? 1 : 10;
       handleNudge(ARROWS[k][0] * step, ARROWS[k][1] * step);
@@ -388,10 +409,13 @@ function App() {
   useEffect(() => {
     if (!ipcRenderer) return;
     ipcRenderer.invoke('get-pref', 'autoSaveEnabled').then(v => { if (v !== null) setAutoSaveEnabled(v); });
+    ipcRenderer.invoke('get-pref', 'theme').then(v => { if (v) setTheme(v); });
+    const welcomePref = ipcRenderer.invoke('get-pref', 'showWelcome').then(v => { const on = v !== false; setWelcomeEnabled(on); return on; });
     // Recovery check on startup. The file is kept until the user explicitly
     // discards it (or saves), so a misclick can't lose it.
-    ipcRenderer.invoke('autosave-read').then(raw => {
-      if (!raw) return;
+    ipcRenderer.invoke('autosave-read').then(async raw => {
+      // No recovery pending → greet with the start screen (unless turned off).
+      if (!raw) { if (await welcomePref) setShowWelcome(true); return; }
       try {
         const parsed = JSON.parse(raw);
         // v2 wraps the project with metadata; older files are the bare project.
@@ -399,6 +423,22 @@ function App() {
       } catch { ipcRenderer.invoke('autosave-clear'); }
     });
   }, []);
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const apply = () => {
+      const eff = theme === 'system' ? (mq?.matches ? 'light' : 'dark') : theme;
+      document.documentElement.dataset.theme = eff;
+    };
+    apply();
+    if (theme !== 'system' || !mq) return;
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [theme]);
+  function changeTheme(t) { setTheme(t); ipcRenderer?.invoke('set-pref', 'theme', t); }
+  function changeWelcomeEnabled(v) { setWelcomeEnabled(v); ipcRenderer?.invoke('set-pref', 'showWelcome', v); }
+  function changeLabelMode(m) { setLabelMode(m); try { localStorage.setItem('lplot-label-mode', m); } catch {} }
 
   function handleRestoreRecovery() {
     const rec = recovery; setRecovery(null);
@@ -787,7 +827,7 @@ function App() {
 
   // ── Export ────────────────────────────────────────────────────────────────
   function handleExportPNG() {
-    const svg = document.querySelector('svg'); if (!svg || !ipcRenderer) return;
+    const svg = document.querySelector('svg[data-plot-canvas]'); if (!svg || !ipcRenderer) return;
     const data = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement('canvas');
     canvas.width = svg.clientWidth*2; canvas.height = svg.clientHeight*2;
@@ -796,7 +836,7 @@ function App() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(data)));
   }
   function handleExportSVG() {
-    const svg = document.querySelector('svg'); if (!svg || !ipcRenderer) return;
+    const svg = document.querySelector('svg[data-plot-canvas]'); if (!svg || !ipcRenderer) return;
     ipcRenderer.send('export-svg', new XMLSerializer().serializeToString(svg));
   }
 
@@ -1055,6 +1095,119 @@ function App() {
   const titleStr = `Lighting Plot${currentFile ? ` — ${currentFile.split(/[\\/]/).pop()}` : ''}${dirty ? ' •' : ''}`;
   useEffect(() => { document.title = titleStr; }, [titleStr]);
 
+  // ── Welcome screen actions ──────────────────────────────────────────────
+  async function welcomeNew() {
+    setShowWelcome(false);
+    if (!(await guardUnsaved())) return;
+    suppressDirtyRef.current = true;
+    resetProject(); setCurrentFile(null); setDirty(false); clearSelection();
+  }
+  function welcomeOpen() { setShowWelcome(false); if (!blockIfTrial()) ipcRenderer?.send('open-request'); }
+  async function openRecentFile(fp) {
+    if (blockIfTrial()) return;
+    if (!(await guardUnsaved())) return;
+    try {
+      if (fp.toLowerCase().endsWith('.mvr')) {
+        if (!requireFeature('mvr_import', 'MVR import')) return;
+        const buf = require('fs').readFileSync(fp);
+        openProject(await importMVR(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), fp);
+      } else {
+        openProject(JSON.parse(require('fs').readFileSync(fp, 'utf8')), fp);
+      }
+      setShowWelcome(false);
+    } catch (err) { toast('Could not open: ' + err.message, 'error'); }
+  }
+
+  // ── Command palette ─────────────────────────────────────────────────────
+  const has = (f) => !!license?.hasFeature(f);
+  const inCanvas = activeMode === 'cad' || activeMode === 'cable';
+  const lockedCmd = (feature, cmd) => has(feature) ? cmd : { ...cmd, locked: true, run: () => setShowMyLicense(true) };
+  const toolCmd = (id, label, icon, shortcut, extra = {}) => ({
+    id: `tool-${id}`, group: 'Tools', label: `${label} tool`, icon, shortcut,
+    disabled: !canEditCanvas || (extra.mode ? activeMode !== extra.mode : activeMode !== 'cad'),
+    run: () => { setActiveTool(id); setPendingFixture(null); }, ...extra,
+  });
+  const commands = [
+    // File
+    { id: 'new', group: 'File', label: 'New plot', shortcut: 'Ctrl+N', run: welcomeNew },
+    { id: 'open', group: 'File', label: 'Open…', shortcut: 'Ctrl+O', disabled: isTrial, run: () => ipcRenderer?.send('open-request') },
+    { id: 'save', group: 'File', label: 'Save', shortcut: 'Ctrl+S', disabled: isTrial, run: handleSave },
+    { id: 'saveas', group: 'File', label: 'Save as…', shortcut: 'Ctrl+Shift+S', disabled: isTrial, run: () => ipcRenderer?.send('save-as-request') },
+    { id: 'welcome', group: 'File', label: 'Show welcome screen / recent files', run: () => setShowWelcome(true) },
+    lockedCmd('mvr_export', { id: 'export-png', group: 'File', label: 'Export PNG…', keywords: 'image', disabled: isTrial || !inCanvas, run: handleExportPNG }),
+    lockedCmd('mvr_export', { id: 'export-svg', group: 'File', label: 'Export SVG…', keywords: 'vector', disabled: isTrial || !inCanvas, run: handleExportSVG }),
+    // Edit
+    { id: 'undo', group: 'Edit', label: 'Undo', shortcut: 'Ctrl+Z', run: undo },
+    { id: 'redo', group: 'Edit', label: 'Redo', shortcut: 'Ctrl+Y', run: redo },
+    { id: 'delete', group: 'Edit', label: 'Delete selection', shortcut: 'Del', disabled: !allSelectedIds.length || !canEditCanvas, run: handleDelete },
+    { id: 'group', group: 'Edit', label: canUngroup ? 'Ungroup' : 'Group selection', shortcut: 'Ctrl+G', disabled: !canEditCanvas || (!canGroup && !canUngroup), run: handleGroupToggle },
+    { id: 'mirror', group: 'Edit', label: 'Mirror selection…', icon: 'mirror', disabled: !canEditCanvas || !allSelectedIds.length, run: () => setTransformMode('mirror') },
+    { id: 'array', group: 'Edit', label: 'Array selection…', icon: 'array', disabled: !canEditCanvas || !allSelectedIds.length, run: () => setTransformMode('array') },
+    { id: 'offset', group: 'Edit', label: 'Offset selection…', icon: 'offset', disabled: !canEditCanvas || !allSelectedIds.length, run: () => setTransformMode('offset') },
+    { id: 'align', group: 'Edit', label: 'Align / distribute selection…', icon: 'align', disabled: !canEditCanvas || allSelectedIds.length < 2, run: () => setTransformMode('align') },
+    { id: 'corner', group: 'Edit', label: 'Join corner (two lines)', icon: 'corner', disabled: !canEditCanvas || allSelectedIds.length !== 2, run: handleCorner },
+    // Tools
+    { id: 'tool-select', group: 'Tools', label: 'Select tool', icon: 'select', shortcut: 'V', disabled: !inCanvas, run: () => setActiveTool('select') },
+    toolCmd('line', 'Line', 'line', 'L'),
+    toolCmd('rect', 'Rectangle', 'rect', 'E'),
+    toolCmd('polyline', 'Polyline', 'polyline'),
+    toolCmd('circle', 'Circle', 'circle'),
+    toolCmd('arc', 'Arc', 'arc'),
+    toolCmd('pipe', 'Pipe', 'pipe', 'P'),
+    toolCmd('truss', 'Truss', 'truss'),
+    toolCmd('text', 'Text', 'text', 'T'),
+    toolCmd('dimension', 'Measure', 'dimension', 'M', { disabled: !canEditCanvas || activeMode !== 'cad' || !has('dimensioning') }),
+    toolCmd('calibrate', 'Calibrate scale', 'calibrate', 'C'),
+    toolCmd('infra-distro', 'Place PDU', 'infra-distro', null, { mode: 'cable' }),
+    toolCmd('infra-node', 'Place DMX node', 'infra-node', null, { mode: 'cable' }),
+    toolCmd('infra-switch', 'Place network switch', 'infra-switch', null, { mode: 'cable' }),
+    toolCmd('infra-netport', 'Place network port', 'infra-netport', null, { mode: 'cable' }),
+    toolCmd('cable-power', 'Draw power cable', null, null, { mode: 'cable' }),
+    toolCmd('cable-dmx', 'Draw DMX cable', null, null, { mode: 'cable' }),
+    toolCmd('cable-network', 'Draw network cable', null, null, { mode: 'cable' }),
+    // Mode
+    { id: 'mode-cad', group: 'Mode', label: 'Switch to CAD mode', disabled: activeMode === 'cad', run: () => handleSetMode('cad') },
+    lockedCmd('cable_routing', { id: 'mode-cable', group: 'Mode', label: 'Switch to Cable mode', disabled: activeMode === 'cable', run: () => handleSetMode('cable') }),
+    lockedCmd('sheet_editor', { id: 'mode-sheet', group: 'Mode', label: 'Switch to Drawing (sheet) mode', disabled: activeMode === 'sheet', run: () => handleSetMode('sheet') }),
+    // View
+    { id: 'fit', group: 'View', label: 'Fit to window', icon: 'fit', shortcut: 'Ctrl+0', disabled: !inCanvas, run: () => fitViewRef.current?.() },
+    { id: 'zoomin', group: 'View', label: 'Zoom in', icon: 'zoomin', shortcut: 'Ctrl+=', disabled: !inCanvas, run: () => setZoom(z => Math.min(20, z * 1.2)) },
+    { id: 'zoomout', group: 'View', label: 'Zoom out', icon: 'zoomout', shortcut: 'Ctrl+-', disabled: !inCanvas, run: () => setZoom(z => Math.max(0.02, z / 1.2)) },
+    { id: 'zoomsel', group: 'View', label: 'Zoom to selection', icon: 'fit', shortcut: 'Z', disabled: !inCanvas || !allSelectedIds.length, run: handleZoomToSelection },
+    { id: 'find', group: 'View', label: 'Find fixture…', icon: 'search', shortcut: 'Ctrl+F', keywords: 'search channel unit address locate', disabled: !inCanvas, run: () => setShowFind(true) },
+    { id: 'grid', group: 'View', label: showGrid ? 'Hide grid' : 'Show grid', icon: 'grid', run: () => setShowGrid(v => !v) },
+    { id: 'rulers', group: 'View', label: showRulers ? 'Hide rulers' : 'Show rulers', run: () => setShowRulers(v => !v) },
+    { id: 'snap', group: 'View', label: snap.enabled ? 'Turn object snap off' : 'Turn object snap on', icon: 'snap', shortcut: 'F3', run: () => setSnap(s => ({ ...s, enabled: !s.enabled })) },
+    { id: '3d', group: 'View', label: '3D view', icon: 'view3d', disabled: !inCanvas, run: () => setShow3D(true) },
+    { id: 'left-panel', group: 'View', label: leftPanel.collapsed ? 'Show fixture library panel' : 'Hide fixture library panel', disabled: activeMode !== 'cad' || !canUseLibrary, run: () => setLeftPanel({ collapsed: !leftPanel.collapsed }) },
+    { id: 'right-panel', group: 'View', label: rightPanel.collapsed ? 'Show inspector panel' : 'Hide inspector panel', run: () => setRightPanel({ collapsed: !rightPanel.collapsed }) },
+    ...LABEL_MODES.map(([m, l]) => ({ id: `labels-${m}`, group: 'View', label: `Fixture labels: ${l}`, icon: 'labels', keywords: 'label show text', disabled: labelMode === m, run: () => changeLabelMode(m) })),
+    { id: 'theme-dark', group: 'View', label: 'Theme: Dark', keywords: 'appearance colour', disabled: theme === 'dark', run: () => changeTheme('dark') },
+    { id: 'theme-light', group: 'View', label: 'Theme: Light', keywords: 'appearance colour', disabled: theme === 'light', run: () => changeTheme('light') },
+    { id: 'theme-system', group: 'View', label: 'Theme: Match system', keywords: 'appearance colour auto', disabled: theme === 'system', run: () => changeTheme('system') },
+    // Panels & reports
+    lockedCmd('patch_panel', { id: 'patch', group: 'Panels', label: 'DMX patch', icon: 'patch', run: openPatch }),
+    lockedCmd('universe_view', { id: 'universe', group: 'Panels', label: 'Universe overview', shortcut: 'U', run: () => setShowUniverse(true) }),
+    lockedCmd('reports', { id: 'rep-fixture', group: 'Panels', label: 'Fixture schedule report', icon: 'fixtures', run: () => setReport({ type: 'instrument' }) }),
+    lockedCmd('reports', { id: 'rep-channel', group: 'Panels', label: 'Channel list report', icon: 'channels', run: () => setReport({ type: 'channel' }) }),
+    lockedCmd('cable_routing', { id: 'cable-report', group: 'Panels', label: 'Cable report', icon: 'report', run: () => setShowCableReport(true) }),
+    lockedCmd('eos_import', { id: 'eos', group: 'Panels', label: 'Import EOS patch…', icon: 'eos', run: () => setShowEOSImport(true) }),
+    lockedCmd('gdtf_browser', { id: 'gdtf', group: 'Panels', label: 'Browse GDTF share…', keywords: 'fixture library download', run: () => setShowGdtfBrowser(true) }),
+    lockedCmd('pdf_background', { id: 'pdf', group: 'Panels', label: 'Import PDF background…', icon: 'pdf', disabled: !inCanvas, run: handleImportPdf }),
+    lockedCmd('pdf_background', { id: 'image', group: 'Panels', label: 'Place image…', icon: 'image', disabled: !inCanvas, run: handleImportImage }),
+    lockedCmd('revisions', { id: 'revisions', group: 'Panels', label: 'Revision history', run: () => setShowRevisions(true) }),
+    lockedCmd('undo_history', { id: 'history', group: 'Panels', label: 'Undo history', run: () => setShowUndoHistory(true) }),
+    lockedCmd('templates', { id: 'templates', group: 'Panels', label: 'Project templates', run: () => setShowTemplates(true) }),
+    lockedCmd('templates', { id: 'dtemplates', group: 'Panels', label: 'Drawing templates', run: () => setShowDrawingTemplates(true) }),
+    { id: 'number', group: 'Panels', label: numbering ? 'Stop click-to-number' : 'Click-to-number fixtures', shortcut: 'N', keywords: 'channel unit renumber sequence', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: toggleNumbering },
+    { id: 'next-conflict', group: 'Panels', label: `Jump to next DMX conflict (${dmxConflicts.length})`, disabled: !dmxConflicts.length, run: handleNextConflict },
+    // Settings & help
+    { id: 'studio', group: 'Settings', label: 'Studio settings', icon: 'studio', run: () => setShowStudioSettings(true) },
+    { id: 'app-settings', group: 'Settings', label: 'App settings', keywords: 'preferences auto-save update theme', run: () => setShowAppSettings(true) },
+    { id: 'my-license', group: 'Settings', label: 'My license', icon: 'user', run: () => setShowMyLicense(true) },
+    { id: 'shortcuts', group: 'Settings', label: 'Keyboard shortcuts', shortcut: '?', keywords: 'help keys', run: () => setShowShortcuts(true) },
+  ];
+
   return (
     <div style={styles.app}>
       {/* License expiry warning */}
@@ -1064,12 +1217,12 @@ function App() {
         const daysLeft = Math.ceil((new Date(exp) - new Date()) / 86400000);
         if (daysLeft > 30) return null;
         return (
-          <div style={{ ...styles.updateBanner, background: daysLeft <= 7 ? '#4a1a1a' : '#2a2a0a', borderBottomColor: daysLeft <= 7 ? '#fc8181' : '#f6e05e' }}>
-            <span style={{ color: daysLeft <= 7 ? '#fc8181' : '#f6e05e' }}>
+          <div style={{ ...styles.updateBanner, background: daysLeft <= 7 ? '#4a1a1a' : '#2a2a0a', borderBottomColor: daysLeft <= 7 ? 'var(--danger-text)' : '#f6e05e' }}>
+            <span style={{ color: daysLeft <= 7 ? 'var(--danger-text)' : '#f6e05e' }}>
               {daysLeft <= 0 ? '⚠ License expired.' : `⚠ License expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`}
             </span>
             <button onClick={() => setShowMyLicense(true)}
-              style={{ marginLeft:10, padding:'2px 12px', background:'transparent', border:`1px solid ${daysLeft<=7?'#fc8181':'#f6e05e'}`, borderRadius:3, color: daysLeft<=7?'#fc8181':'#f6e05e', cursor:'pointer', fontSize:11 }}>
+              style={{ marginLeft:10, padding:'2px 12px', background:'transparent', border:`1px solid ${daysLeft<=7?'var(--danger-text)':'#f6e05e'}`, borderRadius:3, color: daysLeft<=7?'var(--danger-text)':'#f6e05e', cursor:'pointer', fontSize:11 }}>
               Manage License
             </button>
           </div>
@@ -1080,12 +1233,12 @@ function App() {
         <div style={styles.updateBanner}>
           <span>Update available: <strong>v{updateBanner.version}</strong></span>
           <button
-            style={{ marginLeft: 10, padding: '2px 12px', background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 3, color: '#90cdf4', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            style={{ marginLeft: 10, padding: '2px 12px', background: 'var(--border)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
             onClick={() => { setShowAppSettings(true); setUpdateBanner(null); }}>
             Update Now
           </button>
           <button onClick={() => setUpdateBanner(null)}
-            style={{ marginLeft: 8, background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', fontSize: 13 }}>
+            style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
             ✕
           </button>
         </div>
@@ -1132,7 +1285,8 @@ function App() {
 
       <div style={styles.main}>
         {/* Library only visible in CAD mode and when the fixture_library feature is licensed */}
-        {activeMode === 'cad' && canUseLibrary && (
+        {activeMode === 'cad' && canUseLibrary && (<>
+          {!leftPanel.collapsed && <div style={{ width: leftPanel.width, flexShrink: 0, display: 'flex', overflow: 'hidden' }}>
           <LibraryPanel
             builtinFixtures={fixtureTypesData}
             customFixtures={project.customFixtureTypes||[]}
@@ -1145,7 +1299,10 @@ function App() {
             onUpdateFixture={handleUpdateFixtureType}
             onOpenGdtfBrowser={license?.hasFeature('gdtf_browser') ? () => setShowGdtfBrowser(true) : null}
           />
-        )}
+          </div>}
+          <PanelSplitter side="left" label="Fixture library panel" width={leftPanel.width} collapsed={leftPanel.collapsed}
+            min={120} max={420} onResize={w => setLeftPanel({ width: w })} onToggle={() => setLeftPanel({ collapsed: !leftPanel.collapsed })} />
+        </>)}
 
         {activeMode === 'cad' || activeMode === 'cable' ? (
           /* ── CAD / Cable mode — same canvas ───────────────────── */
@@ -1179,6 +1336,10 @@ function App() {
               onSwapFixture={(canEditCanvas && license?.hasFeature('fixture_swap')) ? (ids => setSwapFixtureIds(ids)) : undefined}
               onDuplicateAlongPath={handleDuplicateAlongPath}
               canEdit={canEditCanvas}
+              labelMode={labelMode}
+              onTransform={canEditCanvas ? (m => setTransformMode(m)) : undefined}
+              onGroupToggle={canEditCanvas ? handleGroupToggle : undefined}
+              groupState={{ canGroup, canUngroup }}
             />
             {numbering && (
               <NumberingBar state={numbering}
@@ -1219,8 +1380,10 @@ function App() {
           <div style={styles.canvasColumn} />
         )}
 
-        {/* Right panel — inspector + layers, always visible */}
-        <div style={styles.rightPanel}>
+        {/* Right panel — inspector + layers; resizable and collapsible */}
+        <PanelSplitter side="right" label="Inspector panel" width={rightPanel.width} collapsed={rightPanel.collapsed}
+          min={180} max={520} onResize={w => setRightPanel({ width: w })} onToggle={() => setRightPanel({ collapsed: !rightPanel.collapsed })} />
+        {!rightPanel.collapsed && <div style={{ ...styles.rightPanel, width: rightPanel.width }}>
           {(activeMode === 'cad' || activeMode === 'cable') && (() => {
             const kind = selectedObj?.kind;
             if (kind === 'infra') {
@@ -1314,7 +1477,7 @@ function App() {
             activeLayerId={activeLayerId}
             onSetActiveLayer={handleSetActiveLayer}
           />
-        </div>
+        </div>}
       </div>
 
       {/* ── Status bar ──────────────────────────────────────────────────── */}
@@ -1352,6 +1515,12 @@ function App() {
               <option value="ft">ft</option>
               <option value="in">in</option>
             </select>
+            <span style={styles.statusSep}>|</span>
+            <label style={styles.statusItem} htmlFor="label-mode">Labels:</label>
+            <select id="label-mode" style={styles.statusSelect} value={labelMode} onChange={e => changeLabelMode(e.target.value)}
+              title="What to show under each fixture symbol">
+              {LABEL_MODES.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
+            </select>
             {allSelectedIds.length > 0 && (
               <>
                 <span style={styles.statusSep}>|</span>
@@ -1368,71 +1537,77 @@ function App() {
             <ZoomInput zoom={zoom} onSet={z => viewRef.current?.zoomAtCenter(z)} />
             <button style={styles.statusBtn} onClick={() => fitViewRef.current?.()} title="Fit whole plot to window">Fit</button>
             <button style={styles.statusBtn} onClick={handleZoomToSelection} disabled={!allSelectedIds.length}
-              title="Zoom to selection (Z)">⤢ Selection</button>
+              title="Zoom to selection (Z)">Zoom to selection</button>
             <span style={styles.statusSep}>|</span>
-            <button style={styles.statusBtn} onClick={() => setShowFind(true)} title="Find a fixture by channel, unit, address, type… (Ctrl+F)">🔍 Find</button>
+            <button style={styles.statusBtn} onClick={() => setShowFind(true)} title="Find a fixture by channel, unit, address, type… (Ctrl+F)">Find</button>
             {activeMode === 'cad' && canUseLibrary && canEditCanvas && (
-              <button style={{ ...styles.statusBtn, ...(numbering ? { color:'#90cdf4' } : {}) }} onClick={toggleNumbering}
-                title="Click fixtures in order to number their channels or units (N)">🔢 Number</button>
+              <button style={{ ...styles.statusBtn, ...(numbering ? { color:'var(--accent-soft)' } : {}) }} onClick={toggleNumbering}
+                title="Click fixtures in order to number their channels or units (N)">Number</button>
             )}
-            {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview">🌐 Universe</button>}
-            {license?.hasFeature('revisions') && <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">📌 Revisions</button>}
-            {license?.hasFeature('undo_history') && <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">↩ History</button>}
-            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">📁 Templates</button>}
-            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">📐 Drawing</button>}
+            {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview (U)">Universe</button>}
+            {license?.hasFeature('revisions') && <button style={styles.statusBtn} onClick={() => setShowRevisions(true)} title="Revision History">Revisions</button>}
+            {license?.hasFeature('undo_history') && <button style={styles.statusBtn} onClick={() => setShowUndoHistory(true)} title="Undo History">History</button>}
+            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowTemplates(true)} title="Project Templates">Templates</button>}
+            {license?.hasFeature('templates') && <button style={styles.statusBtn} onClick={() => setShowDrawingTemplates(true)} title="Drawing Templates">Drawing templates</button>}
+            <button style={{ ...styles.statusBtn, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }} onClick={() => setShowPalette(true)}
+              title="Command palette — search every command (Ctrl+K)">
+              <Icon name="search" size={11} /> Commands <kbd style={styles.statusKbd}>Ctrl K</kbd>
+            </button>
           </div>
         );
       })()}
 
-      {report && license?.hasFeature('reports') && <ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} />}
+      {report && license?.hasFeature('reports') && <ModalA11y onClose={() => setReport(null)} label="Report"><ReportWindow type={report.type} fixtures={activeDrawing?.fixtures||[]} onClose={() => setReport(null)} /></ModalA11y>}
       {showPatch && license?.hasFeature('patch_panel') && (
-        <PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
+        <ModalA11y onClose={closePatch} label="DMX patch"><PatchPanel fixtures={activeDrawing?.fixtures||[]} allFixtureTypes={allFixtureTypes}
           selectedIds={allSelectedIds}
           onUpdateFixture={handleUpdateFixtureInstance} onUpdateMany={handleUpdateMany}
-          onShowOnPlot={handleShowOnPlot} onClose={closePatch} />
+          onShowOnPlot={handleShowOnPlot} onClose={closePatch} /></ModalA11y>
       )}
       {showGdtfBrowser && license?.hasFeature('gdtf_browser') && (
-        <GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} />
+        <ModalA11y onClose={() => setShowGdtfBrowser(false)} label="GDTF browser"><GDTFBrowserPanel onImportGdtf={handleImportGdtf} onClose={() => setShowGdtfBrowser(false)} /></ModalA11y>
       )}
       {showStudioSettings && (
-        <StudioSettingsModal
+        <ModalA11y onClose={() => setShowStudioSettings(false)} label="Studio settings"><StudioSettingsModal
           meta={project.meta}
           onSave={handleStudioSettingsSave}
           onClose={() => setShowStudioSettings(false)}
-        />
+        /></ModalA11y>
       )}
       {show3D && (
-        <Viewer3D
+        <ModalA11y onClose={() => setShow3D(false)} label="3D view"><Viewer3D
           drawing={activeDrawing}
           fixtureTypes={allFixtureTypes}
           meta={project.meta}
           onClose={() => setShow3D(false)}
-        />
+        /></ModalA11y>
       )}
       {showAppSettings && (
-        <AppSettingsModal
+        <ModalA11y onClose={() => setShowAppSettings(false)} label="App settings"><AppSettingsModal
           onClose={() => setShowAppSettings(false)}
           autoSaveEnabled={autoSaveEnabled}
           onChangeAutoSave={v => { setAutoSaveEnabled(v); ipcRenderer?.invoke('set-pref', 'autoSaveEnabled', v); }}
           pendingUpdateVersion={updateBanner?.version || null}
           maxVersion={maxVersion}
-        />
+          theme={theme} onChangeTheme={changeTheme}
+          welcomeEnabled={welcomeEnabled} onChangeWelcome={changeWelcomeEnabled}
+        /></ModalA11y>
       )}
       {showMyLicense && (
-        <MyLicenseModal
+        <ModalA11y onClose={() => setShowMyLicense(false)} label="My license"><MyLicenseModal
           license={license?.license}
           onClose={() => setShowMyLicense(false)}
           onChangeLicense={() => { setShowMyLicense(false); license?.deactivate(); }}
-        />
+        /></ModalA11y>
       )}
       {showShortcuts && (
-        <ShortcutsModal onClose={() => setShowShortcuts(false)} />
+        <ModalA11y onClose={() => setShowShortcuts(false)} label="Keyboard shortcuts"><ShortcutsModal onClose={() => setShowShortcuts(false)} /></ModalA11y>
       )}
       {showLicenseManager && license?.hasFeature('license_manager') && (
-        <LicenseManager onClose={() => setShowLicenseManager(false)} />
+        <ModalA11y onClose={() => setShowLicenseManager(false)} label="License manager"><LicenseManager onClose={() => setShowLicenseManager(false)} /></ModalA11y>
       )}
       {showEOSImport && license?.hasFeature('eos_import') && (
-        <EOSImport
+        <ModalA11y onClose={() => setShowEOSImport(false)} label="EOS import"><EOSImport
           drawing={activeDrawing}
           fixtureTypes={allFixtureTypes}
           onClose={() => setShowEOSImport(false)}
@@ -1448,55 +1623,55 @@ function App() {
             });
             setShowEOSImport(false);
           }}
-        />
+        /></ModalA11y>
       )}
 
       {showUndoHistory && (
-        <UndoHistoryPanel
+        <ModalA11y onClose={() => setShowUndoHistory(false)} label="Undo history"><UndoHistoryPanel
           historyStack={historyStack} historyIdx={historyIdx} historyLabels={historyLabels}
           onJump={handleHistoryJump}
           onClose={() => setShowUndoHistory(false)}
-        />
+        /></ModalA11y>
       )}
       {showUniverse && (
-        <UniverseOverviewModal
+        <ModalA11y onClose={() => setShowUniverse(false)} label="Universe overview"><UniverseOverviewModal
           fixtures={activeDrawing?.fixtures || []}
           onClose={() => setShowUniverse(false)}
-        />
+        /></ModalA11y>
       )}
       {showRevisions && (
-        <RevisionHistoryModal
+        <ModalA11y onClose={() => setShowRevisions(false)} label="Revision history"><RevisionHistoryModal
           revisions={project.revisions || []}
           onSave={name => saveRevision(name)}
           onRestore={id => restoreRevision(id)}
           onClose={() => setShowRevisions(false)}
-        />
+        /></ModalA11y>
       )}
       {swapFixtureIds && (
-        <FixtureSwapModal
+        <ModalA11y onClose={() => setSwapFixtureIds(null)} label="Swap fixture type"><FixtureSwapModal
           fixtureIds={swapFixtureIds}
           allFixtureTypes={fixtureTypesData}
           customFixtureTypes={project.customFixtureTypes || []}
           onSwap={handleSwapFixture}
           onClose={() => setSwapFixtureIds(null)}
-        />
+        /></ModalA11y>
       )}
       {showTemplates && (
-        <ProjectTemplatesDialog
+        <ModalA11y onClose={() => setShowTemplates(false)} label="Project templates"><ProjectTemplatesDialog
           currentProject={project}
           onSelect={handleApplyTemplate}
           onClose={() => setShowTemplates(false)}
-        />
+        /></ModalA11y>
       )}
       {showDrawingTemplates && (
-        <DrawingTemplatesModal
+        <ModalA11y onClose={() => setShowDrawingTemplates(false)} label="Drawing templates"><DrawingTemplatesModal
           currentDrawing={activeDrawing}
           onLoad={handleLoadDrawingTemplate}
           onClose={() => setShowDrawingTemplates(false)}
-        />
+        /></ModalA11y>
       )}
       {transformMode && (
-        <TransformModal
+        <ModalA11y onClose={() => { setTransformMode(null); setDuplicateId(null); }} label="Transform"><TransformModal
           mode={transformMode}
           count={allSelectedIds.length}
           onApplyArray={handleApplyArray}
@@ -1505,10 +1680,10 @@ function App() {
           onOffset={handleApplyOffset}
           onDuplicate={handleApplyDuplicate}
           onClose={() => { setTransformMode(null); setDuplicateId(null); }}
-        />
+        /></ModalA11y>
       )}
       {showCableReport && license?.hasFeature('cable_routing') && (
-        <CableReport
+        <ModalA11y onClose={() => setShowCableReport(false)} label="Cable report"><CableReport
           drawing={activeDrawing}
           pipes={activeDrawing?.pipes || []}
           rigHeight={project.meta?.rigHeight || 5500}
@@ -1521,19 +1696,28 @@ function App() {
               if (c) Object.assign(c, patch);
             });
           }}
-        />
+        /></ModalA11y>
       )}
       {showFind && (
-        <FindFixtureModal
+        <ModalA11y onClose={() => setShowFind(false)} label="Find fixture"><FindFixtureModal
           fixtures={activeDrawing?.fixtures || []}
           onGoTo={selectFixtureOnCanvas}
           onSelectAll={list => { handleMultiSelect(list.map(f => f.id)); viewRef.current?.zoomToBounds(boundsOfFixtures(list)); }}
           onClose={() => setShowFind(false)}
-        />
+        /></ModalA11y>
       )}
       {recovery && (
-        <RecoveryDialog recovery={recovery} onRestore={handleRestoreRecovery} onDiscard={handleDiscardRecovery} />
+        <ModalA11y  label="Recover unsaved work"><RecoveryDialog recovery={recovery} onRestore={handleRestoreRecovery} onDiscard={handleDiscardRecovery} /></ModalA11y>
       )}
+      {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
+      {showWelcome && !recovery && (
+        <WelcomeScreen onClose={() => setShowWelcome(false)} onNew={welcomeNew} onOpen={welcomeOpen} onOpenRecent={openRecentFile}
+          onTemplates={() => { setShowWelcome(false); setShowTemplates(true); }}
+          onImportMVR={() => { setShowWelcome(false); ipcRenderer?.send('open-request'); }}
+          canTemplates={!!license?.hasFeature('templates')} canImportMVR={!!license?.hasFeature('mvr_import')}
+          isTrial={isTrial} userName={license?.license?.name || ''} />
+      )}
+      <ConfirmHost />
       <ToastHost />
     </div>
   );
@@ -1569,28 +1753,29 @@ function ZoomInput({ zoom, onSet }) {
 }
 
 const styles = {
-  app: { display:'flex', flexDirection:'column', height:'100vh', background:'#0d1117', color:'#e0e0e0', fontFamily:"'Segoe UI', system-ui, sans-serif", overflow:'hidden' },
+  app: { display:'flex', flexDirection:'column', height:'100vh', background:'var(--bg-app)', color:'var(--text)', fontFamily:"'Segoe UI', system-ui, sans-serif", overflow:'hidden' },
   updateBanner: {
     display: 'flex', alignItems: 'center', padding: '5px 16px',
-    background: '#0f3460', borderBottom: '1px solid #1a4a80',
-    fontSize: 12, color: '#e0e0e0', gap: 4, flexShrink: 0,
+    background: 'var(--border)', borderBottom: '1px solid #1a4a80',
+    fontSize: 12, color: 'var(--text)', gap: 4, flexShrink: 0,
   },
   main: { display:'flex', flex:1, overflow:'hidden' },
   canvasColumn: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden', position:'relative' },
-  rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid #0f3460', overflow:'hidden', flexShrink:0 },
+  rightPanel: { width:210, display:'flex', flexDirection:'column', borderLeft:'1px solid var(--border)', overflow:'hidden', flexShrink:0 },
   statusBar: {
     display: 'flex', alignItems: 'center', padding: '3px 14px',
-    background: '#0d1b2a', borderTop: '1px solid #0f3460',
-    fontSize: 11, color: '#718096', gap: 6, flexShrink: 0,
+    background: 'var(--bg-inset)', borderTop: '1px solid var(--border)',
+    fontSize: 11, color: 'var(--text-dim)', gap: 6, flexShrink: 0,
     whiteSpace: 'nowrap', flexWrap: 'wrap', rowGap: 2, // narrow windows: whole items wrap, labels don't
   },
-  statusItem: { color: '#a0aec0' },
-  statusSep: { color: '#2d3748' },
-  statusBtn: { background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px', whiteSpace:'nowrap' },
-  conflictBtn: { background:'#3a1a1a', border:'1px solid #7a2a2a', borderRadius:3, color:'#fc8181', cursor:'pointer', fontSize:11, padding:'1px 8px' },
-  coords: { color:'#718096', fontVariantNumeric:'tabular-nums', minWidth:120 },
-  statusToggle: { background:'none', border:'1px solid #2d3748', borderRadius:3, color:'#4a5568', cursor:'pointer', fontSize:10, padding:'0 6px', whiteSpace:'nowrap' },
-  statusToggleOn: { borderColor:'#2a5a8a', color:'#90cdf4' },
-  zoomInput: { width:48, background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', textAlign:'right', outline:'none' },
-  statusSelect: { background:'#0d1b2a', border:'1px solid #0f3460', borderRadius:3, color:'#a0aec0', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
+  statusItem: { color: 'var(--text-muted)' },
+  statusSep: { color: 'var(--sep)' },
+  statusBtn: { background:'none', border:'none', color:'var(--text-dim)', cursor:'pointer', fontSize:10, padding:'0 6px', whiteSpace:'nowrap' },
+  statusKbd: { fontFamily:'inherit', fontSize:9, border:'1px solid var(--border)', borderRadius:3, padding:'0 4px', color:'var(--text-dim)' },
+  conflictBtn: { background:'var(--danger-bg)', border:'1px solid var(--danger-border)', borderRadius:3, color:'var(--danger-text)', cursor:'pointer', fontSize:11, padding:'1px 8px' },
+  coords: { color:'var(--text-dim)', fontVariantNumeric:'tabular-nums', minWidth:120 },
+  statusToggle: { background:'none', border:'1px solid var(--sep)', borderRadius:3, color:'var(--text-dim)', cursor:'pointer', fontSize:10, padding:'0 6px', whiteSpace:'nowrap' },
+  statusToggleOn: { borderColor:'var(--border-accent-2)', color:'var(--accent-soft)' },
+  zoomInput: { width:48, background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:3, color:'var(--text-muted)', fontSize:10, padding:'1px 4px', textAlign:'right', outline:'none' },
+  statusSelect: { background:'var(--bg-inset)', border:'1px solid var(--border)', borderRadius:3, color:'var(--text-muted)', fontSize:10, padding:'1px 4px', cursor:'pointer', outline:'none' },
 };

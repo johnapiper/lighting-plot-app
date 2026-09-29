@@ -77,8 +77,8 @@ export default function StudioSettingsModal({ meta, onSave, onClose }) {
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase',
-        letterSpacing: '0.1em', marginBottom: 10, paddingBottom: 4, borderBottom: '1px solid #0f3460' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase',
+        letterSpacing: '0.1em', marginBottom: 10, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
         {title}
       </div>
       {children}
@@ -89,16 +89,16 @@ function Section({ title, children }) {
 function Field({ label, value, onChange, type = 'text', hint, error }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <label style={{ display: 'block', fontSize: 11, color: '#a0aec0', marginBottom: 3 }}>{label}</label>
+      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{label}</label>
       <input
         type={type}
-        style={{ width: '100%', background: '#0d1b2a', border: `1px solid ${error ? '#e53e3e' : '#0f3460'}`,
-          borderRadius: 4, color: '#e0e0e0', fontSize: 13, padding: '6px 8px', outline: 'none', boxSizing: 'border-box' }}
+        style={{ width: '100%', background: 'var(--bg-inset)', border: `1px solid ${error ? '#e53e3e' : 'var(--border)'}`,
+          borderRadius: 4, color: 'var(--text)', fontSize: 13, padding: '6px 8px', outline: 'none', boxSizing: 'border-box' }}
         value={value}
         onChange={e => onChange(e.target.value)}
       />
-      {error && <div style={{ fontSize: 10, color: '#fc8181', marginTop: 3 }}>{error}</div>}
-      {hint && <div style={{ fontSize: 10, color: '#718096', marginTop: 3 }}>{hint}</div>}
+      {error && <div style={{ fontSize: 10, color: 'var(--danger-text)', marginTop: 3 }}>{error}</div>}
+      {hint && <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 3 }}>{hint}</div>}
     </div>
   );
 }
@@ -109,33 +109,33 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900,
   },
   modal: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: 420, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
     boxShadow: '0 12px 40px rgba(0,0,0,0.9)',
   },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px', borderBottom: '1px solid #0f3460',
-    fontSize: 14, fontWeight: 700, color: '#e0e0e0',
+    padding: '14px 18px', borderBottom: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 700, color: 'var(--text)',
   },
   closeBtn: {
-    background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 16,
+    background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16,
   },
   body: { padding: '18px 18px 8px', overflowY: 'auto' },
   footer: {
     display: 'flex', gap: 10, justifyContent: 'flex-end',
-    padding: '12px 18px', borderTop: '1px solid #0f3460',
+    padding: '12px 18px', borderTop: '1px solid var(--border)',
   },
   note: {
-    fontSize: 10, color: '#718096', background: '#0d1b2a',
+    fontSize: 10, color: 'var(--text-dim)', background: 'var(--bg-inset)',
     padding: '7px 10px', borderRadius: 4, lineHeight: 1.5,
   },
   cancelBtn: {
-    padding: '6px 16px', background: 'transparent', border: '1px solid #0f3460',
-    borderRadius: 4, color: '#a0aec0', cursor: 'pointer', fontSize: 12,
+    padding: '6px 16px', background: 'transparent', border: '1px solid var(--border)',
+    borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12,
   },
   saveBtn: {
-    padding: '6px 18px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    padding: '6px 18px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
   },
 };

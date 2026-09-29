@@ -1,24 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ToolHint from './ToolHint';
+import Icon from './Icon';
 
 const CAD_EDIT_TOOLS = [
-  { id: 'line',      label: 'Line',      icon: '╱', key: 'L' },
-  { id: 'rect',      label: 'Rectangle', icon: '▭', key: 'E' },
-  { id: 'polyline',  label: 'Polyline',  icon: '⊿', key: null },
-  { id: 'circle',    label: 'Circle',    icon: '◯', key: null },
-  { id: 'arc',       label: 'Arc',       icon: '◜', key: null },
-  { id: 'pipe',      label: 'Pipe',      icon: '━', key: 'P' },
-  { id: 'truss',     label: 'Truss',     icon: '⊞', key: null },
-  { id: 'text',      label: 'Text',      icon: 'T', key: 'T' },
-  { id: 'dimension', label: 'Measure',   icon: '⟷', key: 'M' },
-  { id: 'calibrate', label: 'Calibrate', icon: '📐', key: 'C' },
+  { id: 'line',      label: 'Line',      key: 'L' },
+  { id: 'rect',      label: 'Rectangle', key: 'E' },
+  { id: 'polyline',  label: 'Polyline',  key: null },
+  { id: 'circle',    label: 'Circle',    key: null },
+  { id: 'arc',       label: 'Arc',       key: null },
+  { id: 'pipe',      label: 'Pipe',      key: 'P' },
+  { id: 'truss',     label: 'Truss',     key: null },
+  { id: 'text',      label: 'Text',      key: 'T' },
+  { id: 'dimension', label: 'Measure',   key: 'M' },
+  { id: 'calibrate', label: 'Calibrate', key: 'C' },
 ];
 
 const INFRA_TOOLS = [
-  { id: 'infra-distro',  label: 'PDU',     icon: '⚡', title: 'Place Power Distribution Unit' },
-  { id: 'infra-node',    label: 'Node',    icon: '🎛', title: 'Place DMX Node' },
-  { id: 'infra-switch',  label: 'Switch',  icon: '🌐', title: 'Place Network Switch' },
-  { id: 'infra-netport', label: 'NetPort', icon: '🔌', title: 'Place Network Port / Floor Box' },
+  { id: 'infra-distro',  label: 'PDU',     title: 'Place Power Distribution Unit' },
+  { id: 'infra-node',    label: 'Node',    title: 'Place DMX Node' },
+  { id: 'infra-switch',  label: 'Switch',  title: 'Place Network Switch' },
+  { id: 'infra-netport', label: 'NetPort', title: 'Place Network Port / Floor Box' },
 ];
 
 const CABLE_TOOLS = [
@@ -61,8 +62,12 @@ export default function Toolbar({
   // than hidden, so users can discover them. Clicking opens My License.
   const lockedTitle = (name) => `${name} — not included in your license. Click to see your license details.`;
   const LockedBtn = ({ icon, label, name }) => (
-    <button style={{ ...styles.btn, ...styles.locked }} title={lockedTitle(name || label)} onClick={onLockedClick}>
-      <span style={styles.icon}>{icon}</span><span style={styles.label}>🔒 {label}</span>
+    <button style={{ ...styles.btn, ...styles.locked }} title={lockedTitle(name || label)} aria-label={`${label} (locked)`} onClick={onLockedClick}>
+      <span style={{ position: 'relative', display: 'inline-flex' }}>
+        <Icon name={icon} />
+        <Icon name="lock" size={9} strokeWidth={2.5} style={styles.lockBadge} />
+      </span>
+      <span style={styles.label}>{label}</span>
     </button>
   );
   const [snapMenu, setSnapMenu] = useState(false);
@@ -151,14 +156,14 @@ export default function Toolbar({
               style={{ ...styles.modeBtn, ...(activeMode === 'cable' ? styles.modeBtnActiveCable : {}) }}
               onClick={() => onSetMode('cable')}>Cable</button>
           ) : (
-            <button title={lockedTitle('Cable routing mode')} style={{ ...styles.modeBtn, ...styles.locked }} onClick={onLockedClick}>🔒 Cable</button>
+            <button title={lockedTitle('Cable routing mode')} style={{ ...styles.modeBtn, ...styles.locked }} onClick={onLockedClick}><Icon name="lock" size={10} style={{ marginRight: 4, verticalAlign: -1 }} />Cable</button>
           )}
           {has('sheet_editor') ? (
             <button title="Drawing — compose viewports, annotations, title block"
               style={{ ...styles.modeBtn, ...(activeMode === 'sheet' ? styles.modeBtnActiveSheet : {}) }}
               onClick={() => onSetMode('sheet')}>Drawing</button>
           ) : (
-            <button title={lockedTitle('Drawing sheet editor')} style={{ ...styles.modeBtn, ...styles.locked }} onClick={onLockedClick}>🔒 Drawing</button>
+            <button title={lockedTitle('Drawing sheet editor')} style={{ ...styles.modeBtn, ...styles.locked }} onClick={onLockedClick}><Icon name="lock" size={10} style={{ marginRight: 4, verticalAlign: -1 }} />Drawing</button>
           )}
         </div>
 
@@ -171,7 +176,7 @@ export default function Toolbar({
                 <button title="Select (V)" data-hint="select"
                   style={{ ...styles.btn, ...(activeTool === 'select' ? styles.active : {}) }}
                   onClick={() => onToolChange('select')}>
-                  <span style={styles.icon}>↖</span>
+                  <Icon name="select" />
                   <span style={styles.label}>Select</span>
                 </button>
                 {has('cad_edit') && CAD_EDIT_TOOLS
@@ -180,7 +185,7 @@ export default function Toolbar({
                   <button key={t.id} title={t.key ? `${t.label} (${t.key})` : t.label} data-hint={t.id}
                     style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
                     onClick={() => onToolChange(t.id)}>
-                    <span style={styles.icon}>{t.icon}</span>
+                    <Icon name={t.id} />
                     <span style={styles.label}>{t.label}</span>
                   </button>
                 ))}
@@ -194,9 +199,9 @@ export default function Toolbar({
                     <div style={{ display: 'flex' }}>
                       <button data-hint="snap" style={{ ...styles.btn, ...(snap.enabled ? styles.active : {}), minWidth: 36, paddingRight: 2 }}
                         title="Object Snap on/off (F3). Hold Ctrl to bypass, Shift to constrain angle. Click ▾ for individual snaps." onClick={() => onSnapChange?.({ ...snap, enabled: !snap.enabled })}>
-                        <span style={styles.icon}>⊹</span><span style={styles.label}>Snap</span>
+                        <Icon name="snap" /><span style={styles.label}>Snap</span>
                       </button>
-                      <button style={styles.caret} title="Snap settings — choose which snaps are active"
+                      <button style={styles.caret} title="Snap settings — choose which snaps are active" aria-label="Snap settings" aria-haspopup="true" aria-expanded={snapMenu}
                         onClick={(e) => {
                           const r = e.currentTarget.getBoundingClientRect();
                           setSnapAnchor({ top: r.bottom + 4, left: r.left - 120 });
@@ -209,23 +214,23 @@ export default function Toolbar({
                   <div style={styles.group}>
                     <button data-hint="mirror" style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
                       title="Mirror selection" onClick={onMirror}>
-                      <span style={styles.icon}>🪞</span><span style={styles.label}>Mirror</span>
+                      <Icon name="mirror" /><span style={styles.label}>Mirror</span>
                     </button>
                     <button data-hint="array" style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
                       title="Array (grid / radial copies)" onClick={onArray}>
-                      <span style={styles.icon}>▦</span><span style={styles.label}>Array</span>
+                      <Icon name="array" /><span style={styles.label}>Array</span>
                     </button>
                     <button data-hint="offset" style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
                       title="Offset (parallel copy)" onClick={onOffset}>
-                      <span style={styles.icon}>⇇</span><span style={styles.label}>Offset</span>
+                      <Icon name="offset" /><span style={styles.label}>Offset</span>
                     </button>
                     <button data-hint="align" style={{ ...styles.btn, ...(hasSelection ? {} : styles.disabled) }} disabled={!hasSelection}
                       title="Align / distribute selection" onClick={onAlign}>
-                      <span style={styles.icon}>⊟</span><span style={styles.label}>Align</span>
+                      <Icon name="align" /><span style={styles.label}>Align</span>
                     </button>
                     <button data-hint="corner" style={{ ...styles.btn, ...(canCorner ? {} : styles.disabled) }} disabled={!canCorner}
                       title="Trim / extend two selected lines to meet at a corner" onClick={onCorner}>
-                      <span style={styles.icon}>∟</span><span style={styles.label}>Corner</span>
+                      <Icon name="corner" /><span style={styles.label}>Corner</span>
                     </button>
                   </div>
                 </>
@@ -237,16 +242,16 @@ export default function Toolbar({
                   <div style={styles.group}>
                     {canUngroup ? (
                       <button data-hint="ungroup" style={styles.btn} title="Ungroup (Ctrl+G)" onClick={onUngroup}>
-                        <span style={styles.icon}>⬚</span><span style={styles.label}>Ungroup</span>
+                        <Icon name="ungroup" /><span style={styles.label}>Ungroup</span>
                       </button>
                     ) : (
                       <button data-hint="group" style={{ ...styles.btn, ...(canGroup ? {} : styles.disabled) }}
                         title="Group (Ctrl+G)" onClick={onGroup} disabled={!canGroup}>
-                        <span style={styles.icon}>⊟</span><span style={styles.label}>Group</span>
+                        <Icon name="group" /><span style={styles.label}>Group</span>
                       </button>
                     )}
                     <button data-hint="delete" style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
-                      <span style={styles.icon}>🗑</span><span style={styles.label}>Delete</span>
+                      <Icon name="delete" /><span style={styles.label}>Delete</span>
                     </button>
                   </div>
                 </>
@@ -254,16 +259,16 @@ export default function Toolbar({
 
               <div style={styles.divider} />
               <div style={styles.group}>
-                <button data-hint="zoomin" style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
+                <button data-hint="zoomin" style={styles.btn} title="Zoom In" aria-label="Zoom in" onClick={onZoomIn}><Icon name="zoomin" /></button>
                 <span style={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
-                <button data-hint="zoomout" style={styles.btn} title="Zoom Out" onClick={onZoomOut}>−</button>
-                <button data-hint="fit" style={styles.btn} title="Fit to window" onClick={onFit}>Fit</button>
+                <button data-hint="zoomout" style={styles.btn} title="Zoom Out" aria-label="Zoom out" onClick={onZoomOut}><Icon name="zoomout" /></button>
+                <button data-hint="fit" style={styles.btn} title="Fit to window (Ctrl+0)" aria-label="Fit to window" onClick={onFit}><Icon name="fit" /><span style={styles.label}>Fit</span></button>
                 <button data-hint="grid" style={{ ...styles.btn, ...(showGrid ? styles.active : {}) }}
                   title="Toggle Grid" onClick={onToggleGrid}>
-                  <span style={styles.icon}>⊞</span><span style={styles.label}>Grid</span>
+                  <Icon name="grid" /><span style={styles.label}>Grid</span>
                 </button>
                 <button data-hint="view3d" style={styles.btn} title="3D model view (orbit, pan, zoom)" onClick={onShow3D}>
-                  <span style={styles.icon}>🧊</span><span style={styles.label}>3D View</span>
+                  <Icon name="view3d" /><span style={styles.label}>3D View</span>
                 </button>
               </div>
 
@@ -272,21 +277,21 @@ export default function Toolbar({
                 {has('pdf_background') ? (
                   <>
                     <button data-hint="pdf" style={styles.btn} title="Import PDF background" onClick={onImportPdf}>
-                      <span style={styles.icon}>📄</span><span style={styles.label}>PDF Bg</span>
+                      <Icon name="pdf" /><span style={styles.label}>PDF Bg</span>
                     </button>
                     <button data-hint="image" style={styles.btn} title="Place image" onClick={onImportImage}>
-                      <span style={styles.icon}>🖼</span><span style={styles.label}>Image</span>
+                      <Icon name="image" /><span style={styles.label}>Image</span>
                     </button>
                   </>
                 ) : (
-                  <LockedBtn icon="📄" label="PDF Bg" name="PDF / image backgrounds" />
+                  <LockedBtn icon="pdf" label="PDF Bg" name="PDF / image backgrounds" />
                 )}
                 {has('patch_panel') ? (
                   <button data-hint="patch" style={styles.btn} title="DMX Patch" onClick={onShowPatch}>
-                    <span style={styles.icon}>⚡</span><span style={styles.label}>Patch</span>
+                    <Icon name="patch" /><span style={styles.label}>Patch</span>
                   </button>
                 ) : (
-                  <LockedBtn icon="⚡" label="Patch" name="DMX patch panel" />
+                  <LockedBtn icon="patch" label="Patch" name="DMX patch panel" />
                 )}
               </div>
 
@@ -295,21 +300,21 @@ export default function Toolbar({
                 {has('reports') ? (
                   <>
                     <button data-hint="fixtures" style={styles.btn} title="Fixture Schedule report" onClick={onReportFixture}>
-                      <span style={styles.icon}>📋</span><span style={styles.label}>Fixtures</span>
+                      <Icon name="fixtures" /><span style={styles.label}>Fixtures</span>
                     </button>
                     <button data-hint="channels" style={styles.btn} title="Channel List report" onClick={onReportChannel}>
-                      <span style={styles.icon}>🔢</span><span style={styles.label}>Channels</span>
+                      <Icon name="channels" /><span style={styles.label}>Channels</span>
                     </button>
                   </>
                 ) : (
-                  <LockedBtn icon="📋" label="Reports" name="Fixture & channel reports" />
+                  <LockedBtn icon="fixtures" label="Reports" name="Fixture & channel reports" />
                 )}
               </div>
 
               <div style={styles.divider} />
               <div style={styles.group}>
                 <button data-hint="studio" title="Studio Settings" style={styles.btn} onClick={onStudioSettings}>
-                  <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
+                  <Icon name="studio" /><span style={styles.label}>Studio</span>
                 </button>
               </div>
             </>
@@ -323,7 +328,7 @@ export default function Toolbar({
                   <button key={t.id} title={t.title} data-hint={t.id}
                     style={{ ...styles.btn, ...(activeTool === t.id ? styles.active : {}) }}
                     onClick={() => onToolChange(t.id)}>
-                    <span style={styles.icon}>{t.icon}</span>
+                    <Icon name={t.id} />
                     <span style={styles.label}>{t.label}</span>
                   </button>
                 ))}
@@ -349,31 +354,31 @@ export default function Toolbar({
               <div style={styles.divider} />
               <div style={styles.group}>
                 <button data-hint="anim" title="Toggle animation" style={{ ...styles.btn, ...(animating ? styles.active : {}) }} onClick={onToggleAnimation}>
-                  <span style={styles.icon}>▶</span><span style={styles.label}>Anim</span>
+                  <Icon name="anim" /><span style={styles.label}>Anim</span>
                 </button>
                 <button data-hint="report" title="Cable Report" style={styles.btn} onClick={onShowCableReport}>
-                  <span style={styles.icon}>📋</span><span style={styles.label}>Report</span>
+                  <Icon name="report" /><span style={styles.label}>Report</span>
                 </button>
                 {has('eos_import') ? (
                   <button data-hint="eos" title="Import EOS Patch" style={styles.btn} onClick={onShowEOSImport}>
-                    <span style={styles.icon}>🎛</span><span style={styles.label}>EOS Import</span>
+                    <Icon name="eos" /><span style={styles.label}>EOS Import</span>
                   </button>
                 ) : (
-                  <LockedBtn icon="🎛" label="EOS Import" name="EOS patch import" />
+                  <LockedBtn icon="eos" label="EOS Import" name="EOS patch import" />
                 )}
               </div>
 
               <div style={styles.divider} />
               <div style={styles.group}>
                 <button data-hint="delete" style={styles.btn} title="Delete selected (Del)" onClick={onDelete}>
-                  <span style={styles.icon}>🗑</span><span style={styles.label}>Delete</span>
+                  <Icon name="delete" /><span style={styles.label}>Delete</span>
                 </button>
-                <button data-hint="zoomin" style={styles.btn} title="Zoom In" onClick={onZoomIn}>+</button>
+                <button data-hint="zoomin" style={styles.btn} title="Zoom In" aria-label="Zoom in" onClick={onZoomIn}><Icon name="zoomin" /></button>
                 <span style={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
-                <button data-hint="zoomout" style={styles.btn} title="Zoom Out" onClick={onZoomOut}>−</button>
-                <button data-hint="fit" style={styles.btn} title="Fit to window" onClick={onFit}>Fit</button>
+                <button data-hint="zoomout" style={styles.btn} title="Zoom Out" aria-label="Zoom out" onClick={onZoomOut}><Icon name="zoomout" /></button>
+                <button data-hint="fit" style={styles.btn} title="Fit to window (Ctrl+0)" aria-label="Fit to window" onClick={onFit}><Icon name="fit" /><span style={styles.label}>Fit</span></button>
                 <button data-hint="studio" style={styles.btn} title="Studio Settings" onClick={onStudioSettings}>
-                  <span style={styles.icon}>⚙️</span><span style={styles.label}>Studio</span>
+                  <Icon name="studio" /><span style={styles.label}>Studio</span>
                 </button>
               </div>
             </>
@@ -382,11 +387,11 @@ export default function Toolbar({
 
         {/* Scroll-right affordance when the tools overflow */}
         {canScroll && (
-          <button style={styles.scrollArrow} title="More tools — scroll" onClick={scrollRight}>›</button>
+          <button style={styles.scrollArrow} title="More tools — scroll" aria-label="Scroll to more tools" onClick={scrollRight}><Icon name="more" /></button>
         )}
 
         {/* Licence holder name — click to open My License */}
-        {userName ? <button style={styles.userName} title="View My License" onClick={onUserClick}>👤 {userName}</button> : null}
+        {userName ? <button style={styles.userName} title="View My License" onClick={onUserClick}><Icon name="user" size={13} style={{ verticalAlign: -2, marginRight: 4 }} />{userName}</button> : null}
       </div>
 
       {/* Animated hover hint */}
@@ -404,7 +409,7 @@ export default function Toolbar({
             <label key={k} style={styles.snapRow}>
               <input type="checkbox" checked={!!snap[k]} disabled={!snap.enabled && k !== 'grid'}
                 onChange={e => onSnapChange?.({ ...snap, [k]: e.target.checked })}
-                style={{ accentColor: '#4a90d9' }} />
+                style={{ accentColor: 'var(--accent)' }} />
               <span>{l}</span>
             </label>
           ))}
@@ -418,13 +423,13 @@ export default function Toolbar({
 const styles = {
   toolbar: {
     display: 'flex', alignItems: 'center',
-    background: '#16213e', borderBottom: '1px solid #0f3460',
+    background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
     padding: '4px 8px', gap: 4, flexShrink: 0,
     overflow: 'hidden',
   },
   modeSwitcher: {
     display: 'flex', borderRadius: 5, overflow: 'hidden',
-    border: '1px solid #0f3460', flexShrink: 0, alignSelf: 'center',
+    border: '1px solid var(--border)', flexShrink: 0, alignSelf: 'center',
   },
   toolScroll: {
     display: 'flex', alignItems: 'center', gap: 4,
@@ -432,14 +437,14 @@ const styles = {
     scrollbarWidth: 'thin', msOverflowStyle: 'none',
   },
   scrollArrow: {
-    flexShrink: 0, width: 22, height: 36, background: '#0f3460', border: '1px solid #2a5a8a',
-    borderRadius: 4, color: '#90cdf4', cursor: 'pointer', fontSize: 18, lineHeight: 1,
+    flexShrink: 0, width: 22, height: 36, background: 'var(--border)', border: '1px solid var(--border-accent-2)',
+    borderRadius: 4, color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 18, lineHeight: 1,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   userName: {
-    flexShrink: 0, marginLeft: 8, paddingLeft: 10, borderLeft: '1px solid #0f3460',
-    color: '#a0aec0', fontSize: 11, whiteSpace: 'nowrap', alignSelf: 'center',
-    background: 'none', border: 'none', borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: '#0f3460',
+    flexShrink: 0, marginLeft: 8, paddingLeft: 10, borderLeft: '1px solid var(--border)',
+    color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap', alignSelf: 'center',
+    background: 'none', border: 'none', borderLeftWidth: 1, borderLeftStyle: 'solid', borderLeftColor: 'var(--border)',
     cursor: 'pointer',
   },
   resizeHandle: {
@@ -447,37 +452,38 @@ const styles = {
     cursor: 'ns-resize', zIndex: 5,
   },
   modeBtn: {
-    background: '#0d1b2a', border: '1px solid transparent', color: '#718096',
+    background: 'var(--bg-inset)', border: '1px solid transparent', color: 'var(--text-dim)',
     cursor: 'pointer', padding: '5px 12px', fontSize: 11, fontWeight: 600,
     letterSpacing: '0.05em', transition: 'all 0.15s',
   },
-  modeBtnActive:      { background: '#0f3460', color: '#00aaff', border: '1px solid #4a90d9' },
-  modeBtnActiveCable: { background: '#1a2a0a', color: '#68d391', border: '1px solid #2d6a4f' },
-  modeBtnActiveSheet: { background: '#0f2a4a', color: '#60b0ff', border: '1px solid #2a6090' },
+  modeBtnActive:      { background: 'var(--border)', color: 'var(--accent-bright)', border: '1px solid var(--accent)' },
+  modeBtnActiveCable: { background: '#1a2a0a', color: 'var(--success-text)', border: '1px solid #2d6a4f' },
+  modeBtnActiveSheet: { background: '#0f2a4a', color: 'var(--accent-text)', border: '1px solid var(--border-accent)' },
   group:   { display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 },
-  divider: { width: 1, height: 32, background: '#0f3460', margin: '0 4px', flexShrink: 0 },
+  divider: { width: 1, height: 32, background: 'var(--border)', margin: '0 4px', flexShrink: 0 },
   btn: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     background: 'transparent', border: '1px solid transparent', borderRadius: 4,
-    color: '#a0aec0', cursor: 'pointer', padding: '2px 6px',
+    color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 6px',
     minWidth: 40, height: 38, fontSize: 11, transition: 'all 0.1s',
   },
   caret: {
-    background: '#0d1b2a', border: '1px solid #2a5a8a', borderRadius: 4, color: '#90cdf4',
+    background: 'var(--bg-inset)', border: '1px solid var(--border-accent-2)', borderRadius: 4, color: 'var(--accent-soft)',
     cursor: 'pointer', fontSize: 11, padding: '0 4px', marginLeft: 2, alignSelf: 'center', height: 30,
   },
   snapPop: {
     position: 'fixed', zIndex: 1300,
-    background: '#16213e', border: '1px solid #2a5a8a', borderRadius: 6,
+    background: 'var(--bg-panel)', border: '1px solid var(--border-accent-2)', borderRadius: 6,
     boxShadow: '0 8px 24px rgba(0,0,0,0.85)', padding: '8px 10px', minWidth: 170,
   },
-  snapPopTitle: { fontSize: 9, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 },
-  snapRow: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#c0c8d8', padding: '3px 0', cursor: 'pointer' },
-  snapHint: { fontSize: 10, color: '#4a5568', marginTop: 8, paddingTop: 6, borderTop: '1px solid #0f3460', lineHeight: 1.4 },
-  active:   { background: '#0f3460', border: '1px solid #00aaff', color: '#00aaff' },
+  snapPopTitle: { fontSize: 9, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 },
+  snapRow: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text-2)', padding: '3px 0', cursor: 'pointer' },
+  snapHint: { fontSize: 10, color: 'var(--text-faint)', marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--border)', lineHeight: 1.4 },
+  active:   { background: 'var(--border)', border: '1px solid var(--accent-bright)', color: 'var(--accent-bright)' },
   disabled: { opacity: 0.4, cursor: 'not-allowed' },
   locked:   { opacity: 0.45, cursor: 'help' },
   icon:     { fontSize: 15, lineHeight: 1 },
+  lockBadge:{ position: 'absolute', right: -5, bottom: -3, background: 'var(--bg-panel)', borderRadius: 2 },
   label:    { fontSize: 9, marginTop: 2, letterSpacing: '0.05em' },
-  zoomLabel:{ color: '#a0aec0', fontSize: 11, minWidth: 38, textAlign: 'center' },
+  zoomLabel:{ color: 'var(--text-muted)', fontSize: 11, minWidth: 38, textAlign: 'center' },
 };

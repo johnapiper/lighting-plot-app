@@ -193,9 +193,9 @@ function MultiSelectInspector({
             <label style={styles.label}>Colour swatch</label>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="color" value={hex || '#ffffff'}
-                style={{ width: 32, height: 24, padding: 0, border: '1px solid #0f3460', borderRadius: 3, cursor: 'pointer', background: 'none' }}
+                style={{ width: 32, height: 24, padding: 0, border: '1px solid var(--border)', borderRadius: 3, cursor: 'pointer', background: 'none' }}
                 onChange={e => onBulkUpdate({ colourHex: e.target.value })} />
-              <span style={{ fontSize: 11, color: '#718096' }}>{hex === undefined ? 'Mixed' : (hex || 'None')}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{hex === undefined ? 'Mixed' : (hex || 'None')}</span>
             </div>
           </div>
           <Field label="Gobo" {...mixedText('gobo')} onChange={v => onBulkUpdate({ gobo: v })} />
@@ -264,7 +264,7 @@ function ColourField({ colourHex, gelCode, onChangeHex, onChangeGel }) {
           type="color"
           value={colourHex || '#ffffff'}
           onChange={e => onChangeHex(e.target.value)}
-          style={{ width: 28, height: 24, padding: 0, border: '1px solid #0f3460', borderRadius: 3, cursor: 'pointer', background: 'none' }}
+          style={{ width: 28, height: 24, padding: 0, border: '1px solid var(--border)', borderRadius: 3, cursor: 'pointer', background: 'none' }}
           title="Visual colour swatch"
         />
         <input
@@ -274,7 +274,7 @@ function ColourField({ colourHex, gelCode, onChangeHex, onChangeGel }) {
           placeholder="Gel code e.g. R12"
         />
         {colourHex && (
-          <button style={{ ...styles.iconBtn, color: '#718096' }} title="Clear colour" onClick={() => onChangeHex(null)}>×</button>
+          <button style={{ ...styles.iconBtn, color: 'var(--text-dim)' }} title="Clear colour" onClick={() => onChangeHex(null)}>×</button>
         )}
       </div>
     </div>
@@ -290,8 +290,8 @@ function StructureStats({ stats }) {
   const s = stats;
   const lenM = (s.totalLengthMm / 1000);
   return (
-    <div style={{ borderTop: '2px solid #0f3460' }}>
-      <div style={{ padding: '7px 10px 3px', fontSize: 10, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+    <div style={{ borderTop: '2px solid var(--border)' }}>
+      <div style={{ padding: '7px 10px 3px', fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         Structure Summary
       </div>
       <div style={statStyles.rowWrap}>
@@ -300,8 +300,8 @@ function StructureStats({ stats }) {
         <div style={statStyles.row}><span style={statStyles.k}>Fixtures ({s.fixtures.length})</span><span style={statStyles.v}>{fmtKg(s.fixtureKg)}</span></div>
         <div style={statStyles.row}><span style={statStyles.k}>Cabling ({s.cables.length})</span><span style={statStyles.v}>{fmtKg(s.cableKg)}</span></div>
         <div style={{ ...statStyles.row, borderTop: '1px solid #1a3050', marginTop: 2, paddingTop: 4 }}>
-          <span style={{ ...statStyles.k, color: '#e0e0e0', fontWeight: 700 }}>Total load</span>
-          <span style={{ ...statStyles.v, color: '#68d391', fontWeight: 700 }}>{fmtKg(s.totalKg)}</span>
+          <span style={{ ...statStyles.k, color: 'var(--text)', fontWeight: 700 }}>Total load</span>
+          <span style={{ ...statStyles.v, color: 'var(--success-text)', fontWeight: 700 }}>{fmtKg(s.totalKg)}</span>
         </div>
       </div>
 
@@ -341,13 +341,13 @@ function StructureStats({ stats }) {
 const statStyles = {
   rowWrap: { padding: '2px 10px 6px' },
   row: { display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '2px 0' },
-  k: { color: '#a0aec0' },
-  v: { color: '#e0e0e0', fontVariantNumeric: 'tabular-nums' },
-  subhead: { padding: '5px 10px 2px', fontSize: 9, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid #0f3460' },
+  k: { color: 'var(--text-muted)' },
+  v: { color: 'var(--text)', fontVariantNumeric: 'tabular-nums' },
+  subhead: { padding: '5px 10px 2px', fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid var(--border)' },
   list: { padding: '0 10px 6px', maxHeight: 160, overflowY: 'auto' },
   li: { display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11, padding: '2px 0', borderBottom: '1px solid #0f2440' },
-  liName: { color: '#cbd5e0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  liVal: { color: '#a0aec0', flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
+  liName: { color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  liVal: { color: 'var(--text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
 };
 
 export default function InspectorPanel({
@@ -442,7 +442,7 @@ export default function InspectorPanel({
               style={{ ...styles.input, flex: 1 }}
               onChange={e => onUpdateFixture(f.id, { symbolColor: e.target.value || null })} />
             {f.symbolColor && (
-              <button style={{ ...styles.iconBtn, color: '#718096' }} title="Reset to default"
+              <button style={{ ...styles.iconBtn, color: 'var(--text-dim)' }} title="Reset to default"
                 onClick={() => onUpdateFixture(f.id, { symbolColor: null })}>×</button>
             )}
           </div>
@@ -483,7 +483,7 @@ export default function InspectorPanel({
         <NumberField label="Font Size" value={t.fontSize || 14} min={1} max={500} decimals={1} onCommit={v => onUpdateText && onUpdateText(t.id, { fontSize: v })} />
         <NumberField label="Rotation°" value={t.rotation ?? 0} step={15} decimals={1} onCommit={v => onUpdateText && onUpdateText(t.id, { rotation: v })} />
         <LayerField layerId={t.layerId} layers={layers} onChange={layerId => onUpdateText && onUpdateText(t.id, { layerId })} />
-        <div style={{ padding: '6px 10px', fontSize: 10, color: '#718096' }}>Double-click on canvas to edit inline</div>
+        <div style={{ padding: '6px 10px', fontSize: 10, color: 'var(--text-dim)' }}>Double-click on canvas to edit inline</div>
       </div>
     );
   }
@@ -497,7 +497,7 @@ export default function InspectorPanel({
         <NumberField label="Width" value={a.w || 120} min={10} step={10} decimals={0} onCommit={v => onUpdateObject && onUpdateObject(a.id, 'annotation', { w: v })} />
         <NumberField label="Height" value={a.h || 50} min={10} step={10} decimals={0} onCommit={v => onUpdateObject && onUpdateObject(a.id, 'annotation', { h: v })} />
         <LayerField layerId={a.layerId} layers={layers} onChange={layerId => onUpdateObject && onUpdateObject(a.id, 'annotation', { layerId })} />
-        <div style={{ padding: '6px 10px', fontSize: 10, color: '#718096' }}>Double-click on canvas to edit inline. Drag corner to resize.</div>
+        <div style={{ padding: '6px 10px', fontSize: 10, color: 'var(--text-dim)' }}>Double-click on canvas to edit inline. Drag corner to resize.</div>
       </div>
     );
   }
@@ -537,7 +537,7 @@ export default function InspectorPanel({
     return (
       <div style={styles.panel}>
         <div style={styles.header}>Dimension {dm.locked && '🔒'}</div>
-        <div style={{ padding: '6px 10px', fontSize: 10, color: dm.locked ? '#7fd0a0' : '#718096', lineHeight: 1.4 }}>
+        <div style={{ padding: '6px 10px', fontSize: 10, color: dm.locked ? '#7fd0a0' : 'var(--text-dim)', lineHeight: 1.4 }}>
           {dm.locked
             ? 'Constrained: dragging an attached object keeps this measurement fixed.'
             : 'Reference dimension (not constrained).'}
@@ -552,7 +552,7 @@ export default function InspectorPanel({
           </button>
         </div>
         <div style={{ padding: '8px 10px' }}>
-          <button style={{ ...styles.btn, color: '#fc8181', borderColor: '#7a2a2a', width: '100%' }}
+          <button style={{ ...styles.btn, color: 'var(--danger-text)', borderColor: 'var(--danger-border)', width: '100%' }}
             onClick={() => onDeleteSelected && onDeleteSelected()}>
             🗑 Delete dimension (unconstrain)
           </button>
@@ -565,23 +565,23 @@ export default function InspectorPanel({
 }
 
 const styles = {
-  panel: { width: '100%', background: '#16213e', display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: '1 1 auto', minHeight: 180 },
-  header: { padding: '8px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a90d9', borderBottom: '1px solid #0f3460', flexShrink: 0 },
-  conflict: { padding: '6px 10px', background: '#3a1a1a', color: '#fc8181', fontSize: 11, borderBottom: '1px solid #7a2a2a' },
-  conflictBtn: { background: '#4a1a1a', border: '1px solid #e53e3e', borderRadius: 3, color: '#fc8181', cursor: 'pointer', fontSize: 10, padding: '2px 6px' },
-  section: { padding: '8px 10px', borderBottom: '1px solid #0f3460' },
-  sectionTitle: { fontSize: 9, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 },
-  btnWide: { width: '100%', background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 4, color: '#90cdf4', cursor: 'pointer', fontSize: 11, padding: '4px 8px' },
+  panel: { width: '100%', background: 'var(--bg-panel)', display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: '1 1 auto', minHeight: 180 },
+  header: { padding: '8px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', borderBottom: '1px solid var(--border)', flexShrink: 0 },
+  conflict: { padding: '6px 10px', background: 'var(--danger-bg)', color: 'var(--danger-text)', fontSize: 11, borderBottom: '1px solid var(--danger-border)' },
+  conflictBtn: { background: '#4a1a1a', border: '1px solid #e53e3e', borderRadius: 3, color: 'var(--danger-text)', cursor: 'pointer', fontSize: 10, padding: '2px 6px' },
+  section: { padding: '8px 10px', borderBottom: '1px solid var(--border)' },
+  sectionTitle: { fontSize: 9, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 },
+  btnWide: { width: '100%', background: 'var(--border)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 11, padding: '4px 8px' },
   alignGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 },
-  alignBtn: { background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 3, color: '#a0aec0', cursor: 'pointer', fontSize: 13, padding: '3px 0' },
+  alignBtn: { background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, padding: '3px 0' },
   inputError: { borderColor: '#e53e3e' },
-  errText: { fontSize: 10, color: '#fc8181', marginTop: 2 },
-  hintText: { fontSize: 10, color: '#4a5568', marginTop: 2 },
-  btn: { background: '#0f3460', border: '1px solid #4a90d9', borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 11, padding: '3px 10px', marginTop: 4 },
-  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#718096', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 },
-  empty: { padding: 16, color: '#4a5568', fontSize: 12, textAlign: 'center' },
-  field: { padding: '5px 10px', borderBottom: '1px solid #0f3460' },
-  label: { display: 'block', fontSize: 9, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 },
-  input: { width: '100%', background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 3, color: '#e0e0e0', fontSize: 12, padding: '3px 6px', boxSizing: 'border-box', outline: 'none' },
-  readOnly: { color: '#718096', cursor: 'default' },
+  errText: { fontSize: 10, color: 'var(--danger-text)', marginTop: 2 },
+  hintText: { fontSize: 10, color: 'var(--text-faint)', marginTop: 2 },
+  btn: { background: 'var(--border)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 11, padding: '3px 10px', marginTop: 4 },
+  iconBtn: { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 },
+  empty: { padding: 16, color: 'var(--text-faint)', fontSize: 12, textAlign: 'center' },
+  field: { padding: '5px 10px', borderBottom: '1px solid var(--border)' },
+  label: { display: 'block', fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 },
+  input: { width: '100%', background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)', fontSize: 12, padding: '3px 6px', boxSizing: 'border-box', outline: 'none' },
+  readOnly: { color: 'var(--text-dim)', cursor: 'default' },
 };

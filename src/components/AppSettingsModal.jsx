@@ -3,7 +3,7 @@ import { compareVersions } from '../license/licenseService';
 
 const { ipcRenderer } = require('electron');
 
-export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null, maxVersion = null }) {
+export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null, maxVersion = null, theme = 'dark', onChangeTheme, welcomeEnabled = true, onChangeWelcome }) {
   const [appVersion, setAppVersion] = useState('—');
   // An update is only offered if it's within the license's allowed ceiling.
   const allowed = (v) => !maxVersion || (v && compareVersions(v, maxVersion) <= 0);
@@ -95,10 +95,10 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
                 </button>
               )}
               {updateStatus === 'checking' && (
-                <span style={{ color: '#a0aec0', fontSize: 12 }}>Checking…</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Checking…</span>
               )}
               {updateStatus === 'uptodate' && (
-                <span style={{ color: '#68d391', fontSize: 12 }}>✓ Up to date (v{appVersion})</span>
+                <span style={{ color: 'var(--success-text)', fontSize: 12 }}>✓ Up to date (v{appVersion})</span>
               )}
               {updateStatus === 'available' && (
                 <button style={{ ...S.primaryBtn, borderColor: '#fbbf24', color: '#fbbf24' }} onClick={downloadUpdate}>
@@ -107,36 +107,62 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
               )}
               {updateStatus === 'downloading' && (
                 <div style={{ flex: 1 }}>
-                  <div style={{ color: '#a0aec0', fontSize: 12, marginBottom: 4 }}>Downloading… {dlProgress}%</div>
-                  <div style={{ background: '#0d1b2a', borderRadius: 3, height: 6, overflow: 'hidden' }}>
-                    <div style={{ width: `${dlProgress}%`, height: '100%', background: '#4a90d9', transition: 'width 0.2s' }} />
+                  <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 4 }}>Downloading… {dlProgress}%</div>
+                  <div style={{ background: 'var(--bg-inset)', borderRadius: 3, height: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${dlProgress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.2s' }} />
                   </div>
                 </div>
               )}
               {updateStatus === 'downloaded' && (
-                <button style={{ ...S.primaryBtn, borderColor: '#68d391', color: '#68d391' }} onClick={installUpdate}>
+                <button style={{ ...S.primaryBtn, borderColor: 'var(--success-text)', color: 'var(--success-text)' }} onClick={installUpdate}>
                   ↺ Restart & Install
                 </button>
               )}
               {updateStatus === 'error' && (
-                <span style={{ color: '#fc8181', fontSize: 12 }}>{errMsg || 'Update check failed.'}</span>
+                <span style={{ color: 'var(--danger-text)', fontSize: 12 }}>{errMsg || 'Update check failed.'}</span>
               )}
+            </div>
+          </Section>
+
+          {/* ── Appearance ── */}
+          <Section title="Appearance">
+            <div style={S.row}>
+              <span style={S.rowLabel} id="theme-label">Theme</span>
+              <div role="radiogroup" aria-labelledby="theme-label" style={{ display: 'flex', gap: 4 }}>
+                {[['dark', 'Dark'], ['light', 'Light'], ['system', 'Match system']].map(([v, l]) => (
+                  <button key={v} role="radio" aria-checked={theme === v} onClick={() => onChangeTheme?.(v)}
+                    style={{ padding: '4px 10px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
+                      background: theme === v ? 'var(--border)' : 'transparent',
+                      border: `1px solid ${theme === v ? 'var(--accent)' : 'var(--border)'}`,
+                      color: theme === v ? 'var(--accent-text)' : 'var(--text-muted)' }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>
+              Changes panels, toolbars and dialogs. The plot canvas keeps its drawing colours so exports look the same in any theme.
+            </div>
+            <div style={{ ...S.row, marginTop: 10 }}>
+              <span style={S.rowLabel}>Show welcome screen on startup</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={welcomeEnabled} onChange={e => onChangeWelcome?.(e.target.checked)} />
+                <span style={{ fontSize: 12, color: welcomeEnabled ? 'var(--success-text)' : 'var(--text-dim)' }}>{welcomeEnabled ? 'On' : 'Off'}</span>
+              </label>
             </div>
           </Section>
 
           {/* ── Auto-save ── */}
           <Section title="Auto-Save">
             <div style={S.row}>
-              <span style={S.rowLabel}>Auto-save project every 2 minutes</span>
+              <span style={S.rowLabel}>Keep a recovery copy of unsaved changes</span>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input type="checkbox" checked={autoSaveEnabled}
                   onChange={e => onChangeAutoSave?.(e.target.checked)} />
-                <span style={{ fontSize: 12, color: autoSaveEnabled ? '#68d391' : '#718096' }}>
+                <span style={{ fontSize: 12, color: autoSaveEnabled ? 'var(--success-text)' : 'var(--text-dim)' }}>
                   {autoSaveEnabled ? 'On' : 'Off'}
                 </span>
               </label>
             </div>
-            <div style={{ fontSize: 10, color: '#718096', marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>
               If the app closes unexpectedly, you will be offered to restore the last auto-saved session on next launch.
             </div>
           </Section>
@@ -145,16 +171,16 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
           <Section title="About Lighting Plot">
             <div style={S.aboutBox}>
               <div style={{ fontSize: 20, marginBottom: 6 }}>🎭</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#e0e0e0', marginBottom: 4 }}>Lighting Plot</div>
-              <div style={{ fontSize: 12, color: '#a0aec0', marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 4 }}>Lighting Plot</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
                 A theatrical lighting design CAD tool for drafting lighting rigs,
                 managing fixture databases, and generating cable schedules.
               </div>
               <div style={S.legalBox}>
-                <div style={{ fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>
                   © {new Date().getFullYear()} John Piper. All rights reserved.
                 </div>
-                <div style={{ fontSize: 10, color: '#718096', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.5 }}>
                   This software is proprietary and confidential. Unauthorised copying,
                   distribution or modification is strictly prohibited.
                 </div>
@@ -177,8 +203,8 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#4a90d9', textTransform: 'uppercase',
-        letterSpacing: '0.1em', marginBottom: 12, paddingBottom: 4, borderBottom: '1px solid #0f3460' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase',
+        letterSpacing: '0.1em', marginBottom: 12, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
         {title}
       </div>
       {children}
@@ -192,35 +218,35 @@ const S = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   modal: {
-    background: '#16213e', border: '1px solid #0f3460', borderRadius: 8,
+    background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
     width: 440, maxHeight: '85vh', display: 'flex', flexDirection: 'column',
     boxShadow: '0 12px 40px rgba(0,0,0,0.9)',
   },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px', borderBottom: '1px solid #0f3460',
-    fontSize: 14, fontWeight: 700, color: '#e0e0e0',
+    padding: '14px 18px', borderBottom: '1px solid var(--border)',
+    fontSize: 14, fontWeight: 700, color: 'var(--text)',
   },
-  closeBtn: { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 16 },
+  closeBtn: { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16 },
   body: { padding: '20px 20px 8px', overflowY: 'auto', flex: 1 },
-  footer: { display: 'flex', justifyContent: 'flex-end', padding: '12px 18px', borderTop: '1px solid #0f3460' },
+  footer: { display: 'flex', justifyContent: 'flex-end', padding: '12px 18px', borderTop: '1px solid var(--border)' },
   row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  rowLabel: { fontSize: 12, color: '#a0aec0' },
-  rowValue: { fontSize: 12, color: '#e0e0e0', fontWeight: 600 },
+  rowLabel: { fontSize: 12, color: 'var(--text-muted)' },
+  rowValue: { fontSize: 12, color: 'var(--text)', fontWeight: 600 },
   primaryBtn: {
-    padding: '6px 16px', background: '#0f3460', border: '1px solid #4a90d9',
-    borderRadius: 4, color: '#4a90d9', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    padding: '6px 16px', background: 'var(--border)', border: '1px solid var(--accent)',
+    borderRadius: 4, color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
   },
   ghostBtn: {
     padding: '5px 14px', background: 'transparent', border: '1px solid #2a4060',
-    borderRadius: 4, color: '#718096', cursor: 'pointer', fontSize: 11,
+    borderRadius: 4, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 11,
   },
   cancelBtn: {
-    padding: '6px 16px', background: 'transparent', border: '1px solid #0f3460',
-    borderRadius: 4, color: '#a0aec0', cursor: 'pointer', fontSize: 12,
+    padding: '6px 16px', background: 'transparent', border: '1px solid var(--border)',
+    borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12,
   },
   aboutBox: {
-    background: '#0d1b2a', border: '1px solid #0f3460', borderRadius: 6,
+    background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 6,
     padding: '16px', textAlign: 'center',
   },
   legalBox: {
