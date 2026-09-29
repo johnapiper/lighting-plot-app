@@ -43,7 +43,7 @@ export default function ConfirmHost() {
 
 const btn = { padding: '6px 16px', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 600 };
 const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   box: { background: 'var(--bg-panel)', border: '1px solid var(--border-accent)', borderRadius: 8, padding: '18px 20px', width: 380, maxWidth: 'calc(100vw - 32px)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' },
   title: { fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 },
   msg: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap' },

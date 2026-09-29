@@ -43,7 +43,7 @@ export function FixturePreview({ fixtureType, colourHex }) {
       viewBox={fixtureType.symbolViewBox}
       width="36"
       height="36"
-      style={{ color: '#e0e0e0', display: 'block' }}
+      style={{ color: 'var(--text, #e0e0e0)', display: 'block' }}
     >
       <g dangerouslySetInnerHTML={{ __html: fixtureType.symbol }} />
       {colourHex && <circle cx={0} cy={-14} r={4} fill={colourHex} stroke="rgba(0,0,0,0.4)" strokeWidth={0.5} />}

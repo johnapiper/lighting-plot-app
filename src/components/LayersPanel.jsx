@@ -212,7 +212,7 @@ const styles = {
   name: {
     flex: 1,
     fontSize: 11,
-    color: '#c0cce0',
+    color: 'var(--text-2)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -220,7 +220,7 @@ const styles = {
   },
   sysBadge: {
     fontSize: 7, fontWeight: 700, letterSpacing: '0.06em',
-    background: 'var(--border)', color: '#7fa8d0', borderRadius: 2,
+    background: 'var(--border)', color: 'var(--accent-text)', borderRadius: 2,
     padding: '1px 3px', marginLeft: 5, verticalAlign: 'middle',
   },
   nameInput: {

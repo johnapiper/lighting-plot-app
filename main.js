@@ -3,14 +3,16 @@ const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 
-let store;
-try {
-  const StoreModule = require('electron-store');
-  const Store = StoreModule.default || StoreModule;
-  store = new Store({ name: 'lighting-plot-prefs' });
-} catch (e) {
-  store = null;
-}
+// electron-store v9+ is ESM-only, so require() throws ERR_REQUIRE_ESM — load it
+// with a dynamic import instead. The window is created only after this settles
+// (see app.whenReady) so prefs and recent files are available from the start.
+let store = null;
+const storeReady = import('electron-store')
+  .then(StoreModule => {
+    const Store = StoreModule.default || StoreModule;
+    store = new Store({ name: 'lighting-plot-prefs' });
+  })
+  .catch(e => { console.error('electron-store unavailable:', e.message); store = null; });
 
 let mainWindow;
 let currentLicenseFeatures = [];

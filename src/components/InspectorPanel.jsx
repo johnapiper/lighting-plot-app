@@ -346,7 +346,7 @@ const statStyles = {
   subhead: { padding: '5px 10px 2px', fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', borderTop: '1px solid var(--border)' },
   list: { padding: '0 10px 6px', maxHeight: 160, overflowY: 'auto' },
   li: { display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11, padding: '2px 0', borderBottom: '1px solid #0f2440' },
-  liName: { color: '#cbd5e0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  liName: { color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   liVal: { color: 'var(--text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' },
 };
 

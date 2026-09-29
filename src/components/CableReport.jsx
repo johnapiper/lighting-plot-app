@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import { CABLE_TYPES, calcCircuitLoad, wattsToAmps } from '../cabling/ratings';
 import { calcCableRoute, formatLength } from '../cabling/routing';
+import { confirmDialog } from './ConfirmDialog';
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 

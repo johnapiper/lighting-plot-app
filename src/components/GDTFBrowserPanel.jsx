@@ -367,7 +367,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
                       <span style={{ ...S.cell, flex: 1, color: 'var(--text)' }}>
                         {fName(row)}
                       </span>
-                      <span style={{ ...S.cell, flex: '0 0 56px', color: '#4a6080', fontSize: 10 }}>
+                      <span style={{ ...S.cell, flex: '0 0 56px', color: 'var(--text-faint)', fontSize: 10 }}>
                         {fRev(row)}
                       </span>
                       <span style={{ flex: '0 0 108px', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
