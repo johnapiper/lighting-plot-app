@@ -1,6 +1,6 @@
 {
   "name": "lighting-plot-app",
-  "version": "1.7.18",
+  "version": "1.7.19",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -27,6 +27,7 @@
     "files": [
       "public/**/*",
       "main.js",
+      "preload.js",
       "lib/**/*",
       "data/**/*",
       "node_modules/**/*",
