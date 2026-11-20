@@ -6,19 +6,10 @@ import { ipcRenderer } from '../bridge';
 
 // Start screen shown on launch (unless disabled in App Settings). Lists recent
 // files with their modified date and fixture count, plus quick actions.
-function fileInfo(fp) {
+async function fileInfo(fp) {
   try {
-    const fs = window.require('fs');
-    const st = fs.statSync(fp);
-    let fixtures = null, plots = null;
-    if (!fp.toLowerCase().endsWith('.mvr') && st.size < 8 * 1024 * 1024) {
-      try {
-        const proj = JSON.parse(fs.readFileSync(fp, 'utf8'));
-        fixtures = (proj.drawings || []).reduce((n, d) => n + (d.fixtures?.length || 0), 0);
-        plots = proj.drawings?.length || 0;
-      } catch {}
-    }
-    return { exists: true, mtime: st.mtime, fixtures, plots };
+    const r = await ipcRenderer.invoke('file-info', fp);
+    return r?.exists ? { exists: true, mtime: new Date(r.mtimeMs), fixtures: r.fixtures, plots: r.plots } : { exists: false };
   } catch { return { exists: false }; }
 }
 
