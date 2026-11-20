@@ -203,7 +203,7 @@ async function extractChannelsFromESF2(file) {
     let text;
     try {
       text = new TextDecoder(enc, { fatal: false }).decode(arrayBuffer);
-      text = text.replace(/^﻿/, ''); // strip BOM
+      text = (text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text); // strip BOM
     } catch { continue; }
 
     if (!/^\s*</.test(text)) {
