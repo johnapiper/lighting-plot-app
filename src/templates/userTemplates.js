@@ -7,8 +7,8 @@
 import { useState, useEffect } from 'react';
 import { generateId } from '../canvas/geometry';
 import { toast } from '../components/Toast';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
 const LEGACY_KEYS = { project: 'lplot-user-templates', drawing: 'lplot-drawing-templates' };
 

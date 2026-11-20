@@ -55,8 +55,8 @@ import { exportDXF } from './dxf/dxfWriter';
 import { buildEosPatchTxt } from './console/eosExport';
 import { layoutMagicSheet, magicSheetCsv, renderMagicSheetPng } from './console/magicSheet';
 import { importMVR } from './mvr/mvrImport';
+import { ipcRenderer } from './bridge';
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
 // ── PDF render ─────────────────────────────────────────────────────────────
 // Uses pdfjs-dist v4 (compatible with Electron 31 / Chromium 126).

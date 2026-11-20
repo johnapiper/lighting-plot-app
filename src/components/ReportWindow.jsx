@@ -1,7 +1,7 @@
 import React from 'react';
 import { buildInstrumentSchedule, buildChannelHookup, fixturesToCSV, INSTRUMENT_COLUMNS } from '../paperwork/reports';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
 function ReportTable({ rows, columns }) {
   return (

@@ -651,7 +651,8 @@ function gdtfCaptureCookies(res) {
   sc.forEach(c => { const [k, v] = c.split(';')[0].split('='); if (k) jar[k.trim()] = v || ''; });
   gdtfCookieJar = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
 }
-ipcMain.handle('gdtf-http', (e, { method = 'GET', requestPath, json }) => new Promise((resolve) => {
+ipcMain.handle('gdtf-http', (e, { method = 'GET', requestPath, json, reset }) => new Promise((resolve) => {
+  if (reset) { gdtfCookieJar = ''; return resolve({ ok: true, reset: true }); }
   if (typeof requestPath !== 'string' || !requestPath.startsWith('/')) return resolve({ ok: false, reason: 'bad path' });
   const https = require('https');
   const body = json !== undefined ? JSON.stringify(json) : null;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FEATURES as ALL_FEATURES } from '../license/features.js';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = require('electron');
 
 export default function MyLicenseModal({ license, onClose, onChangeLicense }) {
   const [copied, setCopied] = useState(false);

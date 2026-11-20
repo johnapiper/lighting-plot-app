@@ -10,8 +10,8 @@ import {
   getTrialConfig, compareVersions,
 } from '../license/licenseService';
 import AppSettingsModal from './AppSettingsModal';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = require('electron');
 
 // ── License context ────────────────────────────────────────────────────────
 export const LicenseContext = createContext(null);

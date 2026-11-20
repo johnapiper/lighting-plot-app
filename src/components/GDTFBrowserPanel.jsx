@@ -12,71 +12,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { parseGdtf } from '../library/GdtfImporter';
 import { toast } from './Toast';
+import { ipcRenderer, openExternal } from '../bridge';
 
-const { ipcRenderer } = require('electron');
 
-// Node modules available because nodeIntegration:true
-const https  = window.require('https');
 const HOST   = 'gdtf-share.com';
 const PER_PAGE = 30;
 
-// ── Minimal HTTPS client with cookie jar ─────────────────────────────────────
+// ── HTTPS client ─────────────────────────────────────────────────────────────
+// Requests go through the main process (gdtf-http), which holds the session
+// cookie jar — the renderer has no Node networking. Responses are { status, body: ArrayBuffer }.
 
-let cookieJar = ''; // persists for the lifetime of this panel instance
-
-function httpsGet(path) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      { hostname: HOST, path, method: 'GET', headers: { Cookie: cookieJar } },
-      (res) => {
-        captureCookies(res);
-        const chunks = [];
-        res.on('data', c => chunks.push(c));
-        res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
-      }
-    );
-    req.on('error', reject);
-    req.end();
-  });
+async function gdtfRequest(opts) {
+  const r = await ipcRenderer.invoke('gdtf-http', opts);
+  if (!r?.ok) throw new Error(r?.reason || 'Network error');
+  return r;
 }
-
-function httpsPost(path, json) {
-  const body = JSON.stringify(json);
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: HOST, path, method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          Cookie: cookieJar,
-        },
-      },
-      (res) => {
-        captureCookies(res);
-        const chunks = [];
-        res.on('data', c => chunks.push(c));
-        res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
-      }
-    );
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
-
-function captureCookies(res) {
-  const sc = res.headers['set-cookie'];
-  if (!sc) return;
-  // Merge new cookies into jar (keep name=value pairs, drop attributes)
-  const jar = {};
-  cookieJar.split(';').forEach(c => { const [k,v] = c.trim().split('='); if (k) jar[k.trim()] = v||''; });
-  sc.forEach(c => { const [k,v] = c.split(';')[0].split('='); if (k) jar[k.trim()] = v||''; });
-  cookieJar = Object.entries(jar).map(([k,v]) => `${k}=${v}`).join('; ');
-}
+const httpsGet = (path) => gdtfRequest({ method: 'GET', requestPath: path });
+const httpsPost = (path, json) => gdtfRequest({ method: 'POST', requestPath: path, json });
+const resetGdtfSession = () => ipcRenderer.invoke('gdtf-http', { reset: true });
 
 function parseJSON(buf) {
-  try { return JSON.parse(buf.toString('utf8')); }
+  try { return JSON.parse(new TextDecoder('utf-8').decode(buf)); }
   catch { return null; }
 }
 
@@ -111,7 +67,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
 
   // Reset cookie jar and load saved credentials on mount
   useEffect(() => {
-    cookieJar = '';
+    resetGdtfSession();
     ipcRenderer.invoke('gdtf-load-credentials').then(({ email: e, password: p }) => {
       if (e) setEmail(e);
       if (p) setPassword(p);
@@ -195,8 +151,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
     try {
       const { status, body } = await httpsGet(`/apis/public/downloadFile.php?rid=${id}`);
       if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
-      // body is a Node Buffer — convert to ArrayBuffer
-      const ab = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+      const ab = body;
       const filename = `${fMfr(row)} ${fName(row)} ${fRev(row) || id}.gdtf`.replace(/\s+/g, ' ').trim();
       const ft = await parseGdtf(ab, filename);
       onImportGdtf(ft);
@@ -216,7 +171,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
     try {
       const { status, body } = await httpsGet(`/apis/public/downloadFile.php?rid=${id}`);
       if (status !== 200) throw new Error(`Download failed: HTTP ${status}`);
-      const ab = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+      const ab = body;
       const filename = `${fMfr(row)} ${fName(row)} ${fRev(row) || id}.gdtf`.replace(/\s+/g, ' ').trim();
       const ft = await parseGdtf(ab, filename);
       setPreview({ row, ft });
@@ -237,7 +192,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
 
   // ── Sign out ───────────────────────────────────────────────────────────────
   function handleSignOut() {
-    cookieJar = '';
+    resetGdtfSession();
     ipcRenderer.invoke('gdtf-clear-credentials');
     setEmail('');
     setPassword('');
@@ -290,8 +245,7 @@ export default function GDTFBrowserPanel({ onImportGdtf, onClose }) {
             <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-dim)' }}>
               No account?{' '}
               <span style={S.link} onClick={() => {
-                const { shell } = window.require('electron');
-                shell.openExternal('https://gdtf-share.com/landing/pages/signUp.php');
+                openExternal('https://gdtf-share.com/landing/pages/signUp.php');
               }}>
                 Register on gdtf-share.com ↗
               </span>

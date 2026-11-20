@@ -12,8 +12,8 @@ import React, { useState } from 'react';
 import { CABLE_TYPES, calcCircuitLoad, wattsToAmps } from '../cabling/ratings';
 import { calcCableRoute, formatLength } from '../cabling/routing';
 import { confirmDialog } from './ConfirmDialog';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
 const DEFAULT_MARGIN_PCT = 10;
 const DEFAULT_SLACK_MM   = 1100; // 0.9 m + 0.2 m

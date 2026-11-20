@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-const { ipcRenderer } = require('electron');
+import { ipcRenderer } from '../bridge';
 
 export default function UpdaterDialog({ onClose }) {
   const [state, setState] = useState('checking'); // checking | available | downloading | downloaded | uptodate | error

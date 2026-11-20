@@ -8,8 +8,8 @@ import {
   fetchReleaseVersions, compareVersions,
 } from '../license/licenseService';
 import { FEATURES } from '../license/features';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = require('electron');
 
 export default function LicenseManager({ onClose }) {
   const [db, setDb]           = useState(null);

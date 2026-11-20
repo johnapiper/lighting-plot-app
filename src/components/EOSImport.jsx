@@ -10,8 +10,8 @@
  */
 import React, { useState, useRef } from 'react';
 import JSZip from 'jszip';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
 // ── XML channel parser ────────────────────────────────────────────────────────
 /**

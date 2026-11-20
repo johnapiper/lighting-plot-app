@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import ModalA11y from './ModalA11y';
 import Icon from './Icon';
+import { ipcRenderer } from '../bridge';
 
-const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
 
 // Start screen shown on launch (unless disabled in App Settings). Lists recent
 // files with their modified date and fixture count, plus quick actions.

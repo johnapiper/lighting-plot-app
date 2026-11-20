@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from
 import FixtureSymbol from '../fixtures/FixtureSymbol';
 import { useToolHints } from './ToolHint';
 import { toast } from './Toast';
+import { ipcRenderer } from '../bridge';
 
 const SHEET_TOOL_HINT = { select: 'select', viewport: 'viewport', text: 'sheettext', annotate: 'note', keyblock: 'keyblock' };
 
@@ -393,7 +394,6 @@ export default function SheetEditor({
     if (!printPreview) return;
     const html = sheetPrintHtml(printPreview);
 
-    const ipcRenderer = window.require ? window.require('electron').ipcRenderer : null;
     if (ipcRenderer) {
       // Use a dedicated BrowserWindow for printing — this gives the proper
       // Electron print dialog with preview, rather than the app's main window
@@ -412,7 +412,6 @@ export default function SheetEditor({
   const pdfName = (suffix) => `${(project.meta?.title || 'Lighting Plot').replace(/[\\/:*?"<>|]/g, '-')}${suffix}.pdf`;
 
   async function savePdf(pages, suffix) {
-    const ipcRenderer = window.require ? window.require('electron').ipcRenderer : null;
     if (!ipcRenderer) return;
     setPdfBusy(true);
     try {

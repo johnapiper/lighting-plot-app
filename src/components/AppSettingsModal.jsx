@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { compareVersions } from '../license/licenseService';
+import { ipcRenderer, openExternal } from '../bridge';
 
-const { ipcRenderer } = require('electron');
 
 export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onChangeAutoSave, pendingUpdateVersion = null, maxVersion = null, theme = 'dark', onChangeTheme, welcomeEnabled = true, onChangeWelcome }) {
   const [appVersion, setAppVersion] = useState('—');
@@ -57,7 +57,7 @@ export default function AppSettingsModal({ onClose, autoSaveEnabled = true, onCh
   }
 
   function openGitHub() {
-    require('electron').shell.openExternal('https://github.com/johnapiper/lighting-plot-app');
+    openExternal('https://github.com/johnapiper/lighting-plot-app');
   }
 
   return (
