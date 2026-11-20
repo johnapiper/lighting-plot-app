@@ -60,7 +60,7 @@ export function planNumbering(fixtures, opts = {}) {
     out.set(f.id, String(next));
     next += inc;
   }
-  return { assignments: out, field };
+  return out;
 }
 
 /**
