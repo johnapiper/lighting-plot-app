@@ -48,7 +48,7 @@ export function selectScope(fixtures, { scope = 'all', selectedIds = [], field =
  * Returns Map(id → value-as-string).
  */
 export function planNumbering(fixtures, opts = {}) {
-  const { field = 'unit', start = 1, step = 1, order = 'reading', restartPerPosition = false } = opts;
+  const { start = 1, step = 1, order = 'reading', restartPerPosition = false } = opts;
   const out = new Map();
   const ordered = orderFixtures(fixtures, order);
   let next = Number(start) || 1;
