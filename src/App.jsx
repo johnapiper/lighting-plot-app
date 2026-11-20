@@ -38,7 +38,7 @@ import ConfirmHost, { confirmDialog } from './components/ConfirmDialog';
 import ModalA11y from './components/ModalA11y';
 import PanelSplitter, { usePanelWidth } from './components/PanelSplitter';
 import Icon from './components/Icon';
-import { LABEL_MODES } from './canvas/Canvas';
+import { LABEL_MODES } from './canvas/canvasHelpers';
 import { mirrorObject, translateObject, rotateObject, offsetObject, cloneWithId, objectBounds } from './canvas/transforms';
 import { calcCircuitLoad } from './cabling/ratings';
 import { calcCableRoute } from './cabling/routing';
@@ -50,56 +50,14 @@ import fixtureTypesData from '../data/fixtures.json';
 import { generateId } from './canvas/geometry';
 import { parseDmx, syncFields, footprintOf as footprintOfFx, findFreeAddress as findFreeAddr, planSequentialPatch } from './patch/dmx';
 import { exportMVR } from './mvr/mvrExport';
-import { parseDXF, dxfToDrawingObjects, countObjects } from './dxf/dxfReader';
-import { exportDXF } from './dxf/dxfWriter';
-import { buildEosPatchTxt } from './console/eosExport';
-import { layoutMagicSheet, magicSheetCsv, renderMagicSheetPng } from './console/magicSheet';
+import { useExports } from './hooks/useExports';
+import { useAutosaveWriter } from './hooks/useAutosaveWriter';
+import { useTheme } from './hooks/useTheme';
+import { readTextFile, readBinaryFile, renderPdfToDataUrl } from './files';
+import { getAllObjectsFromDrawing, setGroupIdInDrawing } from './canvas/groups';
 import { importMVR } from './mvr/mvrImport';
 import { ipcRenderer } from './bridge';
 
-
-// ── File reads (through the main process; the renderer has no fs) ──────────
-async function readTextFile(fp) {
-  const r = await ipcRenderer.invoke('read-file', { filePath: fp });
-  if (!r?.ok) throw new Error(r?.reason || 'Could not read file');
-  return r.text;
-}
-async function readBinaryFile(fp) {
-  const r = await ipcRenderer.invoke('read-file', { filePath: fp, binary: true });
-  if (!r?.ok) throw new Error(r?.reason || 'Could not read file');
-  return r.buffer;
-}
-
-// ── PDF render ─────────────────────────────────────────────────────────────
-// Uses pdfjs-dist v4 (compatible with Electron 31 / Chromium 126). The main process
-// tells us where pdf.js lives; it is then imported by file URL.
-async function renderPdfToDataUrl(pdfDataUrl) {
-  const paths = await ipcRenderer.invoke('pdfjs-paths');
-  const pdfjsLib = await new Function('p', 'return import(p)')(paths.pdfjs);
-  pdfjsLib.GlobalWorkerOptions.workerSrc = paths.worker;
-  const raw = atob(pdfDataUrl.split(',')[1]);
-  const bytes = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-  const page = await pdf.getPage(1);
-  const viewport = page.getViewport({ scale: 2 });
-  const canvas = document.createElement('canvas');
-  canvas.width = viewport.width; canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-  return { dataUrl: canvas.toDataURL('image/png'), w: viewport.width / 2, h: viewport.height / 2 };
-}
-
-// ── Group helpers ─────────────────────────────────────────────────────────
-function getAllObjectsFromDrawing(d) {
-  return [...(d.fixtures||[]), ...(d.pipes||[]), ...(d.lines||[]),
-          ...(d.rectangles||[]), ...(d.texts||[]), ...(d.images||[])];
-}
-function setGroupIdInDrawing(d, ids, groupId) {
-  const idSet = new Set(ids);
-  ['fixtures','pipes','lines','rectangles','texts','images'].forEach(arr => {
-    (d[arr]||[]).forEach(obj => { if (idSet.has(obj.id)) { if (groupId) obj.groupId = groupId; else delete obj.groupId; } });
-  });
-}
 
 export default function AppWithLicense() {
   return (
@@ -204,6 +162,8 @@ function App() {
   // ── Permission shortcuts ─────────────────────────────────────────────────
   const canEditCanvas = !!license?.hasFeature('cad_edit');
   const canUseLibrary = !!license?.hasFeature('fixture_library');
+  const { handleExportPNG, handleExportSVG, handleExportDXF, handleImportDXF, handleExportEosPatch, handleExportMagicSheet } =
+    useExports({ project, activeDrawing, commit, canEditCanvas, fitViewRef });
 
   // In trial mode everything is temporary: no save / load / export / import.
   const isTrial    = !!license?.trial;
@@ -418,18 +378,7 @@ function App() {
     });
   }, []);
 
-  // ── Theme ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
-    const apply = () => {
-      const eff = theme === 'system' ? (mq?.matches ? 'light' : 'dark') : theme;
-      document.documentElement.dataset.theme = eff;
-    };
-    apply();
-    if (theme !== 'system' || !mq) return;
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, [theme]);
+  useTheme(theme);
   function changeTheme(t) { setTheme(t); ipcRenderer?.invoke('set-pref', 'theme', t); }
   function changeWelcomeEnabled(v) { setWelcomeEnabled(v); ipcRenderer?.invoke('set-pref', 'showWelcome', v); }
   function changeLabelMode(m) { setLabelMode(m); try { localStorage.setItem('lplot-label-mode', m); } catch {} }
@@ -446,19 +395,7 @@ function App() {
     ipcRenderer?.invoke('autosave-clear');
   }
 
-  // ── Auto-save: ~5 s after the last change, while there are unsaved edits ─
-  useEffect(() => {
-    // No persistence in trial mode — everything stays temporary. Paused while a
-    // recovery decision is pending so it can't overwrite the recovered copy.
-    if (isTrial || !autoSaveEnabled || !ipcRenderer || !license?.hasFeature('auto_save') || !dirty || recovery) return;
-    const id = setTimeout(() => {
-      ipcRenderer.invoke('autosave-write', JSON.stringify({
-        autosaveVersion: 2, savedAt: new Date().toISOString(), currentFile, project,
-      }));
-    }, 5000);
-    return () => clearTimeout(id);
-  }, [project, dirty, currentFile, autoSaveEnabled, license, recovery]);
-
+  useAutosaveWriter({ project, dirty, currentFile, enabled: autoSaveEnabled, canAutoSave: !!license?.hasFeature('auto_save'), isTrial, recovery });
 
   function clearSelection() { setSelectedId(null); setSelectedObj(null); setSelectedIds([]); }
   function handleSave() { saveInteractive(); }
@@ -673,75 +610,6 @@ function App() {
     }, label || `Edit ${updates.length} fixtures`);
   }
 
-  // ── DXF exchange ──────────────────────────────────────────────────────────
-  async function handleExportDXF() {
-    if (!ipcRenderer || !activeDrawing) return;
-    const title = (project.meta?.title || 'lighting-plot').replace(/[\\/:*?"<>|]/g, '-');
-    const r = await ipcRenderer.invoke('export-file', {
-      filters: [{ name: 'DXF Drawing', extensions: ['dxf'] }],
-      defaultPath: `${title}.dxf`,
-      text: exportDXF(activeDrawing, project.layers || []),
-    });
-    if (r?.ok) toast(`Exported DXF (millimetres) — ${r.filePath.split(/[\\/]/).pop()}`, 'success');
-    else if (r && !r.canceled) toast(`DXF export failed: ${r.reason}`, 'error');
-  }
-
-  async function handleImportDXF() {
-    if (!ipcRenderer || !activeDrawing) return;
-    if (!canEditCanvas) { toast('Plot is locked or read-only.', 'warn'); return; }
-    const r = await ipcRenderer.invoke('import-file', { filters: [{ name: 'DXF Drawing', extensions: ['dxf'] }] });
-    if (!r?.ok) { if (r && !r.canceled) toast(`Could not read DXF: ${r.reason}`, 'error'); return; }
-    let parsed, objs, n;
-    try {
-      parsed = parseDXF(r.text);
-      objs = dxfToDrawingObjects(parsed, { layerId: 'layer-dxf', newId: generateId });
-      n = countObjects(objs);
-    } catch (err) { toast(`Could not parse DXF: ${err.message}`, 'error'); return; }
-    if (!n) { toast('No supported geometry found in that DXF (binary DXF and DWG are not supported).', 'warn'); return; }
-    commit(proj => {
-      if (!(proj.layers || []).some(l => l.id === 'layer-dxf')) {
-        proj.layers = [...(proj.layers || []), { id: 'layer-dxf', name: 'DXF Import', color: '#9aa5b1', visible: true, locked: false }];
-      }
-      const d = proj.drawings.find(d => d.id === proj.activeDrawingId);
-      ['lines', 'circles', 'arcs', 'polylines', 'texts'].forEach(k => { d[k] = [...(d[k] || []), ...objs[k]]; });
-      return proj;
-    }, `Import DXF (${n} objects)`);
-    const skipped = Object.entries(parsed.skipped).map(([k, v]) => `${v} ${k}`).join(', ');
-    const unitNote = parsed.unitsKnown ? `units: ${parsed.unitName}` : 'no units in file — assumed millimetres';
-    toast(`Imported ${n} objects from ${r.name} (${unitNote})${skipped ? `. Skipped: ${skipped}` : ''}`, parsed.unitsKnown ? 'success' : 'warn', { duration: 8000 });
-    setTimeout(() => fitViewRef.current?.(), 50);
-  }
-
-  // ── Console exports (ETC Eos) ──────────────────────────────────────────────
-  const exportBaseName = () => (project.meta?.title || 'lighting-plot').replace(/[\\/:*?"<>|]/g, '-');
-
-  async function handleExportEosPatch() {
-    if (!ipcRenderer || !activeDrawing) return;
-    const { text, exported, skipped } = buildEosPatchTxt(activeDrawing.fixtures || []);
-    if (!exported) { toast('No patched fixtures to export — give fixtures a channel or DMX address first.', 'warn'); return; }
-    const r = await ipcRenderer.invoke('export-file', {
-      filters: [{ name: 'Eos / Lightwright text', extensions: ['txt'] }],
-      defaultPath: `${exportBaseName()} - Eos patch.txt`, text,
-    });
-    if (r?.ok) toast(`Exported ${exported} fixtures${skipped ? ` (${skipped} unpatched left out)` : ''}. On the console: File > Import > Lightwright.`, 'success', { duration: 9000 });
-    else if (r && !r.canceled) toast(`Export failed: ${r.reason}`, 'error');
-  }
-
-  async function handleExportMagicSheet() {
-    if (!ipcRenderer || !activeDrawing) return;
-    const layout = layoutMagicSheet(activeDrawing);
-    if (layout.empty) { toast('Nothing to export — add fixtures to the plot first.', 'warn'); return; }
-    const png = renderMagicSheetPng(layout);
-    const r = await ipcRenderer.invoke('export-file', {
-      filters: [{ name: 'PNG Image', extensions: ['png'] }],
-      defaultPath: `${exportBaseName()} - Magic Sheet.png`,
-      base64: png.replace(/^data:image\/png;base64,/, ''),
-      siblings: [{ ext: '.csv', text: magicSheetCsv(layout) }],
-    });
-    if (r?.ok) toast(`Saved ${layout.width}×${layout.height} Magic Sheet image plus a button-position CSV. In Eos: Magic Sheet editor > Image > Import.`, 'success', { duration: 10000 });
-    else if (r && !r.canceled) toast(`Export failed: ${r.reason}`, 'error');
-  }
-
   // ── Click-to-number ──────────────────────────────────────────────────────
   function toggleNumbering() {
     if (numbering) { setNumbering(null); return; }
@@ -871,20 +739,6 @@ function App() {
   }
 
   // ── Export ────────────────────────────────────────────────────────────────
-  function handleExportPNG() {
-    const svg = document.querySelector('svg[data-plot-canvas]'); if (!svg || !ipcRenderer) return;
-    const data = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    canvas.width = svg.clientWidth*2; canvas.height = svg.clientHeight*2;
-    const img = new Image();
-    img.onload = () => { canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height); ipcRenderer.send('export-png', canvas.toDataURL('image/png')); };
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(data)));
-  }
-  function handleExportSVG() {
-    const svg = document.querySelector('svg[data-plot-canvas]'); if (!svg || !ipcRenderer) return;
-    ipcRenderer.send('export-svg', new XMLSerializer().serializeToString(svg));
-  }
-
   // ── Layers ────────────────────────────────────────────────────────────────
   function handleUpdateLayer(id, fields) { commit(proj => { const l=(proj.layers||[]).find(l=>l.id===id); if(l) Object.assign(l,fields); return proj; }); }
   function handleAddLayer(layer) { commit(proj => { if(!proj.layers) proj.layers=[]; proj.layers.push(layer); return proj; }, 'Add layer'); }
