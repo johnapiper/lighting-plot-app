@@ -58,16 +58,25 @@ import { importMVR } from './mvr/mvrImport';
 import { ipcRenderer } from './bridge';
 
 
+// ── File reads (through the main process; the renderer has no fs) ──────────
+async function readTextFile(fp) {
+  const r = await ipcRenderer.invoke('read-file', { filePath: fp });
+  if (!r?.ok) throw new Error(r?.reason || 'Could not read file');
+  return r.text;
+}
+async function readBinaryFile(fp) {
+  const r = await ipcRenderer.invoke('read-file', { filePath: fp, binary: true });
+  if (!r?.ok) throw new Error(r?.reason || 'Could not read file');
+  return r.buffer;
+}
+
 // ── PDF render ─────────────────────────────────────────────────────────────
-// Uses pdfjs-dist v4 (compatible with Electron 31 / Chromium 126).
+// Uses pdfjs-dist v4 (compatible with Electron 31 / Chromium 126). The main process
+// tells us where pdf.js lives; it is then imported by file URL.
 async function renderPdfToDataUrl(pdfDataUrl) {
-  const path = require('path');
-  const pdfDistDir = path.dirname(require.resolve('pdfjs-dist/package.json'));
-  const pdfjsPath  = path.join(pdfDistDir, 'build/pdf.mjs');
-  const workerPath = path.join(pdfDistDir, 'build/pdf.worker.mjs');
-  const toFileUrl  = p => 'file:///' + p.replace(/\\/g, '/');
-  const pdfjsLib = await new Function('p', 'return import(p)')(toFileUrl(pdfjsPath));
-  pdfjsLib.GlobalWorkerOptions.workerSrc = toFileUrl(workerPath);
+  const paths = await ipcRenderer.invoke('pdfjs-paths');
+  const pdfjsLib = await new Function('p', 'return import(p)')(paths.pdfjs);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = paths.worker;
   const raw = atob(pdfDataUrl.split(',')[1]);
   const bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -272,11 +281,9 @@ function App() {
         if (!(await guardUnsaved())) return;
         try {
           if (fp.toLowerCase().endsWith('.mvr')) {
-            const buf = require('fs').readFileSync(fp);
-            const proj = await importMVR(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
-            openProject(proj, fp);
+            openProject(await importMVR(await readBinaryFile(fp)), fp);
           } else {
-            openProject(JSON.parse(require('fs').readFileSync(fp, 'utf8')), fp);
+            openProject(JSON.parse(await readTextFile(fp)), fp);
           }
         } catch (err) { toast('Could not open: ' + err.message, 'error'); }
       },
@@ -1147,10 +1154,9 @@ function App() {
     try {
       if (fp.toLowerCase().endsWith('.mvr')) {
         if (!requireFeature('mvr_import', 'MVR import')) return;
-        const buf = require('fs').readFileSync(fp);
-        openProject(await importMVR(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), fp);
+        openProject(await importMVR(await readBinaryFile(fp)), fp);
       } else {
-        openProject(JSON.parse(require('fs').readFileSync(fp, 'utf8')), fp);
+        openProject(JSON.parse(await readTextFile(fp)), fp);
       }
       setShowWelcome(false);
     } catch (err) { toast('Could not open: ' + err.message, 'error'); }
