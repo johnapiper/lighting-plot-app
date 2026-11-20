@@ -29,6 +29,7 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 - Pipes, trusses, lines, rectangles, and text labels
 - Fixtures snap and hang onto pipes — move the pipe and the rig follows
 - Rotation, scale, and symbol/colour overrides per fixture
+- 3D view with beam cones and floor pools from each fixture's beam angle, tilt and rotation
 - Layer system — colour-coded, lockable, toggleable visibility
 - Scale calibration against PDF backgrounds
 - Group objects and move them together
@@ -39,6 +40,7 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 - False-scale watermark when display scale doesn't match print scale
 - Title block, annotations with arrows, text boxes, fixture legend
 - Print via native print preview
+- Export the current sheet, or **all sheets into one multi-page vector PDF** (mixed paper sizes)
 
 ### Cabling
 - Place PDUs, DMX nodes, network switches, and floor boxes
@@ -52,11 +54,14 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 
 ### DMX & Reports
 - Full DMX patch panel with conflict detection
+- **Auto-number & Patch** rules: order (reading / by position / left→right), restart per pipe, gaps, a universe per pipe, routing around existing patch — with a live preview and one undo step
 - Instrument Schedule, Channel Hookup, Dimmer Schedule
 - CSV export for all reports
 
 ### File Formats
-- Native `.lightplot` project files
+- Native `.lightplot` project files, with a rolling backup (last 10 saves, beside the project) and a schema version so older builds warn on newer files
+- DXF import and export (lines, polylines, arcs, circles, ellipses, splines, text, nested blocks, unit scaling)
+- **ETC Eos**: export the patch as a Lightwright-format `.txt` (File ▸ Import ▸ Lightwright on the console), and export a **Magic Sheet background image** (≤ 1920 px) plus a CSV of button positions
 - MVR (My Virtual Rig) export and import
 - PDF background import, PNG / SVG export
 
@@ -111,6 +116,10 @@ npm run dev
 
 # Build and run
 npm start
+
+# Tests (Vitest) and lint (ESLint) — both run in CI
+npm test
+npm run lint
 ```
 
 ### Build an installer locally
@@ -144,15 +153,23 @@ This bumps the version, builds the installer, commits, tags, pushes to GitHub, a
 
 ```
 lighting-plot-app/
-├── main.js                  # Electron main process
+├── main.js                  # Electron main process (IPC handlers, menus, updater)
+├── preload.js               # The only bridge between the sandboxed renderer and main
+├── lib/                     # Main-process modules (rolling backups, PDF export)
 ├── src/
 │   ├── App.jsx              # Root React component
-│   ├── canvas/              # SVG CAD canvas + layers
+│   ├── bridge.js            # Renderer-side shim over the preload bridge
+│   ├── canvas/              # SVG CAD canvas, snapping, transforms, beam geometry
 │   ├── cabling/             # Cable routing + load calculations
 │   ├── components/          # UI panels and modals
+│   ├── console/             # Eos patch + Magic Sheet export
+│   ├── dxf/                 # DXF reader / writer
 │   ├── fixtures/            # Fixture symbol rendering
+│   ├── hooks/               # Extracted App hooks (exports, autosave, theme)
 │   ├── mvr/                 # MVR export / import
-│   └── store/               # Project state (Immer-backed undo stack)
+│   ├── patch/               # DMX helpers + auto-number / auto-patch rules
+│   └── store/               # Project model, migration, undo stack
+├── tests/                   # Vitest suites (pure logic, IPC allow-list sync)
 ├── data/
 │   └── fixtures.json        # Built-in fixture type library
 ├── assets/                  # App icons and macOS entitlements
