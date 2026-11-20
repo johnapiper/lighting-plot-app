@@ -157,7 +157,7 @@ export const SYMBOL_CATALOGUE = [
 
   // Floods / scoops / cycs
   { id: 'Scoop', label: 'Scoop',
-    symbol: line(0, -23, 0, -15) + path('M-14,-2 A14,14 0 0 0 14,-2', 1.6) + line(-14, -2, 14, -2, 1.6) +
+    symbol: line(0, -23, 0, -2) + path('M-14,-2 A14,14 0 0 0 14,-2', 1.6) + line(-14, -2, 14, -2, 1.6) +
             path('M-9,-2 A9,9 0 0 0 9,-2', 0.9) + dot(0, -2, 1.8),
     symbolViewBox: '-18 -25 36 44' },
   { id: 'Flood', label: 'Flood / Blinder',
