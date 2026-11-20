@@ -52,6 +52,8 @@ import { parseDmx, syncFields, footprintOf as footprintOfFx, findFreeAddress as 
 import { exportMVR } from './mvr/mvrExport';
 import { parseDXF, dxfToDrawingObjects, countObjects } from './dxf/dxfReader';
 import { exportDXF } from './dxf/dxfWriter';
+import { buildEosPatchTxt } from './console/eosExport';
+import { layoutMagicSheet, magicSheetCsv, renderMagicSheetPng } from './console/magicSheet';
 import { importMVR } from './mvr/mvrImport';
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
@@ -289,6 +291,8 @@ function App() {
       'menu-export-svg':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportSVG(); },
       'menu-export-dxf':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportDXF(); },
       'menu-import-dxf':    () => { if (blockIfTrial()) return; if (requireFeature('pdf_background', 'DXF import')) handleImportDXF(); },
+      'menu-export-eos-patch':   () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportEosPatch(); },
+      'menu-export-magic-sheet': () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportMagicSheet(); },
       'menu-report-instrument': () => { if (requireFeature('reports', 'reports')) setReport({ type: 'instrument' }); },
       'menu-report-channel':    () => { if (requireFeature('reports', 'reports')) setReport({ type: 'channel' }); },
       'pdf-opened':   (e, { dataUrl }) => license?.hasFeature('pdf_background') ? handlePdfData(dataUrl) : null,
@@ -699,6 +703,36 @@ function App() {
     const unitNote = parsed.unitsKnown ? `units: ${parsed.unitName}` : 'no units in file — assumed millimetres';
     toast(`Imported ${n} objects from ${r.name} (${unitNote})${skipped ? `. Skipped: ${skipped}` : ''}`, parsed.unitsKnown ? 'success' : 'warn', { duration: 8000 });
     setTimeout(() => fitViewRef.current?.(), 50);
+  }
+
+  // ── Console exports (ETC Eos) ──────────────────────────────────────────────
+  const exportBaseName = () => (project.meta?.title || 'lighting-plot').replace(/[\\/:*?"<>|]/g, '-');
+
+  async function handleExportEosPatch() {
+    if (!ipcRenderer || !activeDrawing) return;
+    const { text, exported, skipped } = buildEosPatchTxt(activeDrawing.fixtures || []);
+    if (!exported) { toast('No patched fixtures to export — give fixtures a channel or DMX address first.', 'warn'); return; }
+    const r = await ipcRenderer.invoke('export-file', {
+      filters: [{ name: 'Eos / Lightwright text', extensions: ['txt'] }],
+      defaultPath: `${exportBaseName()} - Eos patch.txt`, text,
+    });
+    if (r?.ok) toast(`Exported ${exported} fixtures${skipped ? ` (${skipped} unpatched left out)` : ''}. On the console: File > Import > Lightwright.`, 'success', { duration: 9000 });
+    else if (r && !r.canceled) toast(`Export failed: ${r.reason}`, 'error');
+  }
+
+  async function handleExportMagicSheet() {
+    if (!ipcRenderer || !activeDrawing) return;
+    const layout = layoutMagicSheet(activeDrawing);
+    if (layout.empty) { toast('Nothing to export — add fixtures to the plot first.', 'warn'); return; }
+    const png = renderMagicSheetPng(layout);
+    const r = await ipcRenderer.invoke('export-file', {
+      filters: [{ name: 'PNG Image', extensions: ['png'] }],
+      defaultPath: `${exportBaseName()} - Magic Sheet.png`,
+      base64: png.replace(/^data:image\/png;base64,/, ''),
+      siblings: [{ ext: '.csv', text: magicSheetCsv(layout) }],
+    });
+    if (r?.ok) toast(`Saved ${layout.width}×${layout.height} Magic Sheet image plus a button-position CSV. In Eos: Magic Sheet editor > Image > Import.`, 'success', { duration: 10000 });
+    else if (r && !r.canceled) toast(`Export failed: ${r.reason}`, 'error');
   }
 
   // ── Click-to-number ──────────────────────────────────────────────────────
@@ -1139,6 +1173,8 @@ function App() {
     { id: 'saveas', group: 'File', label: 'Save as…', shortcut: 'Ctrl+Shift+S', disabled: isTrial, run: () => ipcRenderer?.send('save-as-request') },
     { id: 'export-dxf', group: 'File', label: 'Export DXF…', keywords: 'cad autocad vectorworks', disabled: isTrial, run: handleExportDXF },
     { id: 'import-dxf', group: 'File', label: 'Import DXF…', keywords: 'cad autocad vectorworks floorplan background', disabled: isTrial || !canEditCanvas, run: handleImportDXF },
+    { id: 'export-eos-patch', group: 'File', label: 'Export patch for Eos (.txt)…', keywords: 'etc console lightwright import channel', disabled: isTrial, run: handleExportEosPatch },
+    { id: 'export-magic-sheet', group: 'File', label: 'Export Magic Sheet image for Eos…', keywords: 'etc console background png button layout', disabled: isTrial, run: handleExportMagicSheet },
     { id: 'open-backups', group: 'File', label: 'Open backups folder', run: async () => {
         const r = await ipcRenderer?.invoke('backups-open', currentFile);
         if (!r?.ok) toast(r?.reason === 'unsaved' ? 'Save the project first — backups are kept next to the saved file.' : 'No backups yet. A backup of the previous version is made when you save over an existing file.', 'info');

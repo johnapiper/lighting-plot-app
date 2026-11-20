@@ -109,6 +109,8 @@ function buildMenu() {
         { ...gated('Import MVR…', 'mvr_import'), click: menuOpenMVR },
         { ...gated('Export DXF…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-dxf') },
         { ...gated('Import DXF…', 'pdf_background'), click: () => mainWindow.webContents.send('menu-import-dxf') },
+        { ...gated('Export Patch for Eos (.txt)…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-eos-patch') },
+        { ...gated('Export Magic Sheet Image for Eos…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-magic-sheet') },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -555,13 +557,20 @@ ipcMain.handle('print-sheet', async (event, { html }) => {
 });
 
 // Generic save / open helpers used by the text-based exchange formats (DXF, console CSV/ASCII, …).
-ipcMain.handle('export-file', async (event, { filters, defaultPath, text, base64 }) => {
+// `siblings` = [{ ext: '.csv', text }] are written next to the chosen file with the same base name.
+ipcMain.handle('export-file', async (event, { filters, defaultPath, text, base64, siblings }) => {
   const result = await dialog.showSaveDialog(mainWindow, { filters, defaultPath });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
   try {
     if (base64 != null) fs.writeFileSync(result.filePath, Buffer.from(base64, 'base64'));
     else fs.writeFileSync(result.filePath, text ?? '', 'utf8');
-    return { ok: true, filePath: result.filePath };
+    const extra = [];
+    for (const sib of siblings || []) {
+      const sp = path.join(path.dirname(result.filePath), path.basename(result.filePath, path.extname(result.filePath)) + sib.ext);
+      fs.writeFileSync(sp, sib.text ?? '', 'utf8');
+      extra.push(sp);
+    }
+    return { ok: true, filePath: result.filePath, siblings: extra };
   } catch (e) { return { ok: false, reason: e.message }; }
 });
 
