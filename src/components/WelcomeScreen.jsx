@@ -27,8 +27,11 @@ export default function WelcomeScreen({ onClose, onNew, onOpen, onOpenRecent, on
 
   useEffect(() => {
     if (!ipcRenderer) { setRecent([]); return; }
-    ipcRenderer.invoke('get-pref', 'recentFiles').then(list => {
-      setRecent((list || []).map(fp => ({ fp, name: fp.split(/[\\/]/).pop(), dir: fp.replace(/[\\/][^\\/]*$/, ''), ...fileInfo(fp) })));
+    ipcRenderer.invoke('get-pref', 'recentFiles').then(async list => {
+      const rows = await Promise.all((list || []).map(async fp => ({
+        fp, name: fp.split(/[\\/]/).pop(), dir: fp.replace(/[\\/][^\\/]*$/, ''), ...(await fileInfo(fp)),
+      })));
+      setRecent(rows);
     }).catch(() => setRecent([]));
   }, []);
 
