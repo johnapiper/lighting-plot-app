@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
+const { backupBeforeSave, backupDirFor, DEFAULT_KEEP } = require('./lib/backups');
 
 // electron-store v9+ is ESM-only, so require() throws ERR_REQUIRE_ESM — load it
 // with a dynamic import instead. The window is created only after this settles
@@ -237,6 +238,9 @@ async function menuOpenMVR() {
 }
 
 ipcMain.on('save-data', (event, { filePath, data }) => {
+  // Keep the previous version as a rolling backup before overwriting it (never blocks the save).
+  const keep = store?.get('backupCount');
+  backupBeforeSave(filePath, { keep: typeof keep === 'number' ? keep : DEFAULT_KEEP });
   fs.writeFileSync(filePath, data, 'utf8');
   addRecentFile(filePath);
   mainWindow.setTitle(`Lighting Plot — ${path.basename(filePath)}`);
@@ -305,6 +309,15 @@ ipcMain.on('export-csv', async (event, { filename, csv }) => {
   if (!result.canceled && result.filePath) {
     fs.writeFileSync(result.filePath, csv, 'utf8');
   }
+});
+
+// Reveal the backup folder for a project file (creates nothing if no backups exist yet).
+ipcMain.handle('backups-open', async (e, filePath) => {
+  if (!filePath) return { ok: false, reason: 'unsaved' };
+  const dir = backupDirFor(filePath);
+  if (!fs.existsSync(dir)) return { ok: false, reason: 'none' };
+  await shell.openPath(dir);
+  return { ok: true };
 });
 
 ipcMain.on('save-mvr-data', (event, { filePath, buffer }) => {

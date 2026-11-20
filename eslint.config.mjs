@@ -37,7 +37,7 @@ export default [
 
   // Main process + build scripts (CommonJS / Node)
   {
-    files: ['main.js', 'scripts/**/*.{js,mjs}', 'webpack.config.js'],
+    files: ['main.js', 'lib/**/*.js', 'preload.js', 'scripts/**/*.{js,mjs}', 'webpack.config.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'commonjs', globals: { ...globals.node } },
     rules: { 'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none' }], 'no-empty': ['warn', { allowEmptyCatch: true }] },
   },

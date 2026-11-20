@@ -1092,6 +1092,10 @@ function App() {
     { id: 'open', group: 'File', label: 'Open…', shortcut: 'Ctrl+O', disabled: isTrial, run: () => ipcRenderer?.send('open-request') },
     { id: 'save', group: 'File', label: 'Save', shortcut: 'Ctrl+S', disabled: isTrial, run: handleSave },
     { id: 'saveas', group: 'File', label: 'Save as…', shortcut: 'Ctrl+Shift+S', disabled: isTrial, run: () => ipcRenderer?.send('save-as-request') },
+    { id: 'open-backups', group: 'File', label: 'Open backups folder', run: async () => {
+        const r = await ipcRenderer?.invoke('backups-open', currentFile);
+        if (!r?.ok) toast(r?.reason === 'unsaved' ? 'Save the project first — backups are kept next to the saved file.' : 'No backups yet. A backup of the previous version is made when you save over an existing file.', 'info');
+      } },
     { id: 'welcome', group: 'File', label: 'Show welcome screen / recent files', run: () => setShowWelcome(true) },
     lockedCmd('mvr_export', { id: 'export-png', group: 'File', label: 'Export PNG…', keywords: 'image', disabled: isTrial || !inCanvas, run: handleExportPNG }),
     lockedCmd('mvr_export', { id: 'export-svg', group: 'File', label: 'Export SVG…', keywords: 'vector', disabled: isTrial || !inCanvas, run: handleExportSVG }),
