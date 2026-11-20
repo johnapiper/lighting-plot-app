@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { beamFootprint, footprintPolygon } from '../canvas/beam';
 
 // Lightweight orthographic 3D model viewer (MVR-style). Renders the rig — pipes,
 // trusses, fixtures, infrastructure — in true 3D and lets the user orbit, pan and
@@ -59,18 +60,31 @@ export default function Viewer3D({ drawing, fixtureTypes = [], meta = {}, onClos
       const p = f.pipeId ? pipes.find(pp => pp.id === f.pipeId) : null;
       const z = p ? pipeZ(p) : rigHeight;
       acc(f.x, f.y, z);
-      items.push({ type: 'fixture', pos: { x: f.x, y: f.y, z }, color: f.colourHex || '#ffd24a', rot: f.rotation || 0, tilt: f.tiltAngle || 0 });
+      const ftype = fixtureTypes.find(t => t.id === f.fixtureTypeId);
+      const fp = beamFootprint({ beamDeg: f.beamAngle ?? ftype?.beamAngle, tiltDeg: f.tiltAngle ?? 0, rotationDeg: f.rotation || 0, height: z });
+      const color = f.colourHex && f.colourHex !== 'null' ? f.colourHex : '#ffd24a';
+      items.push({
+        type: 'fixture', pos: { x: f.x, y: f.y, z }, color, rot: f.rotation || 0, tilt: f.tiltAngle || 0,
+        pool: fp ? footprintPolygon(fp, 28).map(q => ({ x: f.x + q.x, y: f.y + q.y })) : null,
+        coneEdges: fp ? [
+          { x: f.x + fp.cx + fp.dirX * fp.rMajor, y: f.y + fp.cy + fp.dirY * fp.rMajor },
+          { x: f.x + fp.cx - fp.dirX * fp.rMajor, y: f.y + fp.cy - fp.dirY * fp.rMajor },
+          { x: f.x + fp.cx - fp.dirY * fp.rMinor, y: f.y + fp.cy + fp.dirX * fp.rMinor },
+          { x: f.x + fp.cx + fp.dirY * fp.rMinor, y: f.y + fp.cy - fp.dirX * fp.rMinor },
+        ] : null,
+      });
     });
     infra.forEach(i => { acc(i.x, i.y, 0); items.push({ type: 'infra', pos: { x: i.x, y: i.y, z: 0 } }); });
     if (!isFinite(minX)) { minX = -2000; maxX = 2000; minY = -2000; maxY = 2000; }
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
     const span = Math.max(maxX - minX, maxY - minY, maxZ, 2000);
     return { items, center: { x: cx, y: cy, z: 0 }, span, maxZ, bounds: { minX, maxX, minY, maxY } };
-  }, [pipes, fixtures, infra, rigHeight]);
+  }, [pipes, fixtures, infra, rigHeight, fixtureTypes]);
 
   const fitScale = (0.62 * Math.min(W, H)) / model.span;
   const [cam, setCam] = useState(() => ({ az: PRESETS.iso.az, el: PRESETS.iso.el, scale: fitScale, cx: W / 2, cy: H / 2 + 40 }));
   const drag = useRef(null);
+  const [showBeams, setShowBeams] = useState(true);
 
   const fit = useCallback((preset) => {
     setCam(c => ({ ...c, ...(preset ? PRESETS[preset] : {}), scale: fitScale, cx: W / 2, cy: H / 2 + 40 }));
@@ -143,11 +157,21 @@ export default function Viewer3D({ drawing, fixtureTypes = [], meta = {}, onClos
       const beamLen = 1200;
       const tip = P(it.pos.x, it.pos.y, Math.max(0, it.pos.z - beamLen));
       const r = 7;
+      // With a known beam angle (and "Beams" on) draw the real cone to a floor pool;
+      // otherwise fall back to a short aim line.
+      const trueBeam = showBeams && it.pool;
+      let poolEl = null, coneEls = null;
+      if (trueBeam) {
+        const pts = it.pool.map(q => P(q.x, q.y, 0));
+        poolEl = <polygon points={pts.map(q => `${q.x},${q.y}`).join(' ')} fill={it.color} fillOpacity={0.16} stroke={it.color} strokeOpacity={0.55} strokeWidth={1} />;
+        coneEls = it.coneEdges.map((e, k) => { const q = P(e.x, e.y, 0); return <line key={k} x1={top.x} y1={top.y} x2={q.x} y2={q.y} stroke={it.color} strokeOpacity={0.3} strokeWidth={1} />; });
+      }
+      if (poolEl) els.push({ depth: top.depth - 5e8, el: <g key={`fp${i}`}>{poolEl}</g> });
       els.push({
         depth: top.depth,
         el: (
           <g key={`f${i}`}>
-            <line x1={top.x} y1={top.y} x2={tip.x} y2={tip.y} stroke={it.color} strokeWidth={1.5} strokeOpacity={0.5} />
+            {coneEls || <line x1={top.x} y1={top.y} x2={tip.x} y2={tip.y} stroke={it.color} strokeWidth={1.5} strokeOpacity={0.5} />}
             <circle cx={top.x} cy={top.y} r={r} fill={it.color} stroke="#101820" strokeWidth={1.5} />
           </g>
         ),
@@ -168,6 +192,8 @@ export default function Viewer3D({ drawing, fixtureTypes = [], meta = {}, onClos
           <span style={styles.title}>🧊 3D Model View</span>
           <span style={styles.sub}>{counts}</span>
           <div style={{ flex: 1 }} />
+          <button style={{ ...styles.viewBtn, ...(showBeams ? { background: '#1b4a2a', borderColor: '#34d399', color: '#a7f3d0' } : {}) }}
+            onClick={() => setShowBeams(v => !v)} title="Show each fixture's beam cone and floor pool (uses beam angle, tilt and rotation)">Beams</button>
           {['iso', 'top', 'front', 'right', 'back'].map(v => (
             <button key={v} style={styles.viewBtn} onClick={() => fit(v)}>{v[0].toUpperCase() + v.slice(1)}</button>
           ))}
@@ -185,7 +211,7 @@ export default function Viewer3D({ drawing, fixtureTypes = [], meta = {}, onClos
           <AxisGizmo cam={cam} />
         </svg>
         <div style={styles.footer}>
-          Drag to orbit · Shift-drag (or middle/right-drag) to pan · Scroll to zoom · Heights from each pipe's “Height above stage”.
+          Beams use each fixture's beam angle, tilt and rotation. Drag to orbit · Shift-drag (or middle/right-drag) to pan · Scroll to zoom · Heights from each pipe's “Height above stage”.
         </div>
       </div>
     </div>
