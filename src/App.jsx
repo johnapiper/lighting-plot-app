@@ -671,7 +671,7 @@ function App() {
       defaultPath: `${title}.dxf`,
       text: exportDXF(activeDrawing, project.layers || []),
     });
-    if (r?.ok) toast(`Exported DXF (millimetres) — ${r.filePath.split(/[\/]/).pop()}`, 'success');
+    if (r?.ok) toast(`Exported DXF (millimetres) — ${r.filePath.split(/[\\/]/).pop()}`, 'success');
     else if (r && !r.canceled) toast(`DXF export failed: ${r.reason}`, 'error');
   }
 
