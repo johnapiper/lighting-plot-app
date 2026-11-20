@@ -36,14 +36,26 @@ function createWindow() {
     width: 1400,
     height: 900,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      // The renderer talks to the main process ONLY through the allow-listed bridge in
+      // preload.js — no Node.js in page context, so a malicious file or script can't reach it.
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
     },
     title: 'Lighting Plot',
     backgroundColor: '#1a1a2e',
   });
 
   mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+
+  // Never navigate the app window away from the bundled UI, and never open new
+  // Electron windows from page content — https links go to the system browser.
+  mainWindow.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file://')) e.preventDefault(); });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
 
   // Unsaved-changes guard: hand the decision to the renderer, which shows
   // Save / Don't Save / Cancel and replies with 'close-confirmed'.
@@ -582,6 +594,82 @@ ipcMain.handle('import-file', async (event, { filters }) => {
     return { ok: true, filePath, name: path.basename(filePath), text: fs.readFileSync(filePath, 'utf8') };
   } catch (e) { return { ok: false, reason: e.message }; }
 });
+
+// ── Services the renderer used to do with Node directly ─────────────────────
+// Read a project/MVR file the user opened (recent list, welcome screen). Only the
+// app's own file types are readable through this channel.
+const READABLE_EXT = new Set(['.lightplot', '.json', '.mvr']);
+ipcMain.handle('read-file', async (e, { filePath, binary }) => {
+  try {
+    if (!READABLE_EXT.has(path.extname(String(filePath)).toLowerCase())) return { ok: false, reason: 'Unsupported file type' };
+    const buf = fs.readFileSync(filePath);
+    return binary
+      ? { ok: true, buffer: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) }
+      : { ok: true, text: buf.toString('utf8') };
+  } catch (err) { return { ok: false, reason: err.message }; }
+});
+
+// Recent-file card info for the welcome screen.
+ipcMain.handle('file-info', async (e, filePath) => {
+  try {
+    if (!READABLE_EXT.has(path.extname(String(filePath)).toLowerCase())) return { exists: false };
+    const st = fs.statSync(filePath);
+    let fixtures = null, plots = null;
+    if (path.extname(filePath).toLowerCase() !== '.mvr' && st.size < 8 * 1024 * 1024) {
+      try {
+        const proj = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        fixtures = (proj.drawings || []).reduce((n, d) => n + (d.fixtures?.length || 0), 0);
+        plots = proj.drawings?.length || 0;
+      } catch {}
+    }
+    return { exists: true, mtimeMs: st.mtimeMs, fixtures, plots };
+  } catch { return { exists: false }; }
+});
+
+// https links only, to the system browser.
+ipcMain.handle('open-external', async (e, url) => {
+  if (!/^https:\/\//i.test(String(url))) return false;
+  await shell.openExternal(url);
+  return true;
+});
+
+// pdf.js lives in node_modules; the renderer imports it by file URL.
+ipcMain.handle('pdfjs-paths', () => {
+  const dir = path.dirname(require.resolve('pdfjs-dist/package.json'));
+  const toUrl = (p) => require('url').pathToFileURL(p).href;
+  return { pdfjs: toUrl(path.join(dir, 'build', 'pdf.mjs')), worker: toUrl(path.join(dir, 'build', 'pdf.worker.mjs')) };
+});
+
+// GDTF Share HTTP client (cookie jar lives here, in the main process).
+const GDTF_HOST = 'gdtf-share.com';
+let gdtfCookieJar = '';
+function gdtfCaptureCookies(res) {
+  const sc = res.headers['set-cookie'];
+  if (!sc) return;
+  const jar = {};
+  gdtfCookieJar.split(';').forEach(c => { const [k, v] = c.trim().split('='); if (k) jar[k.trim()] = v || ''; });
+  sc.forEach(c => { const [k, v] = c.split(';')[0].split('='); if (k) jar[k.trim()] = v || ''; });
+  gdtfCookieJar = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+ipcMain.handle('gdtf-http', (e, { method = 'GET', requestPath, json }) => new Promise((resolve) => {
+  if (typeof requestPath !== 'string' || !requestPath.startsWith('/')) return resolve({ ok: false, reason: 'bad path' });
+  const https = require('https');
+  const body = json !== undefined ? JSON.stringify(json) : null;
+  const headers = { Cookie: gdtfCookieJar };
+  if (body !== null) { headers['Content-Type'] = 'application/json'; headers['Content-Length'] = Buffer.byteLength(body); }
+  const req = https.request({ hostname: GDTF_HOST, path: requestPath, method: method === 'POST' ? 'POST' : 'GET', headers }, (res) => {
+    gdtfCaptureCookies(res);
+    const chunks = [];
+    res.on('data', c => chunks.push(c));
+    res.on('end', () => {
+      const buf = Buffer.concat(chunks);
+      resolve({ ok: true, status: res.statusCode, body: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) });
+    });
+  });
+  req.on('error', err => resolve({ ok: false, reason: err.message }));
+  if (body !== null) req.write(body);
+  req.end();
+}));
 
 // Export one or more sheets as a single multi-page vector PDF.
 ipcMain.handle('export-pdf', async (event, { pages, defaultName }) => {
