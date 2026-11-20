@@ -1,54 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { parseDmxStrict as parseDmx, validateDmx, findDmxConflicts } from '../patch/dmx';
 
-function parseDmx(str) {
-  if (!str) return null;
-  const parts = String(str).split('/');
-  if (parts.length !== 2) return null;
-  const u = parseInt(parts[0], 10);
-  const c = parseInt(parts[1], 10);
-  if (isNaN(u) || isNaN(c) || c < 1 || c > 512) return null;
-  return { universe: u, channel: c };
-}
-
-export function findDmxConflicts(fixtures) {
-  // Returns set of fixture IDs that have conflicts
-  const conflictIds = new Set();
-  const byUniverse = {};
-
-  for (const f of fixtures) {
-    const addr = parseDmx(f.dmxAddress);
-    if (!addr) continue;
-    const chCount = f.dmxChannelCount || 1;
-    const key = addr.universe;
-    if (!byUniverse[key]) byUniverse[key] = [];
-    byUniverse[key].push({ id: f.id, start: addr.channel, end: addr.channel + chCount - 1, name: f.type, unit: f.unit });
-  }
-
-  for (const u of Object.values(byUniverse)) {
-    for (let i = 0; i < u.length; i++) {
-      for (let j = i + 1; j < u.length; j++) {
-        if (u[i].start <= u[j].end && u[j].start <= u[i].end) {
-          conflictIds.add(u[i].id);
-          conflictIds.add(u[j].id);
-        }
-      }
-    }
-  }
-  return conflictIds;
-}
+export { findDmxConflicts };
 
 // ── Columns ───────────────────────────────────────────────────────────────
 // `edit` columns are text cells: committed on Enter / blur / Tab, pasteable.
-// Returns an error string for an invalid value, or null. Empty is always allowed.
-function validateDmx(raw) {
-  if (!raw) return null;
-  const p = String(raw).split('/');
-  const u = parseInt(p[0], 10), c = parseInt(p[1], 10);
-  if (p.length !== 2 || isNaN(u) || isNaN(c)) return 'Use Universe/Channel, e.g. 1/1';
-  if (u < 1) return 'Universe must be 1 or more';
-  if (c < 1 || c > 512) return 'Channel must be 1–512';
-  return null;
-}
 function normaliseDmx(raw) { const p = parseDmx(raw); return p ? `${p.universe}/${p.channel}` : ''; }
 
 const cmpNum = (a, b) => {

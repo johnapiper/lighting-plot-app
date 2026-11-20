@@ -122,6 +122,7 @@
     "html-webpack-plugin": "^5.6.7",
     "lucide-react": "^1.48.0",
     "style-loader": "^4.0.0",
+    "vitest": "^5.1.1",
     "webpack": "^5.107.2",
     "webpack-cli": "^7.0.3"
   },

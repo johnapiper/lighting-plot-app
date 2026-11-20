@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { parseDmx, validateDmx } from '../patch/dmx';
 
 function Field({ label, value, onChange, readOnly, type = 'text', placeholder, title, children }) {
   return (
@@ -87,24 +88,6 @@ function NumberField({ label, value, onCommit, min = -Infinity, max = Infinity, 
       {outOfRange && <div style={styles.errText}>Will be clamped to {min}–{max}</div>}
     </div>
   );
-}
-
-function parseDmx(str) {
-  if (!str) return null;
-  const parts = String(str).split('/');
-  if (parts.length !== 2) return null;
-  const u = parseInt(parts[0], 10), c = parseInt(parts[1], 10);
-  if (isNaN(u) || isNaN(c)) return null;
-  return { universe: u, channel: c };
-}
-
-function validateDmx(raw) {
-  if (!raw) return null;
-  const parsed = parseDmx(raw);
-  if (!parsed) return 'Use Universe/Channel, e.g. 1/1';
-  if (parsed.universe < 1) return 'Universe must be 1 or more';
-  if (parsed.channel < 1 || parsed.channel > 512) return 'Channel must be 1–512';
-  return null;
 }
 
 // DMX address: edited as a local draft, validated inline, committed on

@@ -47,35 +47,11 @@ import { findDmxConflicts } from './components/PatchPanel';
 import { compareVersions } from './license/licenseService';
 import fixtureTypesData from '../data/fixtures.json';
 import { generateId } from './canvas/geometry';
+import { parseDmx, syncFields, footprintOf as footprintOfFx, findFreeAddress as findFreeAddr, planSequentialPatch } from './patch/dmx';
 import { exportMVR } from './mvr/mvrExport';
 import { importMVR } from './mvr/mvrImport';
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
-
-// ── DMX ↔ Channel sync ────────────────────────────────────────────────────
-function parseDmx(str) {
-  if (!str) return null;
-  const parts = String(str).split('/');
-  if (parts.length !== 2) return null;
-  const u = parseInt(parts[0], 10), c = parseInt(parts[1], 10);
-  if (isNaN(u) || isNaN(c)) return null;
-  return { universe: u, channel: c };
-}
-function syncFields(fields, cur) {
-  const out = { ...fields };
-  if (fields.dmxAddress !== undefined) {
-    const p = parseDmx(fields.dmxAddress);
-    if (p) out.channel = String(p.channel);
-  }
-  if (fields.channel !== undefined && fields.dmxAddress === undefined) {
-    const ch = parseInt(fields.channel, 10);
-    if (!isNaN(ch) && ch >= 1 && ch <= 512) {
-      const ex = parseDmx(cur?.dmxAddress);
-      out.dmxAddress = `${ex?.universe || 1}/${ch}`;
-    }
-  }
-  return out;
-}
 
 // ── PDF render ─────────────────────────────────────────────────────────────
 // Uses pdfjs-dist v4 (compatible with Electron 31 / Chromium 126).
@@ -250,7 +226,8 @@ function App() {
   // Load a project that should count as "clean" (opened from disk / new).
   function openProject(proj, filePath) {
     suppressDirtyRef.current = true;
-    loadProject(proj); setCurrentFile(filePath || null); setDirty(false); clearSelection();
+    const status = loadProject(proj); setCurrentFile(filePath || null); setDirty(false); clearSelection();
+    if (status === 'newer') toast('This file was saved by a newer version of Lighting Plot. Some data may be ignored — update the app, and avoid saving over the original.', 'warn', { duration: 9000 });
   }
 
   // ── IPC ──────────────────────────────────────────────────────────────────
@@ -632,24 +609,13 @@ function App() {
     conflictCursorRef.current = (conflictCursorRef.current + 1) % byAddr.length;
     selectFixtureOnCanvas(byAddr[conflictCursorRef.current]);
   }
-  function footprintOf(f) {
-    const t = allFixtureTypes.find(t => t.id === f.fixtureTypeId);
-    const mode = t?.modes?.find(m => m.name === (f.dmxMode || t.defaultMode)) || t?.modes?.[0];
-    return f.dmxChannelCount || mode?.channelCount || (typeof t?.channels === 'number' ? t.channels : 0) || 1;
-  }
+  function footprintOf(f) { return footprintOfFx(f, allFixtureTypes); }
   // First gap that fits `size` channels, starting in `startUniverse`.
   function findFreeAddress(size, startUniverse, excludeIds = new Set(), extraTaken = []) {
-    const taken = {};
-    [...(activeDrawing?.fixtures || []).filter(f => !excludeIds.has(f.id)).map(f => {
+    const taken = [...(activeDrawing?.fixtures || []).filter(f => !excludeIds.has(f.id)).map(f => {
       const p = parseDmx(f.dmxAddress); return p && { u: p.universe, s: p.channel, e: p.channel + footprintOf(f) - 1 };
-    }), ...extraTaken].forEach(r => { if (r) (taken[r.u] = taken[r.u] || []).push(r); });
-    for (let u = startUniverse; u < startUniverse + 64; u++) {
-      const ranges = (taken[u] || []).sort((a, b) => a.s - b.s);
-      let c = 1;
-      for (const r of ranges) { if (c + size - 1 < r.s) break; c = Math.max(c, r.e + 1); }
-      if (c + size - 1 <= 512) return { universe: u, channel: c };
-    }
-    return null;
+    }), ...extraTaken];
+    return findFreeAddr(size, startUniverse, taken);
   }
   function handleAssignFreeAddress(id) {
     const f = activeDrawing?.fixtures?.find(f => f.id === id); if (!f) return;
@@ -673,14 +639,7 @@ function App() {
     const p = parseDmx(startAddr);
     if (!p || p.channel < 1 || p.channel > 512) { toast('Start address must be Universe/Channel, e.g. 1/1', 'error'); return; }
     const ordered = selectedFixturesInReadingOrder();
-    let u = p.universe, c = p.channel;
-    const assign = new Map();
-    for (const f of ordered) {
-      const size = footprintOf(f);
-      if (c + size - 1 > 512) { u++; c = 1; }
-      assign.set(f.id, `${u}/${c}`);
-      c += size;
-    }
+    const assign = planSequentialPatch(ordered, startAddr, footprintOf);
     commitToActiveDrawing(d => {
       (d.fixtures || []).forEach(f => { if (assign.has(f.id)) Object.assign(f, syncFields({ dmxAddress: assign.get(f.id) }, f)); });
     }, `Patch ${ordered.length} fixtures from ${startAddr}`);

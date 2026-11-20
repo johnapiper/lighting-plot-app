@@ -1,0 +1,193 @@
+import { generateId } from '../canvas/geometry';
+
+export const DEFAULT_LAYERS = [
+  { id: 'layer-bg',       name: 'Background',   color: '#4a5568', visible: true,  locked: false },
+  { id: 'layer-arch',     name: 'Architecture', color: '#607d8b', visible: true,  locked: false },
+  { id: 'layer-lighting', name: 'Lighting',     color: '#e0c060', visible: true,  locked: false },
+];
+
+// The Dimensions layer is auto-managed: it appears whenever any dimension exists
+// in the project and disappears when none remain. It is a system layer — the user
+// can toggle its visibility but cannot rename, lock, delete, or draw onto it.
+export const DIMENSIONS_LAYER_ID = 'layer-dimensions';
+
+export function syncDimensionsLayer(proj) {
+  if (!proj || !proj.drawings) return proj;
+  const hasDims = proj.drawings.some(d => (d.dimensions || []).length > 0);
+  const layers = proj.layers || [];
+  const existing = layers.find(l => l.id === DIMENSIONS_LAYER_ID);
+  if (hasDims && !existing) {
+    proj.layers = [...layers, {
+      id: DIMENSIONS_LAYER_ID, name: 'Dimensions', color: '#a0c0e0',
+      visible: true, locked: false, system: true,
+    }];
+  } else if (!hasDims && existing) {
+    proj.layers = layers.filter(l => l.id !== DIMENSIONS_LAYER_ID);
+    if (proj.activeLayerId === DIMENSIONS_LAYER_ID) proj.activeLayerId = 'layer-lighting';
+  }
+  return proj;
+}
+
+// ── CAD drawing / plot (model space) ────────────────────────────────────────
+// UI calls these "Plots" to distinguish from Drawing (sheet) mode.
+export function makeDrawing(id, name) {
+  return {
+    id:   id   || ('drawing-' + Math.random().toString(36).slice(2, 8)),
+    name: name || 'Plot 1',
+    pipes: [], fixtures: [], lines: [], rectangles: [],
+    circles: [], arcs: [], polylines: [],   // CAD curves
+    texts: [], images: [],
+    pdfBackground: null,
+    calibration: null,   // {p1,p2,worldDist,realDist,unit}
+    dimensions: [],      // dimension line annotations {id,x1,y1,x2,y2,layerId}
+    infrastructure: [],  // power distros, DMX nodes, network switches/ports
+    cables: [],          // cable connections between fixtures and/or infra
+  };
+}
+
+// ── Sheet (paper / drawing space) ────────────────────────────────────────
+export function makeSheet(id, name) {
+  return {
+    id:   id   || ('sheet-' + Math.random().toString(36).slice(2, 8)),
+    name: name || 'Sheet 1',
+    paperSize:   'A3',
+    orientation: 'landscape',
+    // Viewports: windows into the CAD model
+    viewports: [],
+    // Sheet-space objects (annotations, text, dimensions, key blocks live here)
+    annotations: [],
+    texts: [],
+    keyBlocks: [],
+    titleBlock: {
+      title: '', designer: '', studio: '',
+      date: new Date().toISOString().slice(0, 10),
+      drawingNumber: '', logoDataUrl: null,
+      notes: '', notesSize: 'medium', titleBlockSize: 'medium',
+    },
+  };
+}
+
+export function makeViewport(drawingId, x, y, w, h, scale) {
+  return {
+    id: generateId(),
+    drawingId,
+    x, y, w, h,       // position + size in mm on the sheet
+    scale: scale || 50, // 1:N (world-units to mm ratio)
+    centerX: 0,        // world-space center of this viewport view
+    centerY: 0,
+  };
+}
+
+// Bump when the saved project shape changes in a way migrateProject must handle.
+// Files saved by a NEWER build than this one load with a warning (see checkSchemaVersion).
+export const CURRENT_SCHEMA_VERSION = 2;
+
+export const initialProject = {
+  schemaVersion: CURRENT_SCHEMA_VERSION,
+  // Model space
+  drawings: [makeDrawing('drawing-1', 'Plot 1')],
+  activeDrawingId: 'drawing-1',
+  // Sheet space
+  sheets: [makeSheet('sheet-1', 'Sheet 1')],
+  activeSheetId: 'sheet-1',
+  // UI state
+  activeMode:    'cad',            // 'cad' | 'sheet'
+  activeLayerId: 'layer-lighting', // current layer for new objects
+  // Shared
+  customFixtureTypes: [],
+  layers: DEFAULT_LAYERS,
+  meta: { title: 'Untitled', scale: 50, gridSize: 1372, gridHeight: 6000, rigHeight: 5500, units: 'mm' },
+  revisions: [],  // named snapshots [{id, name, timestamp, snapshot}]
+};
+
+// ── Migration ─────────────────────────────────────────────────────────────
+export function migrateProject(loaded) {
+  // Old flat format → drawings array
+  if (!loaded.drawings) {
+    const { pipes, fixtures, lines, rectangles, texts, images, annotations, pdfBackground, ...rest } = loaded;
+    const d = makeDrawing('drawing-1', 'Drawing 1');
+    d.pipes = pipes || []; d.fixtures = fixtures || [];
+    d.lines = lines || []; d.rectangles = rectangles || [];
+    d.texts = texts || []; d.images = images || [];
+    d.pdfBackground = pdfBackground || null;
+    loaded = { ...rest, drawings: [d], activeDrawingId: 'drawing-1' };
+  }
+  // Migrate drawing-level annotations → sheet annotations (annotations are sheet objects now)
+  if (!loaded.sheets?.length) {
+    const sheet = makeSheet('sheet-1', 'Sheet 1');
+    // Migrate drawingSheet settings into title block
+    if (loaded.drawingSheet) {
+      const ds = loaded.drawingSheet;
+      sheet.titleBlock = {
+        title: ds.title || '', designer: ds.designer || '',
+        studio: ds.studio || ds.venue || '',
+        date: ds.date || new Date().toISOString().slice(0, 10),
+        drawingNumber: ds.drawingNumber || '', logoDataUrl: ds.logoDataUrl || null,
+        notes: ds.notes || '', notesSize: ds.notesSize || 'medium',
+        titleBlockSize: ds.titleBlockSize || 'medium',
+      };
+      sheet.paperSize   = ds.paperSize   || 'A3';
+      sheet.orientation = ds.orientation || 'landscape';
+    }
+    // Migrate annotations from drawings → sheet
+    if (loaded.drawings) {
+      loaded.drawings.forEach(d => {
+        if (d.annotations?.length) {
+          sheet.annotations.push(...d.annotations);
+          d.annotations = [];
+        }
+      });
+    }
+    // Add a default viewport for the first drawing
+    if (loaded.drawings?.[0]) {
+      const vp = makeViewport(loaded.drawings[0].id, 12, 12, 350, 240, 50);
+      sheet.viewports = [vp];
+    }
+    loaded.sheets = [sheet];
+    loaded.activeSheetId = 'sheet-1';
+  }
+  // Ensure drawings no longer have annotations (those belong to sheets now)
+  if (loaded.drawings) {
+    loaded.drawings.forEach(d => { delete d.annotations; });
+  }
+  // Ensure keyBlocks array exists on all sheets
+  if (loaded.sheets) {
+    loaded.sheets.forEach(s => { if (!s.keyBlocks) s.keyBlocks = []; });
+  }
+  // Ensure infrastructure + cables + dimensions arrays exist on all drawings
+  if (loaded.drawings) {
+    loaded.drawings.forEach(d => {
+      if (!d.infrastructure) d.infrastructure = [];
+      if (!d.cables)         d.cables = [];
+      if (!d.dimensions)     d.dimensions = [];
+      if (!d.circles)        d.circles = [];
+      if (!d.arcs)           d.arcs = [];
+      if (!d.polylines)      d.polylines = [];
+    });
+  }
+  if (!loaded.revisions) loaded.revisions = [];
+  if (!loaded.meta?.units) { if (loaded.meta) loaded.meta.units = 'mm'; }
+  // Ensure meta has studio height settings
+  if (!loaded.meta) loaded.meta = {};
+  if (loaded.meta.gridHeight === undefined) loaded.meta.gridHeight = 6000;
+  if (loaded.meta.rigHeight  === undefined) loaded.meta.rigHeight  = 5500;
+  if (!loaded.layers?.length) loaded.layers = DEFAULT_LAYERS;
+  if (!loaded.activeMode)    loaded.activeMode = 'cad';
+  if (!loaded.activeLayerId) loaded.activeLayerId = 'layer-lighting';
+  // venue → studio compat
+  if (loaded.drawingSheet?.venue !== undefined && !loaded.drawingSheet?.studio) {
+    loaded.drawingSheet.studio = loaded.drawingSheet.venue || '';
+    delete loaded.drawingSheet.venue;
+  }
+  loaded.schemaVersion = CURRENT_SCHEMA_VERSION;
+  return loaded;
+}
+
+/**
+ * Compare a loaded file's schemaVersion with this build's.
+ * Returns 'newer' when the file was written by a newer build (loading may drop data).
+ */
+export function checkSchemaVersion(loaded) {
+  const v = Number(loaded?.schemaVersion) || 1;
+  return v > CURRENT_SCHEMA_VERSION ? 'newer' : 'ok';
+}
