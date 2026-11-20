@@ -107,6 +107,8 @@ function buildMenu() {
         { ...gated('Export SVG…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-svg') },
         { ...gated('Export MVR…', 'mvr_export'), click: menuExportMVR },
         { ...gated('Import MVR…', 'mvr_import'), click: menuOpenMVR },
+        { ...gated('Export DXF…', 'mvr_export'), click: () => mainWindow.webContents.send('menu-export-dxf') },
+        { ...gated('Import DXF…', 'pdf_background'), click: () => mainWindow.webContents.send('menu-import-dxf') },
         { type: 'separator' },
         { role: 'quit' },
       ],
@@ -550,6 +552,26 @@ ipcMain.handle('print-sheet', async (event, { html }) => {
     });
     printWin.webContents.once('crashed', () => { if (!printWin.isDestroyed()) printWin.close(); resolve({ success: false }); });
   });
+});
+
+// Generic save / open helpers used by the text-based exchange formats (DXF, console CSV/ASCII, …).
+ipcMain.handle('export-file', async (event, { filters, defaultPath, text, base64 }) => {
+  const result = await dialog.showSaveDialog(mainWindow, { filters, defaultPath });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    if (base64 != null) fs.writeFileSync(result.filePath, Buffer.from(base64, 'base64'));
+    else fs.writeFileSync(result.filePath, text ?? '', 'utf8');
+    return { ok: true, filePath: result.filePath };
+  } catch (e) { return { ok: false, reason: e.message }; }
+});
+
+ipcMain.handle('import-file', async (event, { filters }) => {
+  const result = await dialog.showOpenDialog(mainWindow, { filters, properties: ['openFile'] });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  try {
+    const filePath = result.filePaths[0];
+    return { ok: true, filePath, name: path.basename(filePath), text: fs.readFileSync(filePath, 'utf8') };
+  } catch (e) { return { ok: false, reason: e.message }; }
 });
 
 // Export one or more sheets as a single multi-page vector PDF.

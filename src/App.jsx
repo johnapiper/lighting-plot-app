@@ -50,6 +50,8 @@ import fixtureTypesData from '../data/fixtures.json';
 import { generateId } from './canvas/geometry';
 import { parseDmx, syncFields, footprintOf as footprintOfFx, findFreeAddress as findFreeAddr, planSequentialPatch } from './patch/dmx';
 import { exportMVR } from './mvr/mvrExport';
+import { parseDXF, dxfToDrawingObjects, countObjects } from './dxf/dxfReader';
+import { exportDXF } from './dxf/dxfWriter';
 import { importMVR } from './mvr/mvrImport';
 
 const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
@@ -285,6 +287,8 @@ function App() {
       'menu-toggle-rulers': () => setShowRulers(v => !v),
       'menu-export-png':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportPNG(); },
       'menu-export-svg':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportSVG(); },
+      'menu-export-dxf':    () => { if (blockIfTrial()) return; if (requireFeature('mvr_export', 'export features')) handleExportDXF(); },
+      'menu-import-dxf':    () => { if (blockIfTrial()) return; if (requireFeature('pdf_background', 'DXF import')) handleImportDXF(); },
       'menu-report-instrument': () => { if (requireFeature('reports', 'reports')) setReport({ type: 'instrument' }); },
       'menu-report-channel':    () => { if (requireFeature('reports', 'reports')) setReport({ type: 'channel' }); },
       'pdf-opened':   (e, { dataUrl }) => license?.hasFeature('pdf_background') ? handlePdfData(dataUrl) : null,
@@ -656,6 +660,45 @@ function App() {
         if (f) Object.assign(f, syncFields(fields, f));
       });
     }, label || `Edit ${updates.length} fixtures`);
+  }
+
+  // ── DXF exchange ──────────────────────────────────────────────────────────
+  async function handleExportDXF() {
+    if (!ipcRenderer || !activeDrawing) return;
+    const title = (project.meta?.title || 'lighting-plot').replace(/[\\/:*?"<>|]/g, '-');
+    const r = await ipcRenderer.invoke('export-file', {
+      filters: [{ name: 'DXF Drawing', extensions: ['dxf'] }],
+      defaultPath: `${title}.dxf`,
+      text: exportDXF(activeDrawing, project.layers || []),
+    });
+    if (r?.ok) toast(`Exported DXF (millimetres) — ${r.filePath.split(/[\/]/).pop()}`, 'success');
+    else if (r && !r.canceled) toast(`DXF export failed: ${r.reason}`, 'error');
+  }
+
+  async function handleImportDXF() {
+    if (!ipcRenderer || !activeDrawing) return;
+    if (!canEditCanvas) { toast('Plot is locked or read-only.', 'warn'); return; }
+    const r = await ipcRenderer.invoke('import-file', { filters: [{ name: 'DXF Drawing', extensions: ['dxf'] }] });
+    if (!r?.ok) { if (r && !r.canceled) toast(`Could not read DXF: ${r.reason}`, 'error'); return; }
+    let parsed, objs, n;
+    try {
+      parsed = parseDXF(r.text);
+      objs = dxfToDrawingObjects(parsed, { layerId: 'layer-dxf', newId: generateId });
+      n = countObjects(objs);
+    } catch (err) { toast(`Could not parse DXF: ${err.message}`, 'error'); return; }
+    if (!n) { toast('No supported geometry found in that DXF (binary DXF and DWG are not supported).', 'warn'); return; }
+    commit(proj => {
+      if (!(proj.layers || []).some(l => l.id === 'layer-dxf')) {
+        proj.layers = [...(proj.layers || []), { id: 'layer-dxf', name: 'DXF Import', color: '#9aa5b1', visible: true, locked: false }];
+      }
+      const d = proj.drawings.find(d => d.id === proj.activeDrawingId);
+      ['lines', 'circles', 'arcs', 'polylines', 'texts'].forEach(k => { d[k] = [...(d[k] || []), ...objs[k]]; });
+      return proj;
+    }, `Import DXF (${n} objects)`);
+    const skipped = Object.entries(parsed.skipped).map(([k, v]) => `${v} ${k}`).join(', ');
+    const unitNote = parsed.unitsKnown ? `units: ${parsed.unitName}` : 'no units in file — assumed millimetres';
+    toast(`Imported ${n} objects from ${r.name} (${unitNote})${skipped ? `. Skipped: ${skipped}` : ''}`, parsed.unitsKnown ? 'success' : 'warn', { duration: 8000 });
+    setTimeout(() => fitViewRef.current?.(), 50);
   }
 
   // ── Click-to-number ──────────────────────────────────────────────────────
@@ -1094,6 +1137,8 @@ function App() {
     { id: 'open', group: 'File', label: 'Open…', shortcut: 'Ctrl+O', disabled: isTrial, run: () => ipcRenderer?.send('open-request') },
     { id: 'save', group: 'File', label: 'Save', shortcut: 'Ctrl+S', disabled: isTrial, run: handleSave },
     { id: 'saveas', group: 'File', label: 'Save as…', shortcut: 'Ctrl+Shift+S', disabled: isTrial, run: () => ipcRenderer?.send('save-as-request') },
+    { id: 'export-dxf', group: 'File', label: 'Export DXF…', keywords: 'cad autocad vectorworks', disabled: isTrial, run: handleExportDXF },
+    { id: 'import-dxf', group: 'File', label: 'Import DXF…', keywords: 'cad autocad vectorworks floorplan background', disabled: isTrial || !canEditCanvas, run: handleImportDXF },
     { id: 'open-backups', group: 'File', label: 'Open backups folder', run: async () => {
         const r = await ipcRenderer?.invoke('backups-open', currentFile);
         if (!r?.ok) toast(r?.reason === 'unsaved' ? 'Save the project first — backups are kept next to the saved file.' : 'No backups yet. A backup of the previous version is made when you save over an existing file.', 'info');

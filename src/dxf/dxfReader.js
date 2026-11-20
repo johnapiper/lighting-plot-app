@@ -209,7 +209,7 @@ export function dxfToDrawingObjects(parsed, { layerId = 'layer-arch', newId, sca
   const k = scale ?? parsed.scale ?? 1;
   const id = newId || (() => Math.random().toString(36).slice(2));
   const out = { lines: [], circles: [], arcs: [], polylines: [], texts: [] };
-  const P = (x, y) => ({ x: x * k, y: -y * k });
+  const P = (x, y) => ({ x: x * k, y: 0 - y * k });   // 0 - … avoids -0
   for (const pr of parsed.prims) {
     switch (pr.type) {
       case 'line': { const a = P(pr.x1, pr.y1), b = P(pr.x2, pr.y2); out.lines.push({ id: id(), kind: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y, layerId }); break; }
