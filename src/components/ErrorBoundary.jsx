@@ -71,7 +71,7 @@ export default class ErrorBoundary extends React.Component {
 const S = {
   wrap: { display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)' },
   wrapFull: { position: 'fixed', inset: 0, background: 'var(--bg-app)', zIndex: 99999 },
-  wrapPanel: { width: '100%', height: '100%', minHeight: 160, padding: 16, boxSizing: 'border-box' },
+  wrapPanel: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 99998 },
   card: { maxWidth: 520, background: 'var(--bg-panel)', border: '1px solid var(--border-accent)', borderRadius: 8, padding: 20 },
   title: { fontSize: 16, fontWeight: 700, marginBottom: 8 },
   p: { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 10px' },

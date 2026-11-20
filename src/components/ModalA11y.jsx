@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import ErrorBoundary from './ErrorBoundary';
 
 // Wraps a modal's content to give it dialog semantics and keyboard behaviour:
 //   • role="dialog" + aria-modal, labelled by `label`
@@ -56,7 +57,7 @@ export default function ModalA11y({ onClose, label, children }) {
 
   return (
     <div ref={ref} role="dialog" aria-modal="true" aria-label={label} style={{ display: 'contents' }}>
-      {children}
+      <ErrorBoundary scope="panel" label={label ? `the ${label} dialog` : 'this dialog'} onClose={onClose}>{children}</ErrorBoundary>
     </div>
   );
 }
