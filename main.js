@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
+const { renderPagesToPdf } = require('./lib/pdfExport');
 const { backupBeforeSave, backupDirFor, DEFAULT_KEEP } = require('./lib/backups');
 
 // electron-store v9+ is ESM-only, so require() throws ERR_REQUIRE_ESM — load it
@@ -549,6 +550,23 @@ ipcMain.handle('print-sheet', async (event, { html }) => {
     });
     printWin.webContents.once('crashed', () => { if (!printWin.isDestroyed()) printWin.close(); resolve({ success: false }); });
   });
+});
+
+// Export one or more sheets as a single multi-page vector PDF.
+ipcMain.handle('export-pdf', async (event, { pages, defaultName }) => {
+  if (!Array.isArray(pages) || !pages.length) return { ok: false, reason: 'no pages' };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    defaultPath: defaultName || 'lighting-plot.pdf',
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    const buf = await renderPagesToPdf(BrowserWindow, pages);
+    fs.writeFileSync(result.filePath, buf);
+    return { ok: true, filePath: result.filePath, pages: pages.length };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
 });
 
 // ── Auto-updater ──────────────────────────────────────────────────────────────

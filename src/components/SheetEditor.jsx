@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import FixtureSymbol from '../fixtures/FixtureSymbol';
 import { useToolHints } from './ToolHint';
+import { toast } from './Toast';
 
 const SHEET_TOOL_HINT = { select: 'select', viewport: 'viewport', text: 'sheettext', annotate: 'note', keyblock: 'keyblock' };
 
@@ -219,6 +220,65 @@ function KeyBlockEl({ kb, drawings, fixtureTypes, ps, selected, onMouseDown, onC
   );
 }
 
+// ── Print / PDF capture ───────────────────────────────────────────────────────
+// Turns the live sheet <svg> into a clean, print-ready SVG string with real
+// paper dimensions. Takes the element + sheet so it also works for sheets that
+// are rendered one after another during "export all sheets".
+function paperSizeMm(sheet) {
+  const paper = PAPER[sheet.paperSize] || PAPER.A3;
+  const landscape = sheet.orientation === 'landscape';
+  return { pw: landscape ? paper.w : paper.h, ph: landscape ? paper.h : paper.w };
+}
+
+function captureSheetSvg(svgEl, sheet) {
+  const { pw, ph } = paperSizeMm(sheet);
+  const svgW = parseFloat(svgEl.getAttribute('width')) || pw;
+  const svgH = parseFloat(svgEl.getAttribute('height')) || ph;
+
+  // Clone SVG and stamp real paper dimensions onto it
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  clone.setAttribute('width',  `${pw}mm`);
+  clone.setAttribute('height', `${ph}mm`);
+  clone.style.cssText = 'display:block;box-shadow:none;background:white;';
+
+  // Remove UI-only elements (selection handles, hint text, resize knobs, text boxes)
+  clone.querySelectorAll('[data-print-hide]').forEach(el => el.remove());
+
+  // Reset selection outlines from blue back to their neutral grey
+  clone.querySelectorAll('[data-sel-outline]').forEach(el => {
+    el.setAttribute('stroke', el.getAttribute('data-sel-outline'));
+    el.setAttribute('stroke-width', '0.5');
+  });
+
+  // Strip padlock symbol from viewport labels
+  clone.querySelectorAll('[data-vp-label]').forEach(el => {
+    el.textContent = el.textContent.replace(/\s*🔒/g, '');
+  });
+
+  // Normalise text colour (selected text renders blue; make it black for print)
+  clone.querySelectorAll('[data-print-text]').forEach(el => {
+    if (el.getAttribute('fill') === '#2a6090') el.setAttribute('fill', '#222');
+  });
+
+  return { svgData: new XMLSerializer().serializeToString(clone), pwMm: pw, phMm: ph };
+}
+
+function sheetPrintHtml({ svgData, pwMm, phMm }) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  *{margin:0;padding:0;}
+  html,body{background:white;overflow:hidden;}
+  @page{size:${pwMm}mm ${phMm}mm;margin:0;}
+  svg{display:block;width:${pwMm}mm;height:${phMm}mm;}
+</style></head><body>${svgData}</body></html>`;
+}
+
+const nextFrames = (n = 3) => new Promise(res => {
+  const step = (i) => (i <= 0 ? res() : requestAnimationFrame(() => step(i - 1)));
+  step(n);
+});
+
 // ── Main SheetEditor ──────────────────────────────────────────────────────────
 export default function SheetEditor({
   project, activeSheet, fixtureTypes, commit, softUpdate, onPrint,
@@ -325,52 +385,13 @@ export default function SheetEditor({
   // ── Print preview ─────────────────────────────────────────────────────────
   function doPrint() {
     const svgEl = svgRef.current; if (!svgEl) return;
-
-    // Clone SVG and stamp real paper dimensions onto it
-    const clone = svgEl.cloneNode(true);
-    clone.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
-    clone.setAttribute('width',  `${pw}mm`);
-    clone.setAttribute('height', `${ph}mm`);
-    clone.style.cssText = 'display:block;box-shadow:none;background:white;';
-
-    // ── Print cleanup ─────────────────────────────────────────────────────────
-    // Remove UI-only elements (selection handles, hint text, resize knobs, text boxes)
-    clone.querySelectorAll('[data-print-hide]').forEach(el => el.remove());
-
-    // Reset selection outlines from blue back to their neutral grey
-    clone.querySelectorAll('[data-sel-outline]').forEach(el => {
-      const neutral = el.getAttribute('data-sel-outline');
-      el.setAttribute('stroke', neutral);
-      el.setAttribute('stroke-width', '0.5');
-    });
-
-    // Strip padlock symbol from viewport labels
-    clone.querySelectorAll('[data-vp-label]').forEach(el => {
-      el.textContent = el.textContent.replace(/\s*🔒/g, '');
-    });
-
-    // Normalise text colour (selected text renders blue; make it black for print)
-    clone.querySelectorAll('[data-print-text]').forEach(el => {
-      if (el.getAttribute('fill') === '#2a6090') el.setAttribute('fill', '#222');
-    });
-
-    const svgData = new XMLSerializer().serializeToString(clone);
-
     // Show in-app preview modal so the user can see what will print
-    setPrintPreview({ svgData, pwMm: pw, phMm: ph });
+    setPrintPreview(captureSheetSvg(svgEl, activeSheet));
   }
 
   async function confirmPrint() {
     if (!printPreview) return;
-    const { svgData, pwMm, phMm } = printPreview;
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>
-  *{margin:0;padding:0;}
-  html,body{background:white;overflow:hidden;}
-  @page{size:${pwMm}mm ${phMm}mm;margin:0;}
-  svg{display:block;width:${pwMm}mm;height:${phMm}mm;}
-</style></head><body>${svgData}</body></html>`;
+    const html = sheetPrintHtml(printPreview);
 
     const ipcRenderer = window.require ? window.require('electron').ipcRenderer : null;
     if (ipcRenderer) {
@@ -384,6 +405,47 @@ export default function SheetEditor({
       setTimeout(() => w.print(), 300);
     }
     setPrintPreview(null);
+  }
+
+  // ── PDF export ────────────────────────────────────────────────────────────
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfName = (suffix) => `${(project.meta?.title || 'Lighting Plot').replace(/[\\/:*?"<>|]/g, '-')}${suffix}.pdf`;
+
+  async function savePdf(pages, suffix) {
+    const ipcRenderer = window.require ? window.require('electron').ipcRenderer : null;
+    if (!ipcRenderer) return;
+    setPdfBusy(true);
+    try {
+      const r = await ipcRenderer.invoke('export-pdf', { pages: pages.map(p => ({ html: sheetPrintHtml(p) })), defaultName: pdfName(suffix) });
+      if (r?.ok) toast(`Saved ${r.pages} page${r.pages === 1 ? '' : 's'} to PDF`, 'success');
+      else if (r && !r.canceled) toast(`PDF export failed: ${r.reason || 'unknown error'}`, 'error');
+    } finally { setPdfBusy(false); }
+  }
+
+  // Current sheet only (from the print preview).
+  async function exportCurrentPdf() {
+    if (!printPreview) return;
+    const page = printPreview;
+    setPrintPreview(null);
+    await savePdf([page], ` - ${activeSheet.name || 'Sheet'}`);
+  }
+
+  // Every sheet into one multi-page PDF: switch to each sheet, wait for it to
+  // render, capture its SVG, then restore the sheet the user was on.
+  async function exportAllPdf() {
+    const original = project.activeSheetId;
+    const pages = [];
+    try {
+      for (const s of project.sheets) {
+        softUpdate(proj => { proj.activeSheetId = s.id; return proj; });
+        await nextFrames(4);
+        const svgEl = svgRef.current; if (!svgEl) continue;
+        pages.push(captureSheetSvg(svgEl, s));
+      }
+    } finally {
+      softUpdate(proj => { proj.activeSheetId = original; return proj; });
+    }
+    if (pages.length) await savePdf(pages, project.sheets.length > 1 ? ' - all sheets' : '');
   }
 
   // ── Viewport right-click menu actions ──────────────────────────────────────
@@ -728,6 +790,9 @@ export default function SheetEditor({
           </select>
           <button style={{...sty.toolBtn,background:'#0f2a0f',borderColor:'#1a6030',color:'#68d391'}}
             onClick={doPrint}>🖨 Print</button>
+          <button style={{...sty.toolBtn,background:'#1a1f3a',borderColor:'#3a4a90',color:'#90a4f4',opacity:pdfBusy?0.6:1}}
+            disabled={pdfBusy} title="Export every sheet to one multi-page PDF"
+            onClick={exportAllPdf}>{pdfBusy ? 'Exporting…' : '📄 PDF (all sheets)'}</button>
         </div>
       </div>
 
@@ -1003,6 +1068,12 @@ export default function SheetEditor({
                 color:'#4a90d9', cursor:'pointer', fontSize:13, fontWeight:600 }}
               onClick={confirmPrint}>
               🖨 Print…
+            </button>
+            <button
+              style={{ padding:'6px 14px', background:'#1a1f3a', border:'1px solid #3a4a90', borderRadius:4,
+                color:'#90a4f4', cursor:'pointer', fontSize:13 }}
+              onClick={exportCurrentPdf}>
+              📄 Save as PDF…
             </button>
             <button
               style={{ padding:'6px 14px', background:'#3a1a1a', border:'1px solid #7a2a2a', borderRadius:4,
