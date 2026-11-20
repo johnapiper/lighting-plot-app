@@ -349,7 +349,7 @@ export default function LicenseManager({ onClose }) {
                         {l.email && <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{l.email}</div>}
                       </td>
                       <td style={S.td}><span style={{ color: '#a0c4e8', fontSize: 12 }}>{rightsLabel(l.rights)}</span></td>
-                      <td style={S.td} nowrap="true">{l.expiresAt}</td>
+                      <td style={{ ...S.td, whiteSpace: 'nowrap' }}>{l.expiresAt}</td>
                       <td style={S.td}>{l.maxSeats || 1}</td>
                       <td style={S.td}>
                         {!l.active ? <span style={{ color: 'var(--danger-text)' }}>Revoked</span>

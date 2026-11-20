@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/**', 'public/bundle.js', 'node_modules/**', 'licenses/**'] },
+  { ignores: ['.claude/**', 'dist/**', 'public/bundle.js', 'node_modules/**', 'licenses/**'] },
   js.configs.recommended,
 
   // Renderer (React, bundled by webpack for electron-renderer)
