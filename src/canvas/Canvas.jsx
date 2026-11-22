@@ -14,6 +14,7 @@ import Minimap from './Minimap';
 import { objectBounds } from './transforms';
 import { arcPath, getLayerId, fixtureLabel, LABEL_MODES } from './canvasHelpers';
 import { analyzeBar } from '../rigging/loads';
+import { nearestOnSeg } from '../cabling/routing';
 export { LABEL_MODES };
 
 const RULER_SIZE = 20;
@@ -181,6 +182,7 @@ export default function Canvas({
   // Beam footprint visibility
   const [showBeams, setShowBeams] = useState(true);
   const [showLoads, setShowLoads] = useState(true);   // hoist markers + their load
+  const [hoistEdit, setHoistEdit] = useState(null);     // { pipeId, index, sx, sy, value } — type an exact position
   // Hoist loads per bar (only bars that have hoists), recomputed when the plot changes.
   const rigByPipe = useMemo(() => {
     const m = new Map();
@@ -566,6 +568,19 @@ export default function Canvas({
   function applyHandleDrag(dg, snapped, world, shiftKey = false) {
     const hp = dg.handlePoint;
     const { origX, origY, origX2, origY2 } = dg;
+
+    // Hoist marker: slide along its bar. 10 mm steps; hold Alt for 1 mm.
+    if (typeof hp === 'string' && hp.startsWith('hoist:')) {
+      const idx = Number(hp.slice(6));
+      const bar = pipes.find(p => p.id === dg.id);
+      if (!bar) return;
+      const len = distance(bar.x1, bar.y1, bar.x2, bar.y2) || 1;
+      const t = nearestOnSeg(world.x, world.y, bar.x1, bar.y1, bar.x2, bar.y2).t;
+      const step = dg.altKey ? 1 : 10;
+      const pos = Math.round((t * len) / step) * step;
+      softUpdateDrawing(d => { const p = d.pipes.find(p => p.id === dg.id); if (p?.hoists?.[idx]) p.hoists[idx].pos = pos; });
+      return;
+    }
 
     // Rotation
     if (hp === 'rotate') {
@@ -1056,7 +1071,7 @@ export default function Canvas({
     }
 
     if (dragging?.handlePoint) {
-      applyHandleDrag(dragging, snapped, world, e.shiftKey);
+      applyHandleDrag(e.altKey ? { ...dragging, altKey: true } : dragging, snapped, world, e.shiftKey);
       return;
     }
 
@@ -1194,7 +1209,7 @@ export default function Canvas({
           commit(p => p, 'Move fixture');
         }
       } else {
-        commit(p => p, `Move ${dragging.kind || 'object'}`);
+        commit(p => p, typeof dragging.handlePoint === 'string' && dragging.handlePoint.startsWith('hoist:') ? 'Move hoist' : `Move ${dragging.kind || 'object'}`);
       }
       setDragging(null);
       setHoveredPipe(null);
@@ -1889,18 +1904,24 @@ export default function Canvas({
                 const L = distance(p.x1, p.y1, p.x2, p.y2) || 1;
                 const t = Math.min(Math.max((Number(h.pos) || 0) / L, 0), 1);
                 const hx = p.x1 + (p.x2 - p.x1) * t, hy = p.y1 + (p.y2 - p.y1) * t;
-                const s = rigByPipe.get(p.id)?.supports?.[hi];
+                const s = rigByPipe.get(p.id)?.supports?.find(x => x.id === h.id);
                 const bad = s && (s.uplift || (s.utilisation != null && s.utilisation > 1));
                 const warn = s && !bad && s.utilisation != null && s.utilisation > 0.8;
                 const hc = bad ? '#f87171' : warn ? '#f6ad55' : '#7fd0a0';
                 const r = 6 / zoom;
+                const canMove = activeTool === 'select' && !p.locked;
                 return (
-                  <g key={h.id || hi} style={{ pointerEvents: 'none' }}>
+                  <g key={h.id || hi} style={{ cursor: canMove ? 'ew-resize' : 'default', pointerEvents: canMove ? 'auto' : 'none' }}
+                    onMouseDown={canMove ? (e => { if (e.button !== 0) return; onSelect?.({ kind: 'pipe', ...p }); startHandleDrag(e, 'hoist:' + hi, 'pipe', p); }) : undefined}
+                    onDoubleClick={canMove ? (e => { e.stopPropagation(); setHoistEdit({ pipeId: p.id, index: hi, sx: e.clientX, sy: e.clientY, value: String(Math.round(Number(h.pos) || 0)) }); }) : undefined}
+                    onContextMenu={canMove ? (e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ sx: e.clientX, sy: e.clientY, hit: { kind: 'hoist', id: p.id, index: hi }, world: { x: hx, y: hy } }); }) : undefined}>
+                    <title>{`${h.label || 'Hoist ' + (hi + 1)} · ${Math.round(Number(h.pos) || 0)} mm — drag to move, double-click to type a position`}</title>
+                    <circle cx={hx} cy={hy} r={r * 1.5} fill="transparent" />
                     <circle cx={hx} cy={hy} r={r} fill="#10151f" stroke={hc} strokeWidth={1.6 / zoom} />
                     <line x1={hx - r * 0.6} y1={hy - r * 0.6} x2={hx + r * 0.6} y2={hy + r * 0.6} stroke={hc} strokeWidth={1.2 / zoom} />
                     <line x1={hx - r * 0.6} y1={hy + r * 0.6} x2={hx + r * 0.6} y2={hy - r * 0.6} stroke={hc} strokeWidth={1.2 / zoom} />
                     {s?.reactionKg != null && (
-                      <text x={hx} y={hy + 17 / zoom} textAnchor="middle" fontSize={9 / zoom} fill={hc}>{Math.round(s.reactionKg)} kg</text>
+                      <text x={hx} y={hy + 17 / zoom} textAnchor="middle" fontSize={9 / zoom} fill={hc} style={{ pointerEvents: 'none' }}>{Math.round(s.reactionKg)} kg</text>
                     )}
                   </g>
                 );
@@ -2735,14 +2756,56 @@ export default function Canvas({
         </div>
       )}
 
+      {/* Hoist position editor */}
+      {hoistEdit && (
+        <div style={{ position: 'fixed', left: hoistEdit.sx, top: hoistEdit.sy, zIndex: 3000, background: 'var(--bg-panel)', border: '1px solid var(--accent)', borderRadius: 5, padding: '5px 7px', boxShadow: '0 6px 24px var(--shadow)', fontSize: 11, color: 'var(--text-muted)' }}>
+          Hoist position (mm from bar start)
+          <input autoFocus value={hoistEdit.value} inputMode="decimal"
+            style={{ display: 'block', marginTop: 3, width: 110, background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', borderRadius: 3, color: 'var(--text)', fontSize: 12, padding: '3px 6px', outline: 'none' }}
+            onFocus={e => e.target.select()}
+            onChange={e => setHoistEdit(h => ({ ...h, value: e.target.value }))}
+            onKeyDown={e => {
+              e.stopPropagation();
+              if (e.key === 'Escape') setHoistEdit(null);
+              if (e.key === 'Enter') {
+                const v = Number(hoistEdit.value);
+                const { pipeId, index } = hoistEdit;
+                if (Number.isFinite(v)) {
+                  commitToDrawing(d => {
+                    const p = d.pipes.find(p => p.id === pipeId);
+                    if (!p?.hoists?.[index]) return;
+                    const len = distance(p.x1, p.y1, p.x2, p.y2);
+                    p.hoists[index].pos = Math.round(Math.min(Math.max(v, 0), len));
+                  }, 'Move hoist');
+                }
+                setHoistEdit(null);
+              }
+            }}
+            onBlur={() => setHoistEdit(null)} />
+        </div>
+      )}
+
       {/* Context menu */}
       {contextMenu && (
         <div ref={ctxRef} role="menu" aria-label="Object actions" onKeyDown={onCtxKeyDown}
           style={{ position: 'fixed', left: contextMenu.sx, top: contextMenu.sy, background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 6px 24px var(--shadow)', zIndex: 999, minWidth: 200, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto', padding: '3px 0' }}>
           {ctxHints.hintEl}
           {!contextMenu.hit && renderBackgroundMenu()}
-          {contextMenu.hit && renderSelectionMenu(contextMenu.hit)}
-          {contextMenu.hit && (<>
+          {contextMenu.hit?.kind === 'hoist' && (<>
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
+              const { id, index } = contextMenu.hit;
+              const bar = pipes.find(p => p.id === id);
+              setHoistEdit({ pipeId: id, index, sx: contextMenu.sx, sy: contextMenu.sy, value: String(Math.round(Number(bar?.hoists?.[index]?.pos) || 0)) });
+              setContextMenu(null);
+            }}>✎ Type Exact Position…</div>
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
+              const { id, index } = contextMenu.hit;
+              commitToDrawing(d => { const p = d.pipes.find(p => p.id === id); if (p?.hoists) p.hoists = p.hoists.filter((_, k) => k !== index); }, 'Remove hoist');
+              setContextMenu(null);
+            }}>🗑 Remove Hoist</div>
+          </>)}
+          {contextMenu.hit && contextMenu.hit.kind !== 'hoist' && renderSelectionMenu(contextMenu.hit)}
+          {contextMenu.hit && contextMenu.hit.kind !== 'hoist' && (<>
           {contextMenu.hit.kind === 'fixture' && (<>
             <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('focus')} onClick={() => {
               setFocusModeId(contextMenu.hit.id);
@@ -2794,6 +2857,21 @@ export default function Canvas({
               setContextMenu(null);
             }}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</div>
           </>)}
+          {contextMenu.hit.kind === 'pipe' && (
+            <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} onClick={() => {
+              const id = contextMenu.hit.id, w0 = contextMenu.world;
+              const bar = pipes.find(p => p.id === id);
+              if (bar && w0) {
+                const len = distance(bar.x1, bar.y1, bar.x2, bar.y2) || 1;
+                const pos = Math.round((nearestOnSeg(w0.x, w0.y, bar.x1, bar.y1, bar.x2, bar.y2).t * len) / 10) * 10;
+                commitToDrawing(d => {
+                  const p = d.pipes.find(p => p.id === id); if (!p) return;
+                  p.hoists = [...(p.hoists || []), { id: generateId(), pos, capacityKg: p.hoistCapacityKg }];
+                }, 'Add hoist');
+              }
+              setContextMenu(null);
+            }}>🏗 Add Hoist Here</div>
+          )}
           {contextMenu.hit.kind === 'pipe' && (
             <div role="menuitem" tabIndex={-1} className="ctx-item" style={ctxStyle.item} {...ctxHints.bind('distribute')} onClick={() => {
               distributeOnPipe(contextMenu.hit.id);
