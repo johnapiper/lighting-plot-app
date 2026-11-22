@@ -9,6 +9,7 @@
       "colour": "Open",
       "gobo": ""
     },
+    "weightKg": 5,
     "beamAngle": 30,
     "symbolId": "FresnelBD"
   },
@@ -22,6 +23,7 @@
       "colour": "Open",
       "gobo": ""
     },
+    "weightKg": 7,
     "beamAngle": 19,
     "symbolId": "Profile"
   },
@@ -35,6 +37,7 @@
       "colour": "Open",
       "gobo": ""
     },
+    "weightKg": 4,
     "beamAngle": 12,
     "symbolId": "Par64"
   },
@@ -48,6 +51,7 @@
       "colour": "Open",
       "gobo": ""
     },
+    "weightKg": 4,
     "beamAngle": 45,
     "symbolId": "Flood"
   },
@@ -61,6 +65,7 @@
       "colour": "Open",
       "gobo": ""
     },
+    "weightKg": 6,
     "beamAngle": 25,
     "symbolId": "Wash"
   },
@@ -74,6 +79,7 @@
       "colour": "Open",
       "gobo": ""
     },
+    "weightKg": 18,
     "beamAngle": 14,
     "symbolId": "MovingHead"
   }
