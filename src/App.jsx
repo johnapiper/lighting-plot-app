@@ -34,6 +34,9 @@ import NumberingBar from './components/NumberingBar';
 import AutoAssignModal from './components/AutoAssignModal';
 import RiggingReport from './components/RiggingReport';
 import { analyzeBar } from './rigging/loads';
+import { autoPlaceHoists } from './rigging/autoplace';
+import { getPresets } from './rigging/presets';
+import RigPresetsModal from './components/RigPresetsModal';
 import CommandPalette from './components/CommandPalette';
 import WelcomeScreen from './components/WelcomeScreen';
 import ConfirmHost, { confirmDialog } from './components/ConfirmDialog';
@@ -101,6 +104,7 @@ function App() {
   const [showTemplates, setShowTemplates]           = useState(false);
   const [showAutoAssign, setShowAutoAssign]         = useState(false);
   const [showRigging, setShowRigging]               = useState(false);
+  const [showRigPresets, setShowRigPresets]       = useState(false);
   const [showDrawingTemplates, setShowDrawingTemplates] = useState(false);
   const [transformMode, setTransformMode]           = useState(null); // 'array'|'align'|'mirror'|'offset'|'duplicate'|null
   const [duplicateId, setDuplicateId]               = useState(null);
@@ -1378,6 +1382,13 @@ function App() {
                 onNextConflict={dmxConflicts.length > 1 ? handleNextConflict : null}
                 structureStats={structureStats}
                 rigAnalysis={rigAnalysis}
+                rigPresets={getPresets(project)}
+                onEditRigPresets={() => setShowRigPresets(true)}
+                onAutoPlaceHoists={(count) => {
+                  const r = autoPlaceHoists(selectedObj, activeDrawing, allFixtureTypes, { count });
+                  handleUpdatePipe(selectedObj.id, { hoists: r.hoists });
+                  return r;
+                }}
                 onDeleteSelected={handleDelete}
               />
             );
@@ -1573,6 +1584,12 @@ function App() {
           onSwap={handleSwapFixture}
           onClose={() => setSwapFixtureIds(null)}
         /></ModalA11y>
+      )}
+      {showRigPresets && (
+        <ModalA11y onClose={() => setShowRigPresets(false)} label="Rigging presets"><RigPresetsModal
+          presets={getPresets(project)}
+          onSave={(list) => commit(proj => { proj.rigPresets = list; return proj; }, 'Edit rigging presets')}
+          onClose={() => setShowRigPresets(false)} /></ModalA11y>
       )}
       {showRigging && (
         <ModalA11y onClose={() => setShowRigging(false)} label="Rigging and load report"><RiggingReport

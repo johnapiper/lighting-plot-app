@@ -350,7 +350,7 @@ export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
   allFixtureTypes, dmxConflicts, selectedCount, selectedFixtures, layers,
   groupInfo, onGroup, onUngroup, onBulkUpdate, onAlign, onPatchSequential, suggestStartAddress,
-  onAssignFreeAddress, onNextConflict, structureStats, rigAnalysis, onDeleteSelected,
+  onAssignFreeAddress, onNextConflict, structureStats, rigAnalysis, rigPresets, onEditRigPresets, onAutoPlaceHoists, onDeleteSelected,
 }) {
   if (!selected) {
     if (selectedCount > 1) {
@@ -468,7 +468,7 @@ export default function InspectorPanel({
         <Field label="Name" value={p.name} onChange={v => onUpdatePipe(p.id, { name: v })} />
         <Field label="Height above stage (m)" value={p.height} onChange={v => onUpdatePipe(p.id, { height: v })} />
         <LayerField layerId={p.layerId} layers={layers} onChange={layerId => onUpdatePipe(p.id, { layerId })} />
-        <RiggingControls pipe={p} analysis={rigAnalysis} onUpdatePipe={onUpdatePipe} />
+        <RiggingControls pipe={p} analysis={rigAnalysis} onUpdatePipe={onUpdatePipe} presets={rigPresets} onEditPresets={onEditRigPresets} onAutoPlace={onAutoPlaceHoists} />
         {structureStats && <StructureStats stats={structureStats} />}
       </div>
     );

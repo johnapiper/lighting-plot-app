@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { suggestHoists, PIPE_KG_PER_M, TRUSS_KG_PER_M } from '../rigging/loads';
+import { barPresets, hoistPresets, barPresetFields, hoistPresetFields } from '../rigging/presets';
 
 /**
  * Rigging section of the pipe/truss inspector: bar weight and rating, hoist
@@ -35,7 +36,9 @@ function Num({ value, onCommit, placeholder, width = 70, allowBlank = true, min 
 const STATUS = { ok: ['#34d399', 'OK'], warn: ['#f6ad55', 'Check'], error: ['#f87171', 'Over limit'] };
 const kg = (v) => (v == null ? '—' : `${(Math.round(v * 10) / 10).toString()} kg`);
 
-export default function RiggingControls({ pipe, analysis, onUpdatePipe }) {
+export default function RiggingControls({ pipe, analysis, onUpdatePipe, presets = [], onEditPresets, onAutoPlace }) {
+  const [autoCount, setAutoCount] = useState('auto');
+  const [autoNote, setAutoNote] = useState(null);
   const hoists = Array.isArray(pipe.hoists) ? pipe.hoists : [];
   const defaultPerM = pipe.type === 'truss' ? TRUSS_KG_PER_M : PIPE_KG_PER_M;
   const lengthMm = analysis?.lengthMm ?? Math.hypot(pipe.x2 - pipe.x1, pipe.y2 - pipe.y1);
@@ -48,6 +51,23 @@ export default function RiggingControls({ pipe, analysis, onUpdatePipe }) {
     <div style={{ borderTop: '2px solid var(--border)' }}>
       <div style={S.title}>Rigging &amp; Load</div>
 
+      <div style={S.row}>
+        <span style={S.k}>Bar preset</span>
+        <select style={{ ...S.input, maxWidth: 150 }} value={pipe.presetId || ''}
+          onChange={e => set(barPresetFields(barPresets(presets).find(p => p.id === e.target.value) || null))}>
+          <option value="">Custom</option>
+          {barPresets(presets).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+      <div style={S.row}>
+        <span style={S.k}>Hoist rating</span>
+        <select style={{ ...S.input, maxWidth: 150 }} value={pipe.hoistPresetId || ''}
+          onChange={e => set(hoistPresetFields(pipe, hoistPresets(presets).find(p => p.id === e.target.value) || null))}>
+          <option value="">Custom</option>
+          {hoistPresets(presets).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+      {onEditPresets && <div style={{ padding: '0 10px 2px', textAlign: 'right' }}><button style={S.link} onClick={onEditPresets}>Edit presets…</button></div>}
       <div style={S.row}><span style={S.k}>Weight (kg/m)</span>
         <Num value={pipe.weightKgPerM} placeholder={String(defaultPerM)} onCommit={v => set({ weightKgPerM: v })} min={0} /></div>
       <div style={S.row}><span style={S.k}>Rated capacity (kg)</span>
@@ -72,14 +92,33 @@ export default function RiggingControls({ pipe, analysis, onUpdatePipe }) {
         );
       })}
       <div style={S.btnRow}>
-        <button style={S.btn} onClick={() => set({ hoists: [...hoists, { id: newId(), pos: Math.round(lengthMm / 2) }] })}>+ Hoist</button>
+        <button style={S.btn} onClick={() => set({ hoists: [...hoists, { id: newId(), pos: Math.round(lengthMm / 2), capacityKg: pipe.hoistCapacityKg }] })}>+ Hoist</button>
         {[2, 3, 4].map(n => (
           <button key={n} style={S.btn} title={`Replace with ${n} evenly placed hoists`}
-            onClick={() => set({ hoists: suggestHoists(lengthMm, n).map((pos, i) => ({ id: hoists[i]?.id || newId(), pos, capacityKg: hoists[i]?.capacityKg })) })}>
+            onClick={() => set({ hoists: suggestHoists(lengthMm, n).map((pos, i) => ({ id: hoists[i]?.id || newId(), pos, capacityKg: hoists[i]?.capacityKg ?? pipe.hoistCapacityKg })) })}>
             Auto {n}
           </button>
         ))}
       </div>
+      {onAutoPlace && (
+        <div style={S.btnRow}>
+          <select style={{ ...S.input, width: 62 }} value={autoCount} onChange={e => setAutoCount(e.target.value)} title="How many hoists to place">
+            <option value="auto">Auto</option>
+            {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <button style={{ ...S.btn, borderColor: 'var(--accent)', color: 'var(--accent-soft)' }}
+            title="Find hoist positions that share the load evenly, avoid uplift and stay under 80% of the rating"
+            onClick={() => { const r = onAutoPlace(autoCount === 'auto' ? 'auto' : Number(autoCount)); setAutoNote(r); }}>
+            ⚖ Place for best balance
+          </button>
+        </div>
+      )}
+      {autoNote && (
+        <div style={{ ...S.hint, color: autoNote.feasible ? 'var(--success-text)' : 'var(--warn-text)' }}>
+          {autoNote.count} hoist{autoNote.count === 1 ? '' : 's'}, busiest {Math.round(autoNote.maxReactionKg * 10) / 10} kg.
+          {autoNote.notes.map((n, i) => <div key={i}>{n}</div>)}
+        </div>
+      )}
       <div style={S.hint}>Position is measured from the bar's first (left/start) end.</div>
 
       {analysis && (
@@ -113,6 +152,7 @@ const S = {
   unit: { color: 'var(--text-dim)', fontSize: 10 },
   load: { marginLeft: 'auto', fontVariantNumeric: 'tabular-nums', fontSize: 11 },
   input: { background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', borderRadius: 3, color: 'var(--text)', fontSize: 11, padding: '2px 5px', outline: 'none', boxSizing: 'border-box' },
+  link: { background: 'none', border: 'none', color: 'var(--accent-soft)', cursor: 'pointer', fontSize: 10, padding: 0, textDecoration: 'underline' },
   x: { background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 14, padding: '0 2px' },
   btnRow: { display: 'flex', gap: 4, padding: '6px 10px 2px', flexWrap: 'wrap' },
   btn: { background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 10, padding: '3px 7px' },

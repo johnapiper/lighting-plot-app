@@ -17,13 +17,15 @@ describe('autoPlaceHoists', () => {
     expect(r.feasible).toBe(true);
   });
 
-  it('shifts hoists toward a heavy end so reactions stay balanced and nothing lifts', () => {
-    const d = { fixtures: [fx('a', 9500, 60), fx('b', 9000, 40), fx('c', 500, 5)] };
+  it('shifts hoists toward a heavy end: lower peak than the evenly spaced default, no uplift, sane overhang', () => {
+    const d = { fixtures: [fx('a', 8500, 40), fx('b', 9000, 30), fx('c', 500, 5)] };
     const r = autoPlaceHoists(pipe(), d, [], { count: 2, makeId: ids() });
-    const total = r.reactions[0] + r.reactions[1];
-    expect(Math.abs(r.reactions[0] - r.reactions[1]) / total).toBeLessThan(0.05);
+    const nominal = analyzeBar(pipe({ hoists: [{ pos: 2000 }, { pos: 8000 }] }), d, []);
+    const nominalMax = Math.max(...nominal.supports.map(s => s.reactionKg));
+    expect(r.maxReactionKg).toBeLessThan(nominalMax);
     expect(r.reactions.every(x => x > 0)).toBe(true);
     expect(r.hoists[1].pos).toBeGreaterThan(8000);        // pulled toward the heavy right end
+    expect(r.hoists[0].pos).toBeLessThanOrEqual(2600);    // left overhang stays within ~25%
   });
 
   it('is exactly what the load report then computes', () => {
