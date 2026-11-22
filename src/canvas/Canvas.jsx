@@ -13,6 +13,7 @@ import { useToolHints } from '../components/ToolHint';
 import Minimap from './Minimap';
 import { objectBounds } from './transforms';
 import { arcPath, getLayerId, fixtureLabel, LABEL_MODES } from './canvasHelpers';
+import { analyzeBar } from '../rigging/loads';
 export { LABEL_MODES };
 
 const RULER_SIZE = 20;
@@ -179,6 +180,13 @@ export default function Canvas({
 
   // Beam footprint visibility
   const [showBeams, setShowBeams] = useState(true);
+  const [showLoads, setShowLoads] = useState(true);   // hoist markers + their load
+  // Hoist loads per bar (only bars that have hoists), recomputed when the plot changes.
+  const rigByPipe = useMemo(() => {
+    const m = new Map();
+    (drawing?.pipes || []).forEach(p => { if (Array.isArray(p.hoists) && p.hoists.length) m.set(p.id, analyzeBar(p, drawing, fixtureTypes || [])); });
+    return m;
+  }, [drawing?.pipes, drawing?.fixtures, fixtureTypes]);
 
   // Extract objects from active drawing
   const pipes = drawing?.pipes || [];
@@ -1877,6 +1885,26 @@ export default function Canvas({
               <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2-10/zoom} textAnchor="middle" fontSize={10/zoom} fill={color} style={{ userSelect:'none', pointerEvents:'none' }}>
                 {isTruss ? '⊞ ' : ''}{p.name}
               </text>
+              {showLoads && (p.hoists || []).map((h, hi) => {
+                const L = distance(p.x1, p.y1, p.x2, p.y2) || 1;
+                const t = Math.min(Math.max((Number(h.pos) || 0) / L, 0), 1);
+                const hx = p.x1 + (p.x2 - p.x1) * t, hy = p.y1 + (p.y2 - p.y1) * t;
+                const s = rigByPipe.get(p.id)?.supports?.[hi];
+                const bad = s && (s.uplift || (s.utilisation != null && s.utilisation > 1));
+                const warn = s && !bad && s.utilisation != null && s.utilisation > 0.8;
+                const hc = bad ? '#f87171' : warn ? '#f6ad55' : '#7fd0a0';
+                const r = 6 / zoom;
+                return (
+                  <g key={h.id || hi} style={{ pointerEvents: 'none' }}>
+                    <circle cx={hx} cy={hy} r={r} fill="#10151f" stroke={hc} strokeWidth={1.6 / zoom} />
+                    <line x1={hx - r * 0.6} y1={hy - r * 0.6} x2={hx + r * 0.6} y2={hy + r * 0.6} stroke={hc} strokeWidth={1.2 / zoom} />
+                    <line x1={hx - r * 0.6} y1={hy + r * 0.6} x2={hx + r * 0.6} y2={hy - r * 0.6} stroke={hc} strokeWidth={1.2 / zoom} />
+                    {s?.reactionKg != null && (
+                      <text x={hx} y={hy + 17 / zoom} textAnchor="middle" fontSize={9 / zoom} fill={hc}>{Math.round(s.reactionKg)} kg</text>
+                    )}
+                  </g>
+                );
+              })}
               {p.locked && <text x={(p.x1+p.x2)/2} y={(p.y1+p.y2)/2} textAnchor="middle" fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
             </g>
           );
@@ -2199,6 +2227,7 @@ export default function Canvas({
       <CtxItem onClick={() => centerOn(w.x, w.y)}>✥ Centre View Here</CtxItem>
       <CtxItem kbd="Ctrl+0" onClick={fitView}>⤢ Fit to Window</CtxItem>
       <CtxItem onClick={() => setShowBeams(v => !v)}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</CtxItem>
+      <CtxItem onClick={() => setShowLoads(v => !v)}>{showLoads ? '🏗 Hide Hoist Loads' : '🏗 Show Hoist Loads'}</CtxItem>
     </>);
   }
 

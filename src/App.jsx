@@ -32,6 +32,8 @@ import RecoveryDialog from './components/RecoveryDialog';
 import FindFixtureModal from './components/FindFixtureModal';
 import NumberingBar from './components/NumberingBar';
 import AutoAssignModal from './components/AutoAssignModal';
+import RiggingReport from './components/RiggingReport';
+import { analyzeBar } from './rigging/loads';
 import CommandPalette from './components/CommandPalette';
 import WelcomeScreen from './components/WelcomeScreen';
 import ConfirmHost, { confirmDialog } from './components/ConfirmDialog';
@@ -98,6 +100,7 @@ function App() {
   const [swapFixtureIds, setSwapFixtureIds]         = useState(null); // array of ids or null
   const [showTemplates, setShowTemplates]           = useState(false);
   const [showAutoAssign, setShowAutoAssign]         = useState(false);
+  const [showRigging, setShowRigging]               = useState(false);
   const [showDrawingTemplates, setShowDrawingTemplates] = useState(false);
   const [transformMode, setTransformMode]           = useState(null); // 'array'|'align'|'mirror'|'offset'|'duplicate'|null
   const [duplicateId, setDuplicateId]               = useState(null);
@@ -1105,6 +1108,7 @@ function App() {
     lockedCmd('undo_history', { id: 'history', group: 'Panels', label: 'Undo history', run: () => setShowUndoHistory(true) }),
     lockedCmd('templates', { id: 'templates', group: 'Panels', label: 'Project templates', run: () => setShowTemplates(true) }),
     lockedCmd('templates', { id: 'dtemplates', group: 'Panels', label: 'Drawing templates', run: () => setShowDrawingTemplates(true) }),
+    { id: 'rigging', group: 'Panels', label: 'Rigging & load report…', keywords: 'weight hoist motor capacity truss pipe bar load wll', disabled: activeMode !== 'cad', run: () => setShowRigging(true) },
     { id: 'autoassign', group: 'Panels', label: 'Auto-number & patch…', keywords: 'renumber sequence patch address universe rules', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: () => setShowAutoAssign(true) },
     { id: 'number', group: 'Panels', label: numbering ? 'Stop click-to-number' : 'Click-to-number fixtures', shortcut: 'N', keywords: 'channel unit renumber sequence', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: toggleNumbering },
     { id: 'next-conflict', group: 'Panels', label: `Jump to next DMX conflict (${dmxConflicts.length})`, disabled: !dmxConflicts.length, run: handleNextConflict },
@@ -1343,6 +1347,9 @@ function App() {
             const structureStats = (kind === 'pipe')
               ? computeStructureStats(selectedObj, activeDrawing, allFixtureTypes, project.meta?.rigHeight || 5500)
               : null;
+            const rigAnalysis = (kind === 'pipe')
+              ? analyzeBar(selectedObj, activeDrawing, allFixtureTypes)
+              : null;
             return (
               <InspectorPanel
                 selected={selectedObj}
@@ -1370,6 +1377,7 @@ function App() {
                 onAssignFreeAddress={handleAssignFreeAddress}
                 onNextConflict={dmxConflicts.length > 1 ? handleNextConflict : null}
                 structureStats={structureStats}
+                rigAnalysis={rigAnalysis}
                 onDeleteSelected={handleDelete}
               />
             );
@@ -1451,6 +1459,7 @@ function App() {
               <button style={{ ...styles.statusBtn, ...(numbering ? { color:'var(--accent-soft)' } : {}) }} onClick={toggleNumbering}
                 title="Click fixtures in order to number their channels or units (N)">Number</button>
             )}
+            {activeMode === 'cad' && (<button style={styles.statusBtn} onClick={() => setShowRigging(true)} title="Weights, hoist loads and capacity check per bar">Rigging</button>)}
             {activeMode === 'cad' && canUseLibrary && canEditCanvas && (<button style={styles.statusBtn} onClick={() => setShowAutoAssign(true)}
                 title="Auto-number and auto-patch with rules and a preview">Auto-assign</button>)}
             {license?.hasFeature('universe_view') && <button style={styles.statusBtn} onClick={() => setShowUniverse(true)} title="Universe Overview (U)">Universe</button>}
@@ -1564,6 +1573,12 @@ function App() {
           onSwap={handleSwapFixture}
           onClose={() => setSwapFixtureIds(null)}
         /></ModalA11y>
+      )}
+      {showRigging && (
+        <ModalA11y onClose={() => setShowRigging(false)} label="Rigging and load report"><RiggingReport
+          drawing={activeDrawing} fixtureTypes={allFixtureTypes} title={project.meta?.title}
+          onSelectPipe={(id) => { const p = activeDrawing?.pipes?.find(p => p.id === id); if (p) { handleSelect({ kind: 'pipe', ...p }); setShowRigging(false); } }}
+          onClose={() => setShowRigging(false)} /></ModalA11y>
       )}
       {showAutoAssign && (
         <ModalA11y onClose={() => setShowAutoAssign(false)} label="Auto-number and patch"><AutoAssignModal

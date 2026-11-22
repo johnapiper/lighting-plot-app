@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { parseDmx, validateDmx } from '../patch/dmx';
+import RiggingControls from './RiggingControls';
 
 function Field({ label, value, onChange, readOnly, type = 'text', placeholder, title, children }) {
   return (
@@ -349,7 +350,7 @@ export default function InspectorPanel({
   selected, onUpdateFixture, onUpdatePipe, onUpdateText, onUpdateObject,
   allFixtureTypes, dmxConflicts, selectedCount, selectedFixtures, layers,
   groupInfo, onGroup, onUngroup, onBulkUpdate, onAlign, onPatchSequential, suggestStartAddress,
-  onAssignFreeAddress, onNextConflict, structureStats, onDeleteSelected,
+  onAssignFreeAddress, onNextConflict, structureStats, rigAnalysis, onDeleteSelected,
 }) {
   if (!selected) {
     if (selectedCount > 1) {
@@ -413,6 +414,9 @@ export default function InspectorPanel({
         <NumberField label="Rotation°" value={f.rotation ?? 0} step={15} decimals={1} onCommit={v => onUpdateFixture(f.id, { rotation: v })} />
         <NumberField label="Tilt°" value={f.tiltAngle ?? 0} min={-89} max={89} step={5} decimals={1} onCommit={v => onUpdateFixture(f.id, { tiltAngle: v })}
           title="Degrees from vertical (0 = straight down). Affects beam footprint on plan." />
+        <NumberField label="Weight (kg)" value={f.weightKg ?? ftype?.weightKg ?? ''} min={0} step={0.5} decimals={2} placeholder="5 (assumed)"
+          title={f.weightKg == null ? (ftype?.weightKg != null ? "From the fixture type - type here to override for this fixture." : "No weight on the type: rig loads assume 5 kg until you enter one.") : "Overrides the fixture type's weight for this fixture."}
+          onCommit={v => onUpdateFixture(f.id, { weightKg: v })} />
         <NumberField label="Scale" value={f.scale || 1} min={0.1} max={20} step={0.1} decimals={2} onCommit={v => onUpdateFixture(f.id, { scale: v })} />
         <LayerField layerId={f.layerId} layers={layers} onChange={layerId => onUpdateFixture(f.id, { layerId })} />
         {/* Symbol override */}
@@ -464,6 +468,7 @@ export default function InspectorPanel({
         <Field label="Name" value={p.name} onChange={v => onUpdatePipe(p.id, { name: v })} />
         <Field label="Height above stage (m)" value={p.height} onChange={v => onUpdatePipe(p.id, { height: v })} />
         <LayerField layerId={p.layerId} layers={layers} onChange={layerId => onUpdatePipe(p.id, { layerId })} />
+        <RiggingControls pipe={p} analysis={rigAnalysis} onUpdatePipe={onUpdatePipe} />
         {structureStats && <StructureStats stats={structureStats} />}
       </div>
     );
