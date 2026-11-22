@@ -17,6 +17,8 @@
  *   'left'  faces the left      (west)  — right is -y
  */
 
+import { glyphKey, GLYPH_SPEC } from './glyphs';
+
 const RAD = Math.PI / 180;
 const DEG = 180 / Math.PI;
 
@@ -38,17 +40,10 @@ const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : un
 
 // Typical body size (mm) for the elevation silhouette, by fixture type.
 export function bodySize(type) {
-  const k = `${type?.category || ''} ${type?.name || ''}`.toLowerCase();
-  if (/moving|spot|beam|profile\s*moving/.test(k)) return { w: 320, h: 430 };
-  if (/profile|ellips|source/.test(k)) return { w: 250, h: 420 };
-  if (/fresnel|pc\b/.test(k)) return { w: 240, h: 300 };
-  if (/par/.test(k)) return { w: 220, h: 260 };
-  if (/flood|cyc/.test(k)) return { w: 330, h: 260 };
-  if (/led|wash/.test(k)) return { w: 290, h: 300 };
-  return { w: 250, h: 330 };
+  const { w, h } = GLYPH_SPEC[glyphKey(type)];
+  return { w, h };
 }
 
-const YOKE_MM = 130;      // pipe underside to the body's trunnion
 const PIPE_R_MM = 24;     // 48 mm barrel
 
 /**
@@ -117,12 +112,13 @@ export function buildElevation(drawing, fixtureTypes = [], meta = {}, opts = {})
     const pipe = f.pipeId ? pipesById.get(f.pipeId) : null;
     const z = pipe ? pipeH(pipe) : rigMm;
     const type = types.get(f.fixtureTypeId);
-    const body = bodySize(type);
+    const gk = glyphKey(type);
+    const body = GLYPH_SPEC[gk];
     const beamDeg = num(f.beamAngle) ?? num(type?.beamAngle) ?? 0;
     const ab = apparentBeam({ tiltDeg: num(f.tiltAngle) ?? 0, rotationDeg: num(f.rotation) ?? 0, beamDeg }, dir);
 
     const P = { u: pr.u, v: -z + PIPE_R_MM };                         // clamp, under the pipe
-    const T = { u: P.u, v: P.v + YOKE_MM };                            // trunnion
+    const T = { u: P.u, v: P.v + body.yoke };                          // trunnion
     const a = ab.alphaDeg * RAD;
     const axis = { u: Math.sin(a), v: Math.cos(a) };                   // throw direction in view (v down)
     const lens = { u: T.u + axis.u * body.h * 0.5, v: T.v + axis.v * body.h * 0.5 };
@@ -139,7 +135,7 @@ export function buildElevation(drawing, fixtureTypes = [], meta = {}, opts = {})
       beam = { apex: lens, rays };
     }
     fixtures.push({
-      id: f.id, u: pr.u, depth: pr.depth, P, T, lens, alphaDeg: ab.alphaDeg, bodyW: body.w, bodyH: body.h, beam,
+      id: f.id, u: pr.u, depth: pr.depth, P, T, lens, alphaDeg: ab.alphaDeg, bodyW: body.w, bodyH: body.h, yoke: body.yoke, glyph: gk, beam,
       label: String(f.channel || f.unit || '').trim(), colourHex: f.colourHex && f.colourHex !== 'null' ? f.colourHex : null,
       type: f.type || type?.name || '',
     });

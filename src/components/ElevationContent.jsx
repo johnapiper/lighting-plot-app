@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { buildElevation, ELEV_DIRS } from '../elevation/elevation';
 import { getLayerId } from '../canvas/canvasHelpers';
+import { glyphShapes } from '../elevation/glyphs';
 
 /**
  * Elevation / section drawing for a sheet viewport. Everything is in WORLD units
@@ -109,12 +110,15 @@ export default function ElevationContent({ drawing, fixtureTypes, layers, meta, 
       {/* Fixtures */}
       {model.fixtures.map(f => (
         <g key={f.id}>
-          <line x1={f.P.u} y1={f.P.v} x2={f.T.u} y2={f.T.v} stroke={ink} strokeWidth={pm(0.45)} />
+          {f.glyph !== 'moving' && <line x1={f.P.u} y1={f.P.v} x2={f.T.u} y2={f.T.v} stroke={ink} strokeWidth={pm(0.45)} />}
           <rect x={f.P.u - 70} y={f.P.v - 10} width={140} height={50} fill="white" stroke={ink} strokeWidth={pm(0.25)} />
-          <g transform={`rotate(${-f.alphaDeg} ${f.T.u} ${f.T.v})`}>
-            <rect x={f.T.u - f.bodyW / 2} y={f.T.v - f.bodyH / 2} width={f.bodyW} height={f.bodyH} rx={f.bodyW * 0.12}
-              fill={f.colourHex || 'white'} fillOpacity={f.colourHex ? 0.45 : 1} stroke={ink} strokeWidth={pm(0.35)} />
-            <line x1={f.T.u - f.bodyW / 2} y1={f.T.v + f.bodyH / 2} x2={f.T.u + f.bodyW / 2} y2={f.T.v + f.bodyH / 2} stroke={ink} strokeWidth={pm(0.7)} />
+          <g transform={`translate(${f.T.u} ${f.T.v}) rotate(${-f.alphaDeg})`}>
+            {glyphShapes(f.glyph, f.bodyW, f.bodyH, f.yoke).map((sh, k) => (
+              <path key={k} d={sh.d}
+                fill={sh.fill === 'lens' ? (f.colourHex || '#fff6cc') : sh.fill === 'body' ? 'white' : sh.fill === 'ink' ? ink : 'none'}
+                fillOpacity={sh.fill === 'lens' && f.colourHex ? 0.7 : 1}
+                stroke={ink} strokeWidth={pm(sh.weight === 'fine' ? 0.13 : 0.32)} strokeLinejoin="round" strokeLinecap="round" />
+            ))}
           </g>
           <circle cx={f.T.u} cy={f.T.v} r={28} fill={ink} />
           {showLabels && f.label && (
