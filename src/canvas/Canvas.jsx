@@ -12,7 +12,8 @@ import { gatherSnapTargets, computeOsnap, constrainAngle } from './snapping';
 import { useToolHints } from '../components/ToolHint';
 import Minimap from './Minimap';
 import { objectBounds } from './transforms';
-import { arcPath, getLayerId, fixtureLabel, LABEL_MODES } from './canvasHelpers';
+import { arcPath, getLayerId, fixtureLabel, LABEL_MODES, aimAt } from './canvasHelpers';
+import { FixtureLayer, SymbolDefs, buildSymIds, cullFixtures, lodFor } from './FixtureNode';
 import { analyzeBar } from '../rigging/loads';
 import { nearestOnSeg } from '../cabling/routing';
 import { computeCoverage, coverageStats, renderCoveragePng, throwHeight, COVERAGE_COLORS } from '../coverage/coverage';
@@ -24,6 +25,8 @@ const PIPE_SNAP_RADIUS = 40;
 const HANDLE_R = 6;
 const BOX_THRESHOLD = 5;
 const OSNAP_RADIUS = 12; // screen px within which object snaps engage
+
+const EMPTY_LIST = [];
 
 export default function Canvas({
   project, drawing, commit, softUpdate,
@@ -55,10 +58,15 @@ export default function Canvas({
   useEffect(() => {
     const el = svgRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const obs = new ResizeObserver(() => setVpSize({ w: el.clientWidth, h: el.clientHeight }));
+    const obs = new ResizeObserver(() => { rectCache.current = el.getBoundingClientRect(); setVpSize({ w: el.clientWidth, h: el.clientHeight }); });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+  // The canvas's on-screen rectangle, cached: reading it on every mouse move forces a full layout of a
+  // DOM that may hold thousands of nodes. Refreshed on resize and at the start of every click / hover entry.
+  const rectCache = useRef(null);
+  const getSvgRect = () => rectCache.current || svgRef.current.getBoundingClientRect();
+  const refreshSvgRect = () => { if (svgRef.current) rectCache.current = svgRef.current.getBoundingClientRect(); };
   const ctxRef = useRef(null);
   // Unified snap config — defaults all-on. Held in a ref so the canvas mouse
   // handlers (useCallback) always read the live value, not a stale closure.
@@ -251,7 +259,7 @@ export default function Canvas({
 
   // ─── Coordinate helpers ───────────────────────────────────────────────
   function screenToWorld(sx, sy) {
-    const rect = svgRef.current.getBoundingClientRect();
+    const rect = getSvgRect();
     const ox = showRulers ? RULER_SIZE : 0, oy = showRulers ? RULER_SIZE : 0;
     return {
       x: (sx - rect.left - ox - pan.x) / zoom,
@@ -368,17 +376,6 @@ export default function Canvas({
     }
   }
 
-  // Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
-  // its beam axis at the floor point (tx,ty). Beam direction in the symbol is
-  // (-sin(rot), cos(rot)); tilt is the angle from vertical.
-  function aimAt(fx, fy, tx, ty, h) {
-    const dx = tx - fx, dy = ty - fy;
-    const D = Math.hypot(dx, dy);
-    return {
-      rotation: Math.atan2(-dx, dy) * 180 / Math.PI,
-      tilt: Math.atan2(D, h || 5500) * 180 / Math.PI,
-    };
-  }
   function findNearestPipe(wx, wy) {
     let best = null, bestDist = Infinity;
     for (const p of pipes) {
@@ -1280,7 +1277,7 @@ export default function Canvas({
     // zoom smoothly; pinch gestures arrive as ctrl+wheel with small deltas.
     const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
     const factor = Math.exp(-Math.max(-100, Math.min(100, px)) * (e.ctrlKey ? 0.01 : 0.001)); // one 100px wheel notch ≈ 10%
-    const rect = svgRef.current.getBoundingClientRect();
+    const rect = getSvgRect();
     const ox = showRulers ? RULER_SIZE : 0, oy = showRulers ? RULER_SIZE : 0;
     const mx = e.clientX - rect.left - ox, my = e.clientY - rect.top - oy;
     onZoomChange(z => {
@@ -1622,7 +1619,9 @@ export default function Canvas({
 
   function renderRulers(svgW, svgH) {
     if (!showRulers) return null;
-    const step = gridSize;
+    // Thin the ticks when they would be denser than ~8 px on screen (small grid, zoomed out) — by a whole multiple of the grid.
+    const mult = Math.max(1, Math.ceil(8 / Math.max(1e-6, gridSize * zoom)));
+    const step = gridSize * mult;
     const ticksX = [], ticksY = [];
     const units = meta?.units || 'mm';
     const tickLabel = (wu) => String(+toDisplayValue(wu, units).toFixed(units === 'mm' ? 0 : 2));
@@ -1763,8 +1762,30 @@ export default function Canvas({
 
   // ─── Layer-ordered rendering ──────────────────────────────────────────
   const allSelected = new Set([...(selectedIds || []), ...(selectedId ? [selectedId] : [])]);
-  const ftypes = {};
-  fixtureTypes.forEach(f => { ftypes[f.id] = f; });
+  const ftypes = useMemo(() => { const m = {}; fixtureTypes.forEach(f => { m[f.id] = f; }); return m; }, [fixtureTypes]);
+  const symIds = useMemo(() => buildSymIds(fixtureTypes), [fixtureTypes]);
+  const dmxConflictSet = useMemo(() => new Set(dmxConflicts || []), [dmxConflicts]);
+  // Visible world rectangle (+ a margin so big beam pools at the edge still draw). Nothing is culled until the canvas size is known.
+  const cullMargin = 4000 + 60 / zoom;
+  const cullKey = vpSize.w > 0
+    ? [(-pan.x / zoom - cullMargin), (-pan.y / zoom - cullMargin), ((vpSize.w - (showRulers ? RULER_SIZE : 0) - pan.x) / zoom + cullMargin), ((vpSize.h - (showRulers ? RULER_SIZE : 0) - pan.y) / zoom + cullMargin)].map(Math.round).join(',')
+    : null;
+  const selectionKey = [...allSelected].join(',');
+  const visibleFixtures = useMemo(() => {
+    const view = cullKey ? (([x0, y0, x1, y1]) => ({ x0, y0, x1, y1 }))(cullKey.split(',').map(Number)) : null;
+    return cullFixtures(fixtures, view, allSelected);
+    // eslint-disable-next-line
+  }, [fixtures, cullKey, selectionKey]);
+  const lod = lodFor(visibleFixtures.length);
+  const fixturesByLayer = useMemo(() => {
+    const m = new Map();
+    visibleFixtures.forEach(f => { const id = getLayerId(f, 'fixture'); if (!m.has(id)) m.set(id, []); m.get(id).push(f); });
+    return m;
+  }, [visibleFixtures]);
+  const selectedSet = useMemo(() => new Set(selectionKey ? selectionKey.split(',') : []), [selectionKey]);
+  // Grid and rulers only depend on the view, not the cursor — keep them off the per-mouse-move path.
+  const gridEl = useMemo(() => renderGrid(), [showGrid, showRulers, pan.x, pan.y, zoom, gridSize, vpSize.w, vpSize.h]); // eslint-disable-line
+  const rulersEl = useMemo(() => renderRulers(Math.max(vpSize.w, 800), Math.max(vpSize.h, 600)), [showRulers, pan.x, pan.y, zoom, gridSize, meta?.units, vpSize.w, vpSize.h]); // eslint-disable-line
   const focusFixture = focusModeId ? fixtures.find(f => f.id === focusModeId) : null;
   const ro = showRulers ? RULER_SIZE : 0;
 
@@ -1939,80 +1960,11 @@ export default function Canvas({
             </g>
           );
         })}
-        {/* Fixtures */}
-        {fixtures.filter(o => getLayerId(o,'fixture') === layerId).map(f => {
-          const ftype = ftypes[f.fixtureTypeId];
-          const sel = allSelected.has(f.id);
-
-          // ── Beam footprint ─────────────────────────────────────────────
-          // The fixture hangs at rigHeight mm above the floor. tiltAngle (0=straight down,
-          // positive = tilting toward the front of the symbol) controls the horizontal throw.
-          // We project the cone edge onto the floor plan.
-          // While aiming this fixture (focus mode), preview the beam at the cursor.
-          const focusPreview = (focusModeId === f.id && focusCursor)
-            ? aimAt(f.x, f.y, focusCursor.x, focusCursor.y, rigHeight || 5500) : null;
-          const beamEl = (() => {
-            if (!showBeams && !focusPreview) return null;
-            // Per-fixture override wins, else the fixture type's beam angle.
-            const beamDeg = f.beamAngle ?? ftype?.beamAngle ?? 0;
-            const halfBeamRad = (beamDeg / 2) * Math.PI / 180;
-            if (halfBeamRad <= 0) return null;
-            const tiltDeg = focusPreview ? focusPreview.tilt : (f.tiltAngle ?? 0);
-            const fxRot   = focusPreview ? focusPreview.rotation : (f.rotation || 0);
-            const tiltRad = tiltDeg * Math.PI / 180; // 0 = straight down
-            const h = throwHeight(f, pipesById, rigHeight || 5500);  // throw height (mm): the pipe it hangs on, else the rig height
-            // Project the cone onto the floor — a true ellipse. The near and far
-            // edges are where the cone's leading/trailing rays meet the floor;
-            // clamp angles just under 90° so a grazing beam doesn't shoot to ∞.
-            const CAP = 1.4835;                                   // ~85° in radians
-            const clamp = (a) => Math.max(-CAP, Math.min(CAP, a));
-            const nearDist = h * Math.tan(clamp(tiltRad - halfBeamRad));
-            const farDist  = h * Math.tan(clamp(tiltRad + halfBeamRad));
-            // Ellipse centre = midpoint of the near/far edges (NOT the axis hit
-            // point). Because tan is convex this sits beyond the aim point, so the
-            // far side of the pool spreads more than the near side as tilt grows —
-            // matching a real light footprint.
-            const centreDist = (nearDist + farDist) / 2;
-            const rMajor = Math.abs(farDist - nearDist) / 2;             // along throw
-            const rMinor = (h / Math.cos(clamp(Math.abs(tiltRad)))) * Math.tan(halfBeamRad); // perpendicular
-            // Beam shoots in the direction the symbol points (rotation; +180 so a
-            // 0° fixture throws "down" the plan toward the stage).
-            const rotDeg = fxRot + 180;
-            const rotRad = rotDeg * Math.PI / 180;
-            const dirX = Math.sin(rotRad), dirY = -Math.cos(rotRad);     // throw direction
-            const cx = centreDist * dirX, cy = centreDist * dirY;
-            // Edge points of the footprint (near & far along throw) for the cone lines.
-            const nearX = nearDist * dirX, nearY = nearDist * dirY;
-            const px = -dirY, py = dirX;                                  // perpendicular unit
-            const colour = f.colourHex && f.colourHex !== 'null' ? f.colourHex : '#ffd86b';
-            return (
-              <g style={{ pointerEvents: 'none' }}>
-                {/* Cone edges: fixture → the two sides of the footprint at the near plane offset */}
-                <line x1={0} y1={0} x2={cx + px*rMinor} y2={cy + py*rMinor}
-                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.45} strokeDasharray={`${4/zoom} ${3/zoom}`} />
-                <line x1={0} y1={0} x2={cx - px*rMinor} y2={cy - py*rMinor}
-                  stroke={colour} strokeWidth={0.8/zoom} strokeOpacity={0.45} strokeDasharray={`${4/zoom} ${3/zoom}`} />
-                {/* Footprint ellipse (major axis along the throw) */}
-                <ellipse cx={cx} cy={cy} rx={rMinor} ry={rMajor}
-                  transform={`rotate(${rotDeg} ${cx} ${cy})`}
-                  fill={colour} fillOpacity={0.10}
-                  stroke={colour} strokeWidth={1/zoom} strokeOpacity={0.55} />
-              </g>
-            );
-          })();
-
-          return (
-            <g key={f.id} transform={`translate(${f.x},${f.y})`} style={{ cursor: f.locked ? 'not-allowed' : 'pointer', opacity: f.locked ? 0.6 : 1 }}>
-              {beamEl}
-              <g transform={`scale(${1/zoom})`}>
-                <FixtureSymbol fixtureType={ftype} unit={fixtureLabel(f, labelMode)} channel={null} selected={sel} rotation={f.rotation||0} scale={f.scale||1} colourHex={f.colourHex||null} symbolOverride={f.symbolOverride||null} symbolColor={f.symbolColor||null} />
-              </g>
-              {dmxConflicts.includes(f.id) && <circle cx={0} cy={0} r={16/zoom} fill="none" stroke="#fc8181" strokeWidth={2/zoom} strokeOpacity={0.85} style={{ pointerEvents:'none' }} />}
-              {f.id === focusModeId && <circle cx={0} cy={0} r={6/zoom} fill="none" stroke="#ffaa00" strokeWidth={2/zoom} strokeDasharray={`${3/zoom} ${2/zoom}`} />}
-              {f.locked && <text x={0} y={-20/zoom} textAnchor="middle" fontSize={12/zoom} fill="rgba(255,255,255,0.7)" style={{ userSelect:'none', pointerEvents:'none' }}>🔒</text>}
-            </g>
-          );
-        })}
+        {/* Fixtures — culled to the visible area, level-of-detail by on-screen count, memoised */}
+        <FixtureLayer items={fixturesByLayer.get(layerId) || EMPTY_LIST} ftypes={ftypes} selected={selectedSet} zoom={zoom}
+          labelMode={labelMode} showBeams={showBeams} rigHeight={rigHeight || 5500} pipesById={pipesById}
+          throwHeightOf={throwHeight} focusModeId={focusModeId} focusCursor={focusCursor}
+          dmxConflictSet={dmxConflictSet} symIds={symIds} lod={lod} />
       </g>
     );
   }
@@ -2316,13 +2268,14 @@ export default function Canvas({
       <div style={{ flex: 1, position: 'relative', display: 'flex', minHeight: 0, minWidth: 0 }}>
       <svg ref={svgRef} data-plot-canvas="true"
         style={{ flex: 1, display: 'block', background: '#0d1117', cursor: cursorStyle, userSelect: 'none', minWidth: 0 }}
-        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
-        onDoubleClick={onDblClick} onContextMenu={onContextMenu}
+        onMouseDown={e => { refreshSvgRect(); onMouseDown(e); }} onMouseEnter={refreshSvgRect} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
+        onDoubleClick={onDblClick} onContextMenu={e => { refreshSvgRect(); onContextMenu(e); }}
         onMouseLeave={() => { setCursorPos(null); setFocusCursor(null); if (cursorReadoutRef?.current) cursorReadoutRef.current.textContent = ''; if (dragTargetLayerRef) dragTargetLayerRef.current = null; }}
       >
         <g transform={`translate(${ro},${ro})`}>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-            {renderGrid()}
+            <SymbolDefs symIds={symIds} fixtureTypes={fixtureTypes} />
+            {gridEl}
             {coverage && (
               <image href={coverage.url} x={coverage.grid.x0} y={coverage.grid.y0}
                 width={coverage.grid.cols * coverage.grid.cell} height={coverage.grid.rows * coverage.grid.cell}
@@ -2622,7 +2575,7 @@ export default function Canvas({
           </g>
         </g>
 
-        {renderRulers(3000, 1500)}
+        {rulersEl}
         {cursorPos && !focusModeId && !calibState && !cursorReadoutRef && <text x={ro+8} y={28} fontSize={9} fill="#4a6080">{formatCoord(cursorPos.x, cursorPos.y, meta?.units || 'mm')}</text>}
         {focusModeId && <text x={ro+8} y={28} fontSize={10} fill="#ffaa00">Click to set focus direction — Esc to cancel</text>}
         {activeTool === 'dimension' && <text x={ro+8} y={28} fontSize={10} fill="#a0c0ff">{measure && !measure.done ? '⟷ Click second point to set the locked dimension' : measure?.done ? '⟷ Dimension added (🔒 constrained) — click to add another' : '⟷ Click first point to add a constrained dimension'}</text>}
@@ -2789,6 +2742,12 @@ export default function Canvas({
                 onClick={() => setCalibState(null)}>Cancel</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {lod > 0 && (
+        <div style={{ position: 'absolute', right: 12, top: showRulers ? 26 : 8, background: 'rgba(16,21,31,0.88)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: 'var(--text-dim)', pointerEvents: 'none' }}>
+          {visibleFixtures.length} fixtures in view — {lod === 2 ? 'zoom in for symbols' : 'labels and beams hidden; zoom in for detail'}
         </div>
       )}
 

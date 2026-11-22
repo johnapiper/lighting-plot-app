@@ -1,8 +1,11 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-module.exports = {
-  mode: 'development',
+// Production by default: React's development build is many times slower (every element
+// is validated), which matters on plots with thousands of fixtures. `npm run build:dev`
+// / `npm run watch` pass --mode development for readable stack traces.
+module.exports = (env, argv) => ({
+  mode: argv.mode || 'production',
   entry: './src/index.jsx',
   target: 'electron-renderer',
   output: {
@@ -32,4 +35,4 @@ module.exports = {
       inject: false,
     }),
   ],
-};
+});

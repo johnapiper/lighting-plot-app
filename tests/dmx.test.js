@@ -94,3 +94,28 @@ describe('planSequentialPatch', () => {
     expect(planSequentialPatch([], 'nope')).toBeNull();
   });
 });
+
+describe('findDmxConflicts matches the brute-force definition', () => {
+  const brute = (fixtures) => {
+    const out = new Set();
+    const rs = fixtures.map(f => { const p = parseDmxStrict(f.dmxAddress); return p && { id: f.id, u: p.universe, s: p.channel, e: p.channel + (f.dmxChannelCount || 1) - 1 }; }).filter(Boolean);
+    for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+      if (rs[i].u === rs[j].u && rs[i].s <= rs[j].e && rs[j].s <= rs[i].e) { out.add(rs[i].id); out.add(rs[j].id); }
+    }
+    return out;
+  };
+  it('on random patches', () => {
+    let seed = 12345;
+    const rnd = (n) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+    for (let round = 0; round < 200; round++) {
+      const fx = Array.from({ length: 1 + rnd(40) }, (_, i) => ({ id: 'f' + i, dmxAddress: `${1 + rnd(2)}/${1 + rnd(60)}`, dmxChannelCount: 1 + rnd(12) }));
+      expect([...findDmxConflicts(fx)].sort()).toEqual([...brute(fx)].sort());
+    }
+  });
+  it('handles thousands of fixtures quickly', () => {
+    const fx = Array.from({ length: 20000 }, (_, i) => ({ id: 'f' + i, dmxAddress: `${1 + Math.floor(i / 400)}/${1 + (i % 400)}`, dmxChannelCount: 1 }));
+    const t = Date.now();
+    expect(findDmxConflicts(fx).size).toBe(0);
+    expect(Date.now() - t).toBeLessThan(500);
+  });
+});

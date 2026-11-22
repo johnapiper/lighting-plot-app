@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function FixtureSymbol({ fixtureType, unit, channel, selected, rotation = 0, scale = 1, colourHex, symbolOverride, symbolColor }) {
+export default function FixtureSymbol({ fixtureType, unit, channel, selected, rotation = 0, scale = 1, colourHex, symbolOverride, symbolColor, symId }) {
   if (!fixtureType) return null;
 
   // symbolColor prop overrides fixtureType.symbolColour, both override default white
@@ -14,7 +14,9 @@ export default function FixtureSymbol({ fixtureType, unit, channel, selected, ro
     <g>
       {/* Symbol and colour swatch rotate with fixture */}
       <g transform={`rotate(${rotation}) scale(${sc})`} style={{ color }}>
-        <g dangerouslySetInnerHTML={{ __html: sym }} />
+        {symId && !symbolOverride
+          ? <use href={`#${symId}`} />          // shared definition (see SymbolDefs) — one node instead of the whole symbol
+          : <g dangerouslySetInnerHTML={{ __html: sym }} />}
         {colourHex && (
           <circle cx={0} cy={-14} r={4} fill={colourHex} stroke={selected ? '#00aaff' : 'rgba(0,0,0,0.4)'} strokeWidth={0.5} />
         )}

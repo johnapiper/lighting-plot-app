@@ -30,6 +30,9 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 - Fixtures snap and hang onto pipes — move the pipe and the rig follows
 - Rotation, scale, and symbol/colour overrides per fixture
 - 3D view with beam cones and floor pools from each fixture's beam angle, tilt and rotation
+- **Named views**: save, apply and update layer-visibility sets ("FOH only", "Power only"); sheet viewports can use a view independently of the plot
+- **Floor coverage heatmap** showing how many beams reach each part of the stage, with per-rectangle coverage percentages
+- Large rigs: culled, level-of-detail rendering and memoised fixtures keep plots with thousands of fixtures responsive
 - Layer system — colour-coded, lockable, toggleable visibility
 - Scale calibration against PDF backgrounds
 - Group objects and move them together
@@ -52,7 +55,7 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 - Cable flow animation overlay
 - Cable Report with order lengths, configurable stock sizes, and CSV export
 - Warns on fixtures with missing power or data connections
-- **Rigging & load**: weights per fixture, bar self-weight and rated capacity, hoist (pick-up) points with solved loads (exact for two hoists, continuous-beam for three or more), overload / uplift warnings, hoist markers on the plot, and a CSV rig report. A planning aid, not an engineering certification.
+- **Rigging & load**: weights per fixture, bar self-weight and rated capacity, hoist (pick-up) points with solved loads (exact for two hoists, continuous-beam for three or more), overload / uplift warnings, hoist markers on the plot, and a CSV rig report. Bar and hoist rating presets, auto-placement of hoists for best balance, and hoists you can drag along the bar or type an exact position for. A planning aid, not an engineering certification.
 
 ### DMX & Reports
 - Full DMX patch panel with conflict detection
@@ -116,8 +119,12 @@ npm install
 # Run in development (no rebuild on change)
 npm run dev
 
-# Build and run
+# Build and run (production bundle)
 npm start
+
+# Development bundle with readable stack traces / watch mode
+npm run build:dev
+npm run watch
 
 # Tests (Vitest) and lint (ESLint) — both run in CI
 npm test

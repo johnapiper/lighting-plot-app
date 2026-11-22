@@ -60,7 +60,7 @@ export function footprintOf(f, fixtureTypes = []) {
   return f.dmxChannelCount || mode?.channelCount || (typeof t?.channels === 'number' ? t.channels : 0) || 1;
 }
 
-/** Set of fixture ids whose DMX ranges overlap another fixture's in the same universe. */
+/** Set of fixture ids whose DMX ranges overlap another fixture's in the same universe. O(n log n): sort + sweep. */
 export function findDmxConflicts(fixtures) {
   const conflictIds = new Set();
   const byUniverse = {};
@@ -71,14 +71,14 @@ export function findDmxConflicts(fixtures) {
     (byUniverse[addr.universe] = byUniverse[addr.universe] || [])
       .push({ id: f.id, start: addr.channel, end: addr.channel + chCount - 1 });
   }
-  for (const u of Object.values(byUniverse)) {
-    for (let i = 0; i < u.length; i++) {
-      for (let j = i + 1; j < u.length; j++) {
-        if (u[i].start <= u[j].end && u[j].start <= u[i].end) {
-          conflictIds.add(u[i].id);
-          conflictIds.add(u[j].id);
-        }
-      }
+  for (const list of Object.values(byUniverse)) {
+    list.sort((a, b) => a.start - b.start || a.end - b.end);
+    // `reach` is the furthest-reaching earlier range; if this one starts inside it they overlap. Any other
+    // earlier range that also overlaps this one was already flagged when it was swept (it overlapped `reach` or an earlier range).
+    let reach = null;
+    for (const r of list) {
+      if (reach && r.start <= reach.end) { conflictIds.add(r.id); conflictIds.add(reach.id); }
+      if (!reach || r.end > reach.end) reach = r;
     }
   }
   return conflictIds;

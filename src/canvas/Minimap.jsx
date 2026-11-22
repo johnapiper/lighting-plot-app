@@ -10,7 +10,7 @@ const STORE_KEY = 'lplot-minimap-open';
 function readOpen() { try { return localStorage.getItem(STORE_KEY) !== '0'; } catch { return true; } }
 function writeOpen(v) { try { localStorage.setItem(STORE_KEY, v ? '1' : '0'); } catch {} }
 
-export default function Minimap({ drawing, zoom, pan, vpW, vpH, onPanChange }) {
+function Minimap({ drawing, zoom, pan, vpW, vpH, onPanChange }) {
   const [open, setOpenState] = useState(readOpen);
   const setOpen = (v) => { setOpenState(v); writeOpen(v); };
   const dragRef = useRef(false);
@@ -97,3 +97,6 @@ const styles = {
   hide: { background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 4px' },
   reopen: { position: 'absolute', right: 10, bottom: 10, zIndex: 20, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,17,23,0.88)', border: '1px solid #1a3a5c', borderRadius: 6, color: '#a0aec0', cursor: 'pointer' },
 };
+
+// Memoised: the canvas re-renders on every mouse move; the overview only needs to when the view or drawing changes.
+export default React.memo(Minimap);

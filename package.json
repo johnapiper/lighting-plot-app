@@ -1,11 +1,12 @@
 {
   "name": "lighting-plot-app",
-  "version": "1.7.27",
+  "version": "1.7.28",
   "description": "",
   "main": "main.js",
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "watch": "webpack --config webpack.config.js --watch",
+    "build:dev": "webpack --config webpack.config.js --mode development",
+    "watch": "webpack --config webpack.config.js --watch --mode development",
     "start": "npm run build && electron .",
     "dev": "electron .",
     "dist": "npm run build && electron-builder && npm run verify-dist",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Canvas from './canvas/Canvas';
 import Toolbar from './components/Toolbar';
 import LibraryPanel from './components/LibraryPanel';
@@ -154,7 +154,7 @@ function App() {
     ...fixtureTypesData.map(f => customById[f.id] || f),
     ...(project.customFixtureTypes || []).filter(f => !fixtureTypesData.some(b => b.id === f.id)),
   ];
-  const dmxConflicts    = [...findDmxConflicts(activeDrawing?.fixtures || [])];
+  const dmxConflicts    = useMemo(() => [...findDmxConflicts(activeDrawing?.fixtures || [])], [activeDrawing?.fixtures]);
 
   const allSelectedIds = [...new Set([...(selectedIds||[]), ...(selectedId ? [selectedId] : [])])];
   const groupInfo = (() => {

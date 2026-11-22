@@ -39,3 +39,14 @@ export function fixtureLabel(f, mode) {
   }
 }
 
+// Pan (rotation) + tilt so a fixture at (fx,fy) hung h mm above the floor aims
+// its beam axis at the floor point (tx,ty). Beam direction in the symbol is
+// (-sin(rot), cos(rot)); tilt is the angle from vertical.
+export function aimAt(fx, fy, tx, ty, h) {
+  const dx = tx - fx, dy = ty - fy;
+  const D = Math.hypot(dx, dy);
+  return {
+    rotation: Math.atan2(-dx, dy) * 180 / Math.PI,
+    tilt: Math.atan2(D, h || 5500) * 180 / Math.PI,
+  };
+}

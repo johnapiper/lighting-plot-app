@@ -1,7 +1,7 @@
 import React from 'react';
 import FixtureSymbol from '../fixtures/FixtureSymbol';
 import { beamFootprint } from './beam';
-import { fixtureLabel } from './canvasHelpers';
+import { fixtureLabel, aimAt } from './canvasHelpers';
 
 /**
  * One fixture on the plot canvas: beam footprint, symbol, label and overlays.
@@ -113,3 +113,24 @@ export function cullFixtures(fixtures, view, selected) {
 export function lodFor(visibleCount) {
   return visibleCount > 2500 ? 2 : visibleCount > 900 ? 1 : 0;
 }
+
+/**
+ * All fixtures of one layer. Memoised on its props, so while only the cursor moves
+ * (hover, snap indicator, crosshair…) the whole fixture layer is skipped without even
+ * creating its thousands of elements.
+ */
+export const FixtureLayer = React.memo(function FixtureLayer({
+  items, ftypes, selected, zoom, labelMode, showBeams, rigHeight, pipesById, throwHeightOf,
+  focusModeId, focusCursor, dmxConflictSet, symIds, lod,
+}) {
+  return items.map(f => {
+    const sel = selected.has(f.id);
+    const fp = focusModeId === f.id && focusCursor ? aimAt(f.x, f.y, focusCursor.x, focusCursor.y, rigHeight || 5500) : null;
+    return (
+      <FixtureNode key={f.id} f={f} ftype={ftypes[f.fixtureTypeId]} sel={sel} zoom={zoom} labelMode={labelMode}
+        showBeam={showBeams} beamHeight={throwHeightOf(f, pipesById, rigHeight)} focusPreview={fp}
+        isFocus={f.id === focusModeId} conflict={dmxConflictSet.has(f.id)}
+        lod={sel || fp ? 0 : lod} symId={symIds.get(f.fixtureTypeId) || null} />
+    );
+  });
+});
