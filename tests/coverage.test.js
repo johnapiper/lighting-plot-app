@@ -3,7 +3,10 @@ import { throwHeight, fixtureEllipse, computeCoverage, coverageStats, coverageCo
 
 const type = { id: 't', beamAngle: 30 };
 const mk = (id, x, y, extra = {}) => ({ id, x, y, fixtureTypeId: 't', ...extra });
-const valueAt = (g, x, y) => g.counts[Math.floor((y - g.y0) / g.cell) * g.cols + Math.floor((x - g.x0) / g.cell)];
+const valueAt = (g, x, y) => {
+  const i = Math.floor((x - g.x0) / g.cell), j = Math.floor((y - g.y0) / g.cell);
+  return i < 0 || j < 0 || i >= g.cols || j >= g.rows ? 0 : g.counts[j * g.cols + i];
+};
 
 describe('throwHeight', () => {
   it('uses the pipe height in metres, else the rig height', () => {

@@ -15,6 +15,7 @@ import { objectBounds } from './transforms';
 import { arcPath, getLayerId, fixtureLabel, LABEL_MODES } from './canvasHelpers';
 import { analyzeBar } from '../rigging/loads';
 import { nearestOnSeg } from '../cabling/routing';
+import { computeCoverage, coverageStats, renderCoveragePng, throwHeight, COVERAGE_COLORS } from '../coverage/coverage';
 export { LABEL_MODES };
 
 const RULER_SIZE = 20;
@@ -34,6 +35,7 @@ export default function Canvas({
   activeLayerId,
   animating,
   activeMode = 'cad',
+  showCoverage = false, onToggleCoverage,
   fitRef,
   centerRef,
   viewRef,            // parent gets { zoomAtCenter(z), zoomToBounds(b) }
@@ -189,6 +191,13 @@ export default function Canvas({
     (drawing?.pipes || []).forEach(p => { if (Array.isArray(p.hoists) && p.hoists.length) m.set(p.id, analyzeBar(p, drawing, fixtureTypes || [])); });
     return m;
   }, [drawing?.pipes, drawing?.fixtures, fixtureTypes]);
+  const pipesById = useMemo(() => new Map((drawing?.pipes || []).map(p => [p.id, p])), [drawing?.pipes]);
+  // Floor coverage heatmap (only computed while switched on).
+  const coverage = useMemo(() => {
+    if (!showCoverage || !drawing) return null;
+    const grid = computeCoverage(drawing, fixtureTypes || [], project?.meta || {});
+    return grid ? { grid, url: renderCoveragePng(grid) } : null;
+  }, [showCoverage, drawing?.fixtures, drawing?.pipes, fixtureTypes, project?.meta?.rigHeight]);
 
   // Extract objects from active drawing
   const pipes = drawing?.pipes || [];
@@ -1951,7 +1960,7 @@ export default function Canvas({
             const tiltDeg = focusPreview ? focusPreview.tilt : (f.tiltAngle ?? 0);
             const fxRot   = focusPreview ? focusPreview.rotation : (f.rotation || 0);
             const tiltRad = tiltDeg * Math.PI / 180; // 0 = straight down
-            const h = rigHeight || 5500;                         // throw height (mm) above floor
+            const h = throwHeight(f, pipesById, rigHeight || 5500);  // throw height (mm): the pipe it hangs on, else the rig height
             // Project the cone onto the floor — a true ellipse. The near and far
             // edges are where the cone's leading/trailing rays meet the floor;
             // clamp angles just under 90° so a grazing beam doesn't shoot to ∞.
@@ -2249,6 +2258,7 @@ export default function Canvas({
       <CtxItem kbd="Ctrl+0" onClick={fitView}>⤢ Fit to Window</CtxItem>
       <CtxItem onClick={() => setShowBeams(v => !v)}>{showBeams ? '🔦 Hide Beam Footprints' : '🔦 Show Beam Footprints'}</CtxItem>
       <CtxItem onClick={() => setShowLoads(v => !v)}>{showLoads ? '🏗 Hide Hoist Loads' : '🏗 Show Hoist Loads'}</CtxItem>
+      {onToggleCoverage && <CtxItem onClick={onToggleCoverage}>{showCoverage ? '🟦 Hide Floor Coverage' : '🟦 Show Floor Coverage'}</CtxItem>}
     </>);
   }
 
@@ -2313,6 +2323,11 @@ export default function Canvas({
         <g transform={`translate(${ro},${ro})`}>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
             {renderGrid()}
+            {coverage && (
+              <image href={coverage.url} x={coverage.grid.x0} y={coverage.grid.y0}
+                width={coverage.grid.cols * coverage.grid.cell} height={coverage.grid.rows * coverage.grid.cell}
+                preserveAspectRatio="none" style={{ imageRendering: 'pixelated', pointerEvents: 'none' }} />
+            )}
 
             {/* Layer-ordered objects */}
             {allLayerIds.map(lid => renderForLayer(lid))}
@@ -2678,6 +2693,27 @@ export default function Canvas({
         })()}
         <text x={ro+8} y={1000-8} fontSize={9} fill="#4a6080">1:{meta?.scale||25} · Grid {formatLength(gridSize, meta?.units || 'mm')}</text>
       </svg>
+      {coverage && (() => {
+        const sel = rectangles.find(r => r.id === selectedId && !r.rotation);
+        const st = coverageStats(coverage.grid, sel ? { x: sel.x, y: sel.y, w: sel.w, h: sel.h } : null);
+        const m2 = (v) => `${(Math.round(v * 10) / 10).toString()} m²`;
+        return (
+          <div style={{ position: 'absolute', left: 38, bottom: 12, background: 'rgba(16,21,31,0.92)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 10px', fontSize: 11, color: 'var(--text-muted)', pointerEvents: 'none', maxWidth: 260 }}>
+            <div style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Floor coverage · beams overlapping</div>
+            <div style={{ display: 'flex', gap: 3, marginBottom: 5 }}>
+              {COVERAGE_COLORS.map((c, i) => (
+                <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 11, height: 11, background: c, opacity: 0.8, borderRadius: 2 }} />{i + 1 === COVERAGE_COLORS.length ? `${i + 1}+` : i + 1}
+                </span>
+              ))}
+            </div>
+            <div>{coverage.grid.fixtures} fixture{coverage.grid.fixtures === 1 ? '' : 's'} with a beam angle · most overlap {coverage.grid.max}</div>
+            {st && !st.scoped && <div>Lit: {m2(st.m2.one)} · by 2+: {m2(st.m2.two)}</div>}
+            {st && st.scoped && <div style={{ color: 'var(--text)' }}>Selected rectangle ({m2(st.totalM2)}): {Math.round(st.pct.one * 100)}% lit · {Math.round(st.pct.two * 100)}% by 2+ · {Math.round(st.pct.three * 100)}% by 3+</div>}
+            {!sel && <div style={{ color: 'var(--text-faint)' }}>Select a rectangle to measure coverage inside it.</div>}
+          </div>
+        );
+      })()}
       {activeMode !== 'sheet' && (
         <Minimap drawing={drawing} zoom={zoom} pan={pan}
           vpW={vpSize.w - ro} vpH={vpSize.h - ro} onPanChange={onPanChange} />

@@ -40,7 +40,7 @@ export function fixtureEllipse(f, type, height) {
  * @param {{ cell?: number, maxCells?: number }} opts  cell size in mm (grows automatically if the area is huge)
  * @returns {null | { x0, y0, cell, cols, rows, counts: Uint8Array, max: number, fixtures: number }}
  */
-export function computeCoverage(drawing, fixtureTypes = [], meta = {}, { cell = 250, maxCells = 1_000_000 } = {}) {
+export function computeCoverage(drawing, fixtureTypes = [], meta = {}, { cell = 150, maxCells = 1_000_000 } = {}) {
   const types = new Map((fixtureTypes || []).map(t => [t.id, t]));
   const pipesById = new Map((drawing.pipes || []).map(p => [p.id, p]));
   const rigMm = parseFloat(meta.rigHeight) || 5500;

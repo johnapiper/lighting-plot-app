@@ -105,6 +105,7 @@ function App() {
   const [showTemplates, setShowTemplates]           = useState(false);
   const [showAutoAssign, setShowAutoAssign]         = useState(false);
   const [showRigging, setShowRigging]               = useState(false);
+  const [showCoverage, setShowCoverage]           = useState(false);
   const [showRigPresets, setShowRigPresets]       = useState(false);
   const [showDrawingTemplates, setShowDrawingTemplates] = useState(false);
   const [transformMode, setTransformMode]           = useState(null); // 'array'|'align'|'mirror'|'offset'|'duplicate'|null
@@ -1131,6 +1132,7 @@ function App() {
     lockedCmd('templates', { id: 'templates', group: 'Panels', label: 'Project templates', run: () => setShowTemplates(true) }),
     lockedCmd('templates', { id: 'dtemplates', group: 'Panels', label: 'Drawing templates', run: () => setShowDrawingTemplates(true) }),
     ...(project.views || []).map(v => ({ id: `view-${v.id}`, group: 'View', label: `Apply view: ${v.name}`, keywords: 'layers visibility saved view', run: () => handleApplyView(v.id) })),
+    { id: 'coverage', group: 'View', label: showCoverage ? 'Hide floor coverage' : 'Show floor coverage', keywords: 'beam overlap heatmap pools stage floor light', disabled: activeMode !== 'cad', run: () => setShowCoverage(v => !v) },
     { id: 'rigging', group: 'Panels', label: 'Rigging & load report…', keywords: 'weight hoist motor capacity truss pipe bar load wll', disabled: activeMode !== 'cad', run: () => setShowRigging(true) },
     { id: 'autoassign', group: 'Panels', label: 'Auto-number & patch…', keywords: 'renumber sequence patch address universe rules', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: () => setShowAutoAssign(true) },
     { id: 'number', group: 'Panels', label: numbering ? 'Stop click-to-number' : 'Click-to-number fixtures', shortcut: 'N', keywords: 'channel unit renumber sequence', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: toggleNumbering },
@@ -1261,6 +1263,7 @@ function App() {
               activeLayerId={activeLayerId}
               animating={animating}
               activeMode={activeMode}
+              showCoverage={showCoverage} onToggleCoverage={() => setShowCoverage(v => !v)}
               fitRef={fitViewRef}
               centerRef={centerViewRef}
               viewRef={viewRef}
@@ -1495,6 +1498,7 @@ function App() {
               <button style={{ ...styles.statusBtn, ...(numbering ? { color:'var(--accent-soft)' } : {}) }} onClick={toggleNumbering}
                 title="Click fixtures in order to number their channels or units (N)">Number</button>
             )}
+            {activeMode === 'cad' && (<button style={{ ...styles.statusBtn, ...(showCoverage ? { color: 'var(--accent-soft)' } : {}) }} onClick={() => setShowCoverage(v => !v)} title="Heatmap of how many beams reach each part of the floor">Coverage</button>)}
             {activeMode === 'cad' && (<button style={styles.statusBtn} onClick={() => setShowRigging(true)} title="Weights, hoist loads and capacity check per bar">Rigging</button>)}
             {activeMode === 'cad' && canUseLibrary && canEditCanvas && (<button style={styles.statusBtn} onClick={() => setShowAutoAssign(true)}
                 title="Auto-number and auto-patch with rules and a preview">Auto-assign</button>)}
