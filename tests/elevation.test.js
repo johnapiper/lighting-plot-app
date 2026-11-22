@@ -17,7 +17,7 @@ describe('projectPlan', () => {
   });
   it('right and facing axes are perpendicular unit vectors', () => {
     Object.values(ELEV_DIRS).forEach(({ f, r }) => {
-      expect(f[0] * r[0] + f[1] * r[1]).toBe(0);
+      expect(f[0] * r[0] + f[1] * r[1]).toBeCloseTo(0, 9);
       expect(Math.hypot(...f)).toBe(1);
       expect(Math.hypot(...r)).toBe(1);
     });
@@ -110,7 +110,7 @@ describe('buildElevation', () => {
   it('a section band keeps only what lies inside the slice', () => {
     // facing up, depth = -y: pipe a (y=1000) depth -1000, pipe b (y=4000) depth -4000
     const m = buildElevation(drawing, types, meta, { dir: 'up', band: { min: -1500, max: -500 } });
-    expect(m.pipes.map(p => p.id)).toEqual(['a']);
+    expect(m.pipes.map(p => p.id).sort()).toEqual(['a', 'c']);   // the boom runs through the slice too
     expect(m.fixtures.map(f => f.id)).toEqual(['f1']);
     expect(m.infra).toHaveLength(0);
     // a pipe running through the slice is kept even if its end points are outside it

@@ -41,6 +41,7 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 - Title block, annotations with arrows, text boxes, fixture legend
 - Print via native print preview
 - Export the current sheet, or **all sheets into one multi-page vector PDF** (mixed paper sizes)
+- **Elevation and section viewports**: show a plot from the front, back or either side with true pipe heights, hanging fixtures, beam cones, height dimensions and a grid line; optionally slice to a depth band to make a section
 
 ### Cabling
 - Place PDUs, DMX nodes, network switches, and floor boxes
@@ -51,6 +52,7 @@ Lighting Plot is a CAD application for drafting theatrical and live-event lighti
 - Cable flow animation overlay
 - Cable Report with order lengths, configurable stock sizes, and CSV export
 - Warns on fixtures with missing power or data connections
+- **Rigging & load**: weights per fixture, bar self-weight and rated capacity, hoist (pick-up) points with solved loads (exact for two hoists, continuous-beam for three or more), overload / uplift warnings, hoist markers on the plot, and a CSV rig report. A planning aid, not an engineering certification.
 
 ### DMX & Reports
 - Full DMX patch panel with conflict detection
@@ -164,10 +166,12 @@ lighting-plot-app/
 │   ├── components/          # UI panels and modals
 │   ├── console/             # Eos patch + Magic Sheet export
 │   ├── dxf/                 # DXF reader / writer
+│   ├── elevation/           # Elevation / section projection
 │   ├── fixtures/            # Fixture symbol rendering
 │   ├── hooks/               # Extracted App hooks (exports, autosave, theme)
 │   ├── mvr/                 # MVR export / import
 │   ├── patch/               # DMX helpers + auto-number / auto-patch rules
+│   ├── rigging/             # Bar weights, hoist reactions, capacity checks
 │   └── store/               # Project model, migration, undo stack
 ├── tests/                   # Vitest suites (pure logic, IPC allow-list sync)
 ├── data/

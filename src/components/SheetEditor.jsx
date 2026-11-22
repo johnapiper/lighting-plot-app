@@ -2,6 +2,9 @@ import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from
 import FixtureSymbol from '../fixtures/FixtureSymbol';
 import { useToolHints } from './ToolHint';
 import { toast } from './Toast';
+import ElevationContent, { elevationLabel } from './ElevationContent';
+import { buildElevation, ELEV_DIRS } from '../elevation/elevation';
+import { getLayerId as layerIdOf } from '../canvas/canvasHelpers';
 import { ipcRenderer } from '../bridge';
 
 const SHEET_TOOL_HINT = { select: 'select', viewport: 'viewport', text: 'sheettext', annotate: 'note', keyblock: 'keyblock' };
@@ -114,8 +117,47 @@ function CadContent({ drawing, fixtureTypes, layers, worldScale = 1 }) {
   );
 }
 
+// ── Fit a viewport to its content ────────────────────────────────────────────
+// Returns { centerX, centerY, displayScale } or null when there is nothing to fit.
+// Plan viewports centre on plan extents; elevation/section viewports centre on the
+// projected (u, v) extents — see src/elevation/elevation.js.
+function fitViewportTo(vp, drawing, fixtureTypes, meta, layers) {
+  if (!drawing) return null;
+  let minX, maxX, minY, maxY;
+  if (vp.view === 'elev') {
+    const visible = (obj, kind) => {
+      if (!layers || !layers.length) return true;
+      const l = layers.find(l => l.id === layerIdOf(obj, kind));
+      return l ? l.visible !== false : true;
+    };
+    const m = buildElevation(drawing, fixtureTypes, meta || {}, { dir: vp.elevDir || 'up', band: vp.elevBand || null, visible });
+    if (!m.bounds) return null;
+    ({ minU: minX, maxU: maxX, minV: minY, maxV: maxY } = m.bounds);
+    const padU = (maxX - minX) * 0.12 + 800;
+    minX -= padU * 1.6; maxX += padU * 0.6;      // extra room on the left for the height dimensions
+    minY -= 700; maxY += 700;
+  } else {
+    const pts = [];
+    (drawing.fixtures||[]).forEach(f => pts.push([f.x-25, f.y-25],[f.x+25, f.y+25]));
+    (drawing.pipes||[]).forEach(p => pts.push([p.x1,p.y1],[p.x2,p.y2]));
+    (drawing.lines||[]).forEach(l => pts.push([l.x1,l.y1],[l.x2,l.y2]));
+    (drawing.rectangles||[]).forEach(r => pts.push([r.x,r.y],[r.x+r.w,r.y+r.h]));
+    (drawing.images||[]).forEach(i => pts.push([i.x,i.y],[i.x+i.w,i.y+i.h]));
+    if (drawing.pdfBackground) {
+      const bg = drawing.pdfBackground;
+      pts.push([bg.x,bg.y],[bg.x+bg.w,bg.y+bg.h]);
+    }
+    if (!pts.length) return null;
+    const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
+    minX = Math.min(...xs); maxX = Math.max(...xs); minY = Math.min(...ys); maxY = Math.max(...ys);
+  }
+  const padding = vp.view === 'elev' ? 1.0 : 1.1;
+  const displayScale = Math.max((maxX-minX)/vp.w, (maxY-minY)/vp.h) * padding;
+  return { centerX: (minX+maxX)/2, centerY: (minY+maxY)/2, displayScale: Math.max(1, Math.round(displayScale)) };
+}
+
 // ── Viewport element ──────────────────────────────────────────────────────────
-function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDown, onContextMenu }) {
+function ViewportEl({ vp, drawing, fixtureTypes, layers, meta, ps, selected, onMouseDown, onContextMenu }) {
   const x = vp.x*ps, y = vp.y*ps, w = vp.w*ps, h = vp.h*ps;
   const renderScale = vp.displayScale || vp.scale;
   const worldScale = ps / renderScale;
@@ -136,7 +178,9 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
       <rect x={x} y={y} width={w} height={h} fill="white" stroke="#bbb" strokeWidth={0.5} />
       <g clipPath={`url(#${clipId})`}>
         <g transform={`translate(${tx},${ty}) scale(${worldScale})`}>
-          <CadContent drawing={drawing} fixtureTypes={fixtureTypes} layers={layers} worldScale={worldScale} />
+          {vp.view === 'elev'
+            ? <ElevationContent drawing={drawing} fixtureTypes={fixtureTypes} layers={layers} meta={meta} vp={vp} renderScale={renderScale} />
+            : <CadContent drawing={drawing} fixtureTypes={fixtureTypes} layers={layers} worldScale={worldScale} />}
         </g>
       </g>
       <rect x={x} y={y} width={w} height={h} fill="none"
@@ -144,7 +188,7 @@ function ViewportEl({ vp, drawing, fixtureTypes, layers, ps, selected, onMouseDo
         data-sel-outline="#888" />
       <text x={x+3} y={y+h-3} fontSize={7} fill="#888" style={{ userSelect:'none', pointerEvents:'none' }}
         data-vp-label="true">
-        1:{renderScale} · {drawing?.name||'—'}{vp.locked ? ' 🔒' : ''}
+        1:{renderScale} · {drawing?.name||'—'}{vp.view === 'elev' ? ` · ${elevationLabel(vp)}` : ''}{vp.locked ? ' 🔒' : ''}
       </text>
       {isFalseScale && (
         <text x={x+w/2} y={y+14} textAnchor="middle" fontSize={9}
@@ -450,26 +494,11 @@ export default function SheetEditor({
   // ── Viewport right-click menu actions ──────────────────────────────────────
   function zoomVpToExtents(vp) {
     const drawing = drawings.find(d => d.id === vp.drawingId);
-    if (!drawing) return;
-    const pts = [];
-    (drawing.fixtures||[]).forEach(f => pts.push([f.x-25, f.y-25],[f.x+25, f.y+25]));
-    (drawing.pipes||[]).forEach(p => pts.push([p.x1,p.y1],[p.x2,p.y2]));
-    (drawing.lines||[]).forEach(l => pts.push([l.x1,l.y1],[l.x2,l.y2]));
-    (drawing.rectangles||[]).forEach(r => pts.push([r.x,r.y],[r.x+r.w,r.y+r.h]));
-    (drawing.images||[]).forEach(i => pts.push([i.x,i.y],[i.x+i.w,i.y+i.h]));
-    if (drawing.pdfBackground) {
-      const bg = drawing.pdfBackground;
-      pts.push([bg.x,bg.y],[bg.x+bg.w,bg.y+bg.h]);
-    }
-    if (!pts.length) return;
-    const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
-    const minX=Math.min(...xs), maxX=Math.max(...xs);
-    const minY=Math.min(...ys), maxY=Math.max(...ys);
-    const padding = 1.1;
-    const displayScale = Math.max((maxX-minX)/vp.w, (maxY-minY)/vp.h) * padding;
+    const fit = fitViewportTo(vp, drawing, fixtureTypes, project.meta, project.layers);
+    if (!fit) return;
     commitSheet(s => {
       const v = s.viewports.find(v => v.id === vp.id);
-      if (v) { v.centerX=(minX+maxX)/2; v.centerY=(minY+maxY)/2; v.displayScale=Math.max(1,Math.round(displayScale)); }
+      if (v) Object.assign(v, fit);
     });
   }
 
@@ -819,7 +848,7 @@ export default function SheetEditor({
             {(activeSheet.viewports||[]).map(vp => (
               <ViewportEl key={vp.id} vp={vp}
                 drawing={drawings.find(d=>d.id===vp.drawingId)} fixtureTypes={fixtureTypes}
-                layers={project.layers||[]}
+                layers={project.layers||[]} meta={project.meta}
                 ps={ps} selected={selectedId===vp.id}
                 onMouseDown={(e,v,h) => startVpDrag(e,v,h)}
                 onContextMenu={(e,v) => { e.stopPropagation(); setVpCtxMenu({sx:e.clientX,sy:e.clientY,vp:v}); }} />
@@ -1033,7 +1062,14 @@ export default function SheetEditor({
         {/* Inspector */}
         <div style={sty.inspector}>
           {selVp    && <VpInspector    vp={selVp}      drawings={drawings}
-            onUpdate={f=>commitSheet(s=>{const v=s.viewports.find(v=>v.id===selVp.id);if(v)Object.assign(v,f);})}
+            onUpdate={f=>commitSheet(s=>{
+              const v=s.viewports.find(v=>v.id===selVp.id); if(!v) return;
+              Object.assign(v,f);
+              if (f.view!==undefined || f.elevDir!==undefined) {
+                const fit = fitViewportTo(v, drawings.find(d=>d.id===v.drawingId), fixtureTypes, project.meta, project.layers);
+                if (fit) Object.assign(v, fit);
+              }
+            })}
             onDelete={()=>{commitSheet(s=>{s.viewports=s.viewports.filter(v=>v.id!==selVp.id);});setSelectedId(null);}}
             onZoomExtents={()=>zoomVpToExtents(selVp)}
             onZoomWindow={()=>startZoomWindow(selVp)} />}
@@ -1168,6 +1204,48 @@ function VpInspector({ vp, drawings, onUpdate, onDelete, onZoomExtents, onZoomWi
           {drawings.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
       </InspField>
+      <InspField label="View">
+        <select style={sty.inp} value={vp.view === 'elev' ? 'elev' : 'plan'} onChange={e=>onUpdate({view:e.target.value})}>
+          <option value="plan">Plan</option>
+          <option value="elev">Elevation / section</option>
+        </select>
+      </InspField>
+      {vp.view === 'elev' && (
+        <>
+          <InspField label="Viewer faces">
+            <select style={sty.inp} value={vp.elevDir || 'up'} onChange={e=>onUpdate({elevDir:e.target.value})}>
+              {Object.entries(ELEV_DIRS).map(([k,d]) => <option key={k} value={k}>{d.label}</option>)}
+            </select>
+          </InspField>
+          <InspField label="Section slice (depth, mm)">
+            <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'#a0aec0',marginBottom:4}}>
+              <input type="checkbox" checked={!!vp.elevBand}
+                onChange={e=>onUpdate({elevBand: e.target.checked ? {min:-1000,max:1000} : undefined})} />
+              Only show objects inside a slice
+            </label>
+            {vp.elevBand && (
+              <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                <input style={{...sty.inp,flex:1}} type="number" value={Math.round(vp.elevBand.min)}
+                  onChange={e=>onUpdate({elevBand:{...vp.elevBand,min:Number(e.target.value)}})} title="Near edge of the slice (mm away from the viewer; negative = behind the origin)" />
+                <span style={{color:'#718096',fontSize:10}}>to</span>
+                <input style={{...sty.inp,flex:1}} type="number" value={Math.round(vp.elevBand.max)}
+                  onChange={e=>onUpdate({elevBand:{...vp.elevBand,max:Number(e.target.value)}})} title="Far edge of the slice" />
+              </div>
+            )}
+            <div style={{fontSize:9,color:'#718096',lineHeight:1.5,marginTop:3}}>
+              Depth is measured away from the viewer along the plan axis they face (0 = the plan origin).
+            </div>
+          </InspField>
+          <InspField label="Show">
+            <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'#a0aec0'}}>
+              <input type="checkbox" checked={vp.elevBeams !== false} onChange={e=>onUpdate({elevBeams:e.target.checked})} /> Beam cones
+            </label>
+            <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'#a0aec0',marginTop:2}}>
+              <input type="checkbox" checked={vp.elevLabels !== false} onChange={e=>onUpdate({elevLabels:e.target.checked})} /> Channel / unit labels
+            </label>
+          </InspField>
+        </>
+      )}
       <InspField label="Scale 1:">
         <input style={sty.inp} type="number" min={1} value={vp.scale}
           onChange={e=>onUpdate({scale:Math.max(1,Number(e.target.value)),displayScale:undefined})} />
