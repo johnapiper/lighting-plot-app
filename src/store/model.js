@@ -98,6 +98,7 @@ export const initialProject = {
   layers: DEFAULT_LAYERS,
   meta: { title: 'Untitled', scale: 50, gridSize: 1372, gridHeight: 6000, rigHeight: 5500, units: 'mm' },
   revisions: [],  // named snapshots [{id, name, timestamp, snapshot}]
+  views: [],      // named layer-visibility sets [{id, name, layers:{layerId:boolean}}]
 };
 
 // ── Migration ─────────────────────────────────────────────────────────────
@@ -166,6 +167,7 @@ export function migrateProject(loaded) {
     });
   }
   if (!loaded.revisions) loaded.revisions = [];
+  if (!Array.isArray(loaded.views)) loaded.views = [];
   if (!loaded.meta?.units) { if (loaded.meta) loaded.meta.units = 'mm'; }
   // Ensure meta has studio height settings
   if (!loaded.meta) loaded.meta = {};

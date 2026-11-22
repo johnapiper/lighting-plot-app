@@ -1,11 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { generateId } from '../canvas/geometry';
+import { matchingView } from '../views/views';
 
 const EYE_ON = '👁';
 const LOCK_CLOSED = '🔒';
 const LOCK_OPEN = '🔓';
 
-export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, onDeleteLayer, onReorderLayers, draggingCanvasId, activeLayerId, onSetActiveLayer }) {
+export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, onDeleteLayer, onReorderLayers, draggingCanvasId, activeLayerId, onSetActiveLayer, views = [], onApplyView, onSaveView, onUpdateView, onRenameView, onDeleteView }) {
+  const [viewName, setViewName] = useState(null);          // string while naming a new view, else null
+  const [renamingView, setRenamingView] = useState(null);   // { id, name }
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [dragIdx, setDragIdx] = useState(null);
@@ -130,6 +133,48 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
         })}
       </div>
 
+      {onSaveView && (
+        <div style={styles.viewsBox}>
+          <div style={styles.viewsTitle}>Views</div>
+          {(() => {
+            const current = matchingView(layers, views);
+            return (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <select style={styles.viewSelect} value={current?.id || ''} title="Apply a saved set of visible layers"
+                  onChange={e => { if (e.target.value) onApplyView(e.target.value); }}>
+                  <option value="">{views.length ? 'Custom (apply a view…)' : 'No saved views'}</option>
+                  {views.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+                <button style={styles.iconBtn} title="Save the current layer visibility as a new view" onClick={() => setViewName('')}>＋</button>
+                {current && <button style={styles.iconBtn} title="Update this view to the current visibility" onClick={() => onUpdateView(current.id)}>⟳</button>}
+                {current && <button style={styles.iconBtn} title="Rename this view" onClick={() => setRenamingView({ id: current.id, name: current.name })}>✎</button>}
+                {current && <button style={{ ...styles.iconBtn, color: 'var(--danger-text)' }} title="Delete this view" onClick={() => onDeleteView(current.id)}>×</button>}
+              </div>
+            );
+          })()}
+          {viewName !== null && (
+            <input autoFocus style={{ ...styles.nameInput, marginTop: 4, width: '100%', boxSizing: 'border-box' }} placeholder="View name, e.g. FOH only"
+              value={viewName} onChange={e => setViewName(e.target.value)}
+              onBlur={() => setViewName(null)}
+              onKeyDown={e => {
+                e.stopPropagation();
+                if (e.key === 'Escape') setViewName(null);
+                if (e.key === 'Enter' && viewName.trim()) { onSaveView(viewName.trim()); setViewName(null); }
+              }} />
+          )}
+          {renamingView && (
+            <input autoFocus style={{ ...styles.nameInput, marginTop: 4, width: '100%', boxSizing: 'border-box' }}
+              value={renamingView.name} onChange={e => setRenamingView(r => ({ ...r, name: e.target.value }))}
+              onBlur={() => setRenamingView(null)}
+              onKeyDown={e => {
+                e.stopPropagation();
+                if (e.key === 'Escape') setRenamingView(null);
+                if (e.key === 'Enter' && renamingView.name.trim()) { onRenameView(renamingView.id, renamingView.name.trim()); setRenamingView(null); }
+              }} />
+          )}
+        </div>
+      )}
+
       {draggingCanvasId && (
         <div style={styles.hint}>Drag object over a layer to reassign it</div>
       )}
@@ -138,6 +183,9 @@ export default function LayersPanel({ layers = [], onUpdateLayer, onAddLayer, on
 }
 
 const styles = {
+  viewsBox: { padding: '6px 8px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 },
+  viewsTitle: { fontSize: 9, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 },
+  viewSelect: { flex: 1, minWidth: 0, background: 'var(--bg-inset)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)', fontSize: 11, padding: '3px 4px' },
   panel: {
     width: '100%',
     background: 'var(--bg-panel)',

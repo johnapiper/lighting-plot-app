@@ -5,6 +5,7 @@ import { toast } from './Toast';
 import ElevationContent, { elevationLabel } from './ElevationContent';
 import { buildElevation, ELEV_DIRS } from '../elevation/elevation';
 import { getLayerId as layerIdOf } from '../canvas/canvasHelpers';
+import { layersForViewport } from '../views/views';
 import { ipcRenderer } from '../bridge';
 
 const SHEET_TOOL_HINT = { select: 'select', viewport: 'viewport', text: 'sheettext', annotate: 'note', keyblock: 'keyblock' };
@@ -157,7 +158,8 @@ function fitViewportTo(vp, drawing, fixtureTypes, meta, layers) {
 }
 
 // ── Viewport element ──────────────────────────────────────────────────────────
-function ViewportEl({ vp, drawing, fixtureTypes, layers, meta, ps, selected, onMouseDown, onContextMenu }) {
+function ViewportEl({ vp, drawing, fixtureTypes, layers: planLayers, views, meta, ps, selected, onMouseDown, onContextMenu }) {
+  const layers = layersForViewport(planLayers, views, vp.viewId);
   const x = vp.x*ps, y = vp.y*ps, w = vp.w*ps, h = vp.h*ps;
   const renderScale = vp.displayScale || vp.scale;
   const worldScale = ps / renderScale;
@@ -494,7 +496,7 @@ export default function SheetEditor({
   // ── Viewport right-click menu actions ──────────────────────────────────────
   function zoomVpToExtents(vp) {
     const drawing = drawings.find(d => d.id === vp.drawingId);
-    const fit = fitViewportTo(vp, drawing, fixtureTypes, project.meta, project.layers);
+    const fit = fitViewportTo(vp, drawing, fixtureTypes, project.meta, layersForViewport(project.layers, project.views, vp.viewId));
     if (!fit) return;
     commitSheet(s => {
       const v = s.viewports.find(v => v.id === vp.id);
@@ -848,7 +850,7 @@ export default function SheetEditor({
             {(activeSheet.viewports||[]).map(vp => (
               <ViewportEl key={vp.id} vp={vp}
                 drawing={drawings.find(d=>d.id===vp.drawingId)} fixtureTypes={fixtureTypes}
-                layers={project.layers||[]} meta={project.meta}
+                layers={project.layers||[]} views={project.views||[]} meta={project.meta}
                 ps={ps} selected={selectedId===vp.id}
                 onMouseDown={(e,v,h) => startVpDrag(e,v,h)}
                 onContextMenu={(e,v) => { e.stopPropagation(); setVpCtxMenu({sx:e.clientX,sy:e.clientY,vp:v}); }} />
@@ -1061,12 +1063,12 @@ export default function SheetEditor({
 
         {/* Inspector */}
         <div style={sty.inspector}>
-          {selVp    && <VpInspector    vp={selVp}      drawings={drawings}
+          {selVp    && <VpInspector    vp={selVp}      drawings={drawings} views={project.views||[]}
             onUpdate={f=>commitSheet(s=>{
               const v=s.viewports.find(v=>v.id===selVp.id); if(!v) return;
               Object.assign(v,f);
               if (f.view!==undefined || f.elevDir!==undefined) {
-                const fit = fitViewportTo(v, drawings.find(d=>d.id===v.drawingId), fixtureTypes, project.meta, project.layers);
+                const fit = fitViewportTo(v, drawings.find(d=>d.id===v.drawingId), fixtureTypes, project.meta, layersForViewport(project.layers, project.views, v.viewId));
                 if (fit) Object.assign(v, fit);
               }
             })}
@@ -1195,13 +1197,20 @@ export default function SheetEditor({
 }
 
 // ── Sub-inspectors ────────────────────────────────────────────────────────────
-function VpInspector({ vp, drawings, onUpdate, onDelete, onZoomExtents, onZoomWindow }) {
+function VpInspector({ vp, drawings, views = [], onUpdate, onDelete, onZoomExtents, onZoomWindow }) {
   return (
     <div style={sty.insp}>
       <div style={sty.inspHeader}>Viewport</div>
       <InspField label="Plot">
         <select style={sty.inp} value={vp.drawingId||''} onChange={e=>onUpdate({drawingId:e.target.value})}>
           {drawings.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </InspField>
+      <InspField label="Layers shown">
+        <select style={sty.inp} value={vp.viewId || ''} onChange={e=>onUpdate({viewId:e.target.value || undefined})}
+          title="Use a saved view's layer visibility in this viewport only">
+          <option value="">Follow the plot</option>
+          {views.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
         </select>
       </InspField>
       <InspField label="View">

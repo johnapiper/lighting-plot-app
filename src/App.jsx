@@ -36,6 +36,7 @@ import RiggingReport from './components/RiggingReport';
 import { analyzeBar } from './rigging/loads';
 import { autoPlaceHoists } from './rigging/autoplace';
 import { getPresets } from './rigging/presets';
+import { captureView, applyViewToLayers, uniqueViewName, addView, renameView, deleteView, recaptureView } from './views/views';
 import RigPresetsModal from './components/RigPresetsModal';
 import CommandPalette from './components/CommandPalette';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -761,6 +762,23 @@ function App() {
       return proj;
     });
   }
+  // ── Named views (saved layer visibility) ──────────────────────────────────
+  function handleSaveView(name) {
+    commit(proj => { proj.views = addView(proj.views, captureView(proj.layers, uniqueViewName(proj.views, name))); return proj; }, `Save view "${name}"`);
+  }
+  function handleApplyView(id) {
+    const view = (project.views || []).find(v => v.id === id); if (!view) return;
+    commit(proj => { proj.layers = applyViewToLayers(proj.layers, view); return proj; }, `View: ${view.name}`);
+  }
+  function handleUpdateView(id) { commit(proj => { proj.views = recaptureView(proj.views, id, proj.layers); return proj; }, 'Update view'); }
+  function handleRenameView(id, name) { commit(proj => { proj.views = renameView(proj.views, id, name); return proj; }, 'Rename view'); }
+  function handleDeleteView(id) {
+    commit(proj => {
+      proj.views = deleteView(proj.views, id);
+      proj.sheets?.forEach(s => (s.viewports || []).forEach(v => { if (v.viewId === id) delete v.viewId; }));
+      return proj;
+    }, 'Delete view');
+  }
   function handleReorderLayers(newLayers) { commit(proj => { proj.layers = newLayers; return proj; }); }
 
   // ── CAD Plots (called "Drawings" internally in store, "Plots" in UI) ────────
@@ -1112,6 +1130,7 @@ function App() {
     lockedCmd('undo_history', { id: 'history', group: 'Panels', label: 'Undo history', run: () => setShowUndoHistory(true) }),
     lockedCmd('templates', { id: 'templates', group: 'Panels', label: 'Project templates', run: () => setShowTemplates(true) }),
     lockedCmd('templates', { id: 'dtemplates', group: 'Panels', label: 'Drawing templates', run: () => setShowDrawingTemplates(true) }),
+    ...(project.views || []).map(v => ({ id: `view-${v.id}`, group: 'View', label: `Apply view: ${v.name}`, keywords: 'layers visibility saved view', run: () => handleApplyView(v.id) })),
     { id: 'rigging', group: 'Panels', label: 'Rigging & load report…', keywords: 'weight hoist motor capacity truss pipe bar load wll', disabled: activeMode !== 'cad', run: () => setShowRigging(true) },
     { id: 'autoassign', group: 'Panels', label: 'Auto-number & patch…', keywords: 'renumber sequence patch address universe rules', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: () => setShowAutoAssign(true) },
     { id: 'number', group: 'Panels', label: numbering ? 'Stop click-to-number' : 'Click-to-number fixtures', shortcut: 'N', keywords: 'channel unit renumber sequence', disabled: activeMode !== 'cad' || !canUseLibrary || !canEditCanvas, run: toggleNumbering },
@@ -1402,6 +1421,12 @@ function App() {
             draggingCanvasId={false}
             activeLayerId={activeLayerId}
             onSetActiveLayer={handleSetActiveLayer}
+            views={project.views || []}
+            onApplyView={handleApplyView}
+            onSaveView={handleSaveView}
+            onUpdateView={handleUpdateView}
+            onRenameView={handleRenameView}
+            onDeleteView={handleDeleteView}
           />
         </div>}
       </div>
